@@ -25,7 +25,9 @@ def apply_thresholds(
 ) -> ScreeningVerdict:
     """用平台 is.checks 结果 + 本地门槛判断。
 
-    平台已给出各检查 PASS/FAIL（checks），直接采信；metrics 缺失视为基础设施失败。
+    平台已给出各检查 PASS/FAIL（checks），直接采信（P1：平台为权威）；
+    平台 checks 全部 PASS 时不再用本地 margin 降级为 MARGINAL。
+    本地硬门槛兜底平台未覆盖维度；MARGINAL 仅当平台 checks 缺失时使用。
     """
     sharpe_raw = metrics.get("sharpe")
     if not metrics or sharpe_raw is None:
@@ -39,7 +41,7 @@ def apply_thresholds(
             verdict="FAIL", failed_checks=failed, reason=f"平台检查未过: {failed}"
         )
 
-    # 本地硬门槛（平台 checks 未覆盖的）
+    # 本地硬门槛（平台 checks 未覆盖的维度）
     sharpe = float(sharpe_raw)
     fitness = float(metrics.get("fitness") or 0.0)
     turnover = float(metrics.get("turnover") or 0.0)
@@ -59,7 +61,9 @@ def apply_thresholds(
             reason=f"Turnover {turnover:.2f} 超出 [{t.turnover_min}, {t.turnover_max}]",
         )
 
-    # MARGINAL：距任一门槛 10% 内
+    if checks:
+        return ScreeningVerdict(verdict="PASS", reason="平台检查全部通过")
+
     margin = t.margin_marginal
     if sharpe < t.sharpe_d1 * (1 + margin) or fitness < t.fitness_d1 * (1 + margin):
         return ScreeningVerdict(verdict="MARGINAL", reason="指标距门槛余量 <10%")

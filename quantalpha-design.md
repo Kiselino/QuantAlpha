@@ -128,7 +128,7 @@ agent 启动 → 读 cookie（secrets/worldquant_cookies.txt）
 | `brain_client.py` | BRAIN API 封装 | 认证（读 `secrets/worldquant_cookies.txt`）；模拟 POST+轮询+结果（含 is.checks，实测状态值 `COMPLETE`）；`/correlations/self` 相关门；**429 区分处理（常规 Retry-After 退避 vs THROTTLED 抛错）**；分钟限流头读取；401/403 抛 PermissionError 提示重登 |
 | `validate.py` | **本地预检层（省配额核心）** | 语法 lint（括号配对/未知算子）+ **字段白名单校验**（对照 TOP_FIELDS.json 295 字段 + 核心字段，防 LLM 幻觉字段名）+ 表达式 SHA-256 哈希去重 + 复杂度控制（算子 ≤30、嵌套 ≤8） |
 | `candidates.py` | **候选读入** | 读取 agent 写入的 `data/candidates/YYYY-MM-DD.json`（格式：`[{description, hypothesis, expression, dataset_ids}]`）→ 供 validate/screener 处理。**项目内不生成、不调用 LLM**——生成由对话层 agent 完成 |
-| `screener.py` | 门槛过滤 + 去重 | 硬门槛：Fitness≥1.0(D1)/1.3(D0)、Sharpe>1.25(D1)/2.0(D0)、TO 1-70%（本地）；平台 `is.checks` FAIL 直接采信；MARGINAL（距门槛 10% 内）；日收益 Pearson 相关；按 score 降序排序 |
+| `screener.py` | 门槛过滤 + 去重 | 硬门槛：Fitness≥1.0(D1)/1.3(D0)、Sharpe>1.25(D1)/2.0(D0)、TO 1-70%（本地兜底）；平台 `is.checks` 为权威（P1）：FAIL 直接采信、全 PASS 不降级；MARGINAL（距门槛 10% 内）仅当平台 checks 缺失时使用；日收益 Pearson 相关；按 score 降序排序 |
 | `store.py` | 持久化 | SQLite（alphas/simulations/submissions/daily_returns/lessons/failures 表）+ JSONL 审计（`append_audit` 返回时间戳关联 simulations.audit_path）；幂等（INSERT OR REPLACE）、中断后重跑跳过已完成项（靠 alphas.ast_hash 去重） |
 | `report.py` | 报告 | 候选清单 markdown（指标/说明/建议排序）；每日达标汇总文档（`reports/daily/YYYY-MM-DD.md` 追加 + 去重） |
 | `cli.py` | 命令入口 | `qa login` / `qa status` / `qa run` / `qa report`；run 内并发模拟（ThreadPoolExecutor，并发数取 stage 检测值，写库回主线程避免 sqlite 跨线程） |

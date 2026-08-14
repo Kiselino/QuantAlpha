@@ -29,14 +29,24 @@ def test_fail_low_sharpe():
 
 
 def test_marginal_near_threshold():
+    """平台 checks 缺失时本地 margin 判定（兜底）。"""
     t = Thresholds()
     metrics = {"sharpe": 1.3, "fitness": 1.1, "turnover": 0.2}
-    checks = [
-        {"name": "SHARPE", "result": "PASS", "limit": 1.25, "value": 1.3},
-    ]
-    v = apply_thresholds(metrics, checks, t)
+    v = apply_thresholds(metrics, [], t)
     # 1.3 vs 1.25 → 余量 4% < 10% → MARGINAL
     assert v.verdict == "MARGINAL"
+
+
+def test_platform_checks_pass_overrides_marginal():
+    """平台 checks 全部 PASS 时不降级为 MARGINAL（P1：平台为权威）。"""
+    t = Thresholds()
+    metrics = {"sharpe": 1.3, "fitness": 1.02, "turnover": 0.2}
+    checks = [
+        {"name": "LOW_SHARPE", "result": "PASS", "limit": 1.25, "value": 1.3},
+        {"name": "LOW_FITNESS", "result": "PASS", "limit": 1.0, "value": 1.02},
+    ]
+    v = apply_thresholds(metrics, checks, t)
+    assert v.verdict == "PASS"
 
 
 def test_fail_infra_when_no_metrics():

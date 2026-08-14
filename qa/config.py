@@ -1,3 +1,12 @@
+"""应用配置：模拟默认参数 + 提交门槛 + 批处理/并发设置。
+
+- SimulationDefaults：对齐账号实测的平台模拟默认值（设计 §2.2）；
+  顾问阶段可由 stage.py 检测结果覆盖 region/universe 等字段。
+- Thresholds：提交门槛（对齐平台提交检查，设计 §2.3），
+  供 screener 本地过滤与 MARGINAL 判定使用。
+- AppConfig：聚合配置入口。无 LLM 配置——生成由对话层 agent 完成。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

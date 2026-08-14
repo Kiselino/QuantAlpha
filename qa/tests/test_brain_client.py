@@ -1,3 +1,5 @@
+"""brain_client 单测：mock HTTP（限流头解析 / 模拟 Location / 轮询 / 相关性）。"""
+
 from __future__ import annotations
 
 import json

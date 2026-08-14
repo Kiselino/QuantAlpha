@@ -1,3 +1,5 @@
+"""stage 单测：cookie 读取 / users/self 阶段判定（BRONZE / 顾问）/ 请求头。"""
+
 from __future__ import annotations
 
 import json

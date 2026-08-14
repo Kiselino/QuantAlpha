@@ -1,3 +1,9 @@
+"""仓库内私有文件路径集中管理（全部位于 gitignored 区域）。
+
+路径单点定义：CLI / 测试 / 阶段检测统一通过 QaPaths 引用，
+避免字符串散落各处；根目录可注入（测试用 tmp 仓库根）。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

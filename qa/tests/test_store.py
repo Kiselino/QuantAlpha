@@ -1,3 +1,5 @@
+"""store 单测：SQLite CRUD + 幂等 + JSONL 审计。"""
+
 from __future__ import annotations
 
 from qa.paths import QaPaths

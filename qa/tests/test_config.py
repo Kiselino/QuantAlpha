@@ -1,3 +1,5 @@
+"""config/paths 单测：默认阈值、模拟默认值、私有路径布局。"""
+
 from __future__ import annotations
 
 from pathlib import Path

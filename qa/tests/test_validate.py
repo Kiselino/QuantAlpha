@@ -1,3 +1,5 @@
+"""validate 预检层单测：语法 lint / 字段白名单 / 哈希去重 / 复杂度度量。"""
+
 from __future__ import annotations
 
 from qa.validate import (

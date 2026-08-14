@@ -1,3 +1,5 @@
+"""candidates 单测：候选 JSON 读写往返 + 容错（跳过非法条目）。"""
+
 from __future__ import annotations
 
 import json

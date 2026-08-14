@@ -1,3 +1,10 @@
+"""账号阶段检测：读 cookie → GET /users/self → 判定 用户/顾问 阶段。
+
+输出 StageInfo（等级/顾问状态/可用区域/并发/表达式语言/D0 可用性），
+供 `qa status` 启动首查与后续动态配置使用（顾问解锁 12 区域、
+PYTHON/ML 语言等；设计 §3.0）。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -30,12 +37,16 @@ class StageInfo:
 
 
 def read_cookie(path: Path) -> str:
-    """读取会话 cookie（secrets/worldquant_cookies.txt）。"""
+    """读取会话 cookie（secrets/worldquant_cookies.txt）。
+
+    cookie 文件由 agent 维护：用户只需把 BRAIN 请求的 "Copy as cURL"
+    内容发给 agent，agent 解析出 Cookie 后写入本文件（纯 Cookie 头值）。
+    """
     if not path.exists():
         raise FileNotFoundError(
             f"未找到 cookie 文件: {path}。\n"
-            "首次使用请先创建 secrets/ 目录：登录 BRAIN 后从浏览器 Network 面板\n"
-            "复制 Cookie 头，保存为 secrets/worldquant_cookies.txt（详见 README）。"
+            "请把 api.worldquantbrain.com 请求的 Copy as cURL 内容发给 agent，\n"
+            "由 agent 解析并写入本文件（详见 README）。"
         )
     return path.read_text(encoding="utf-8").strip()
 

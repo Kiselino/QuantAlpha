@@ -53,13 +53,13 @@ pip install -e .
 
 ### 2. 配置会话 Cookie
 
-BRAIN API 使用浏览器会话 cookie 认证（JWT，约 4-8 小时有效）：
+BRAIN API 使用浏览器会话 cookie 认证（JWT，约 4-8 小时有效）。**用户无需手动编辑文件**——只需把请求交给 agent，由 agent 解析写入：
 
 1. 登录 [platform.worldquantbrain.com](https://platform.worldquantbrain.com)
 2. 打开浏览器开发者工具（F12）→ Network 面板
 3. 刷新页面，找到任意 `api.worldquantbrain.com` 请求
-4. 复制请求头的 `Cookie:` 完整值 → 存入 `secrets/worldquant_cookies.txt`
-5. 运行 `qa status` 验证（应显示账号阶段 + 配额状态）
+4. 右键该请求 → Copy → **Copy as cURL** → 把整段命令粘贴给 agent（对话里说"更新 cookie"）
+5. agent 解析出 Cookie 后写入 `secrets/worldquant_cookies.txt`，随后运行 `qa status` 验证
 
 > cookie 过期后（提示 401/403）重复上述步骤即可。
 

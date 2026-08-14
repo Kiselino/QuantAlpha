@@ -15,6 +15,8 @@ BASE_URL = "https://api.worldquantbrain.com"
 
 @dataclass
 class RateLimits:
+    """分钟级限流状态（来自响应头；实测 30 请求/分钟）。"""
+
     remaining_minute: int = 30
     limit_minute: int = 30
     reset_seconds: int = 0
@@ -22,8 +24,14 @@ class RateLimits:
 
 @dataclass
 class SimulationResult:
+    """一次模拟的最终结果（轮询完成后组装）。
+
+    status：平台状态值（实测为 COMPLETE，非 COMPLETED）。
+    alpha_id：COMPLETE 后存在，用于拉取 alpha 详情（is 数据）。
+    """
+
     sim_id: str
-    status: str                     # PENDING / COMPLETED / ERROR
+    status: str                     # PENDING / COMPLETE / ERROR / FAILED
     alpha_id: str | None = None
     checks: list[dict] = field(default_factory=list)
     metrics: dict = field(default_factory=dict)
@@ -51,6 +59,11 @@ class BrainClient:
 
     # ---- 基础请求 ----
     def get(self, path: str, params: dict | None = None) -> tuple[int, dict | list, dict]:
+        """GET 请求：返回 (状态码, JSON, headers)。
+
+        401/403 抛 PermissionError（cookie 失效，提示用户重新复制 Cookie）；
+        其余非 2xx 由 raise_for_status 抛出。
+        """
         resp = self.session.get(
             f"{self.base_url}{path}", params=params, timeout=self.timeout
         )
@@ -113,6 +126,9 @@ class BrainClient:
         deadline = time.time() + max_wait
         while time.time() < deadline:
             _, data, _ = self._retry_get(f"/simulations/{sim_id}")
+            if not isinstance(data, dict):  # 防御：平台异常响应（非对象）按 PENDING 继续轮询
+                time.sleep(self.poll_interval)
+                continue
             status = data.get("status", "PENDING")
             if status in ("COMPLETE", "COMPLETED", "ERROR", "FAILED"):
                 alpha_id = data.get("alpha")

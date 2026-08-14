@@ -1,3 +1,5 @@
+"""report 单测：候选清单 markdown 渲染 + 每日汇总写入。"""
+
 from __future__ import annotations
 
 from qa.report import format_candidates, write_daily_summary
@@ -41,3 +43,19 @@ def test_write_daily_summary(tmp_qa):
     content = p.read_text(encoding="utf-8")
     assert "2026-08-14" in content
     assert "价格动量" in content
+
+
+def test_write_daily_summary_dedup(tmp_qa):
+    """同日多次 run：同一表达式与"无通过"标记均不重复追加。"""
+    from qa.paths import QaPaths
+
+    r = QaPaths(tmp_qa).REPORTS_DIR
+    write_daily_summary(CANDIDATES, r, date="2026-08-14")
+    write_daily_summary(CANDIDATES, r, date="2026-08-14")
+    content = (r / "daily" / "2026-08-14.md").read_text(encoding="utf-8")
+    assert content.count("价格动量") == 1
+
+    write_daily_summary([], r, date="2026-08-15")
+    write_daily_summary([], r, date="2026-08-15")
+    content2 = (r / "daily" / "2026-08-15.md").read_text(encoding="utf-8")
+    assert content2.count("今日无通过候选") == 1

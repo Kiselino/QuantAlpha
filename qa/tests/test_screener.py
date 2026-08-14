@@ -1,3 +1,5 @@
+"""screener 单测：门槛判定（PASS/MARGINAL/FAIL/FAIL_INFRA）+ 相关性 + 排序。"""
+
 from __future__ import annotations
 
 import math

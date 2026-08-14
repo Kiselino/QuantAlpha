@@ -176,6 +176,10 @@ def cmd_run(
 
 
 def _settings(cfg: AppConfig) -> dict:
+    """把 SimulationDefaults 转成 BRAIN 模拟 API 的 settings 载荷。
+
+    平台实测要求：unitHandling 与 visualization 必填（见 brain_client.simulate）。
+    """
     d = cfg.defaults
     return {
         "instrumentType": d.instrument_type,

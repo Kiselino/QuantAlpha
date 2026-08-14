@@ -1,3 +1,5 @@
+"""cli 单测：命令分发 + status/run 端到端（mock 阶段检测与模拟）。"""
+
 from __future__ import annotations
 
 import pytest

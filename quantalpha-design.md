@@ -1,12 +1,14 @@
 # QuantAlpha — 系统设计文档（项目职能说明书）
 
-**版本:** v1.1 · **日期:** 2026-08-14 · **状态:** 设计定稿（待实现）
+**版本:** v1.2 · **日期:** 2026-08-14 · **状态:** 第一批已实现跑通（login/status/run/report）
 **读者:** 任何 AI agent / 人类协作者。打开本仓库后，先读 `AGENTS.md`（工作流入口），再读本文（系统全貌）。
 
 > 本文档是 QuantAlpha 系统的唯一权威设计来源。实现、修改、扩展均以本文为准。
 > 本仓库公开分发：工具 + 静态知识库 + 脱敏 playbook 随仓库分发；私有数据（cookie、账号密码、原始经验、个人成果）gitignore 隔离。
 >
 > **v1.1 更新（外部经验复查 + 实测验证）：** ① 新增**账号阶段检测**（启动时判定 用户/顾问，动态配置并发/区域/字段/语言）② 限流机制实测修正（`x-ratelimit-*-minute` 30/分，非日配额）③ 新增 `validate.py` 前置校验层（省无效模拟配额）④ 提交前免费相关门 `/correlations/self`（实测可用）⑤ 提交后二次确认 `status==ACTIVE` ⑥ 自相关改算**日收益**相关 ⑦ 每日提交 1-2 个即达 2000 分封顶（官方计分规则）；用户口径补充：**顾问阶段提交 3+ 个当日奖励封顶** ⑧ 字段优先级/decay 经验值写入生成提示词 ⑨ 经验 schema 扩展 + 证伪库 ⑩ 知识库 RAG 可开关 ⑪ **生成架构调整：项目内不调用 LLM API——生成由对话层 agent（harness）完成，agent 读 knowledge/ 后写候选到 `data/candidates/`，项目只做执行**。
+>
+> **v1.2 更新（第一批实现落地 + 实测修正）：** ① **新增 `auth.py` 账号密码登录**（`qa login`：`POST /authentication` + HTTP Basic Auth → 提取 Set-Cookie `t=` JWT；凭据不落盘不进审计；Persona 人机验证检测提示；保留浏览器复制 cURL 方式）② **会话时长实测 ~4h**（登录响应 `token.expiry ≈ 14222s`；API 登录 JWT `amr=['pwd']` 证实无需验证码——Altcha 仅用于注册）③ **并发模拟落地**（cli `ThreadPoolExecutor`，并发数取阶段检测值，写库回主线程避免 sqlite 跨线程）④ **去重修复**：模拟完成 `save_alpha`（此前只写 simulations 导致 `alpha_hash_exists` 永远不命中、中断重跑重复模拟）⑤ **审计接线**：`append_audit` 返回时间戳写入 `simulations.audit_path`，错误路径也审计 ⑥ 新增 `paths.py`（私有文件路径单点定义）⑦ 全库类型注解补全（basedpyright 零 error）+ `pyrightconfig.json` LSP 配置 ⑧ 设计文档移至仓库根目录（删除 `design/` 目录）。**明确未实现（后续批次）：** `optimizer.py`/`knowledge.py` 模块、`qa submit`、`qa update-knowledge`、`--smoke`/`--batch` 参数、RAG 向量检索。
 
 ---
 
@@ -56,34 +58,37 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。用户通过对话�
 ┌──────────────────────▼──────────────────────────────────┐
 │  Python 工具库 `qa/`                                     │
 │  ┌───────────┐ ┌───────────┐ ┌───────────┐              │
-│  │ candidates│→│ validate  │→│ brain_    │              │
-│  │ (读入候选)│ │ (本地预检) │ │ client    │              │
+│  │ auth      │→│ stage     │→│ brain_    │              │
+│  │ (账号登录)│ │ (阶段检测)│ │ client    │              │
 │  └───────────┘ └───────────┘ └─────┬─────┘              │
 │  ┌───────────┐ ┌─────▼─────┐ ┌─────▼─────┐              │
-│  │ knowledge │ │  store    │ │  screener │              │
-│  │ (检索)    │ │ (SQLite)  │ │ (门槛+去重)│              │
+│  │ candidates│ │  store    │ │  screener │              │
+│  │ (读入候选)│ │ (SQLite)  │ │ (门槛+去重)│              │
 │  └───────────┘ └───────────┘ └───────────┘              │
-│  ┌───────────┐ ┌───────────┐                            │
-│  │ stage     │ │  report   │                            │
-│  │ (阶段检测)│ │ (清单+解释)│                            │
-│  └───────────┘ └───────────┘                            │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐              │
+│  │ validate  │ │  report   │ │  paths    │              │
+│  │ (本地预检)│ │ (清单+解释)│ │ (路径单点)│              │
+│  └───────────┘ └───────────┘ └───────────┘              │
 └──────────────────────┬──────────────────────────────────┘
                        │ HTTPS（仅 BRAIN API 一种外部调用）
 ┌──────────────────────▼──────────────────────────────────┐
-│  BRAIN API（模拟/提交/状态）                              │
+│  BRAIN API（认证/模拟/状态）                              │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### 3.0 启动流程（agent 每次会话的第一步）
 
 ```
-agent 启动 → 读 cookie → GET /users/self
-  ├─ 401/403 → 报告"请提供 Cookie"（写入 secrets/worldquant_cookies.txt）→ 暂停
-  ├─ 200 → 解析阶段字段：
-  │    level       = BRONZE/SILVER/GOLD（Challenge 等级）
-  │    geniusLevel = 顾问 Genius 等级（null = 非顾问）
-  │    consultant  = 顾问信息（null = 非顾问）
-  │    onboarding  = 顾问 onboarding 进度
+agent 启动 → 读 cookie（secrets/worldquant_cookies.txt）
+  ├─ cookie 缺失/过期 → 认证双选：
+  │    ① `qa login --username ... --password ...`（账号密码，凭据不落盘）
+  │    ② 用户提供 Copy as cURL → agent 解析写入（对账号密码敏感者）
+  ├─ GET /users/self：
+  │    401/403 → 会话失效 → 重新认证（上述任一方式）
+  │    200 → 解析阶段字段：
+  │      level       = BRONZE/SILVER/GOLD（Challenge 等级）
+  │      geniusLevel = 顾问 Genius 等级（null = 非顾问）
+  │      consultant  = 顾问信息（null = 非顾问）
   └─ 阶段判定 → 动态配置系统变量（见 §4 stage.py）
 ```
 
@@ -117,27 +122,29 @@ agent 启动 → 读 cookie → GET /users/self
 | 文件 | 职责 | 关键实现 |
 |---|---|---|
 | `config.py` | 配置 | 阈值（Sharpe/TO/自相关）、region/universe/delay 默认值；**阶段相关变量**（并发/区域/字段/语言由 stage.py 动态注入）。**无 LLM 配置——项目不调用 LLM** |
-| `stage.py` | **账号阶段检测** | 启动时读 cookie → `GET /users/self` → 解析 level/geniusLevel/consultant → 输出阶段配置（并发/区域/字段/语言/配额） |
-| `auth.py` | **账号密码登录** | `POST /authentication`（HTTP Basic Auth）→ 提取 Set-Cookie 的 `t=` JWT 写入 cookie 文件；凭据不落盘；Persona 人机验证时抛异常提示人工处理（替代/补充浏览器复制 cURL） |
-| `brain_client.py` | BRAIN API 封装 | 认证（读 `secrets/worldquant_cookies.txt`）；模拟 POST+轮询+结果（含 is.checks）；提交 + **回查 `status==ACTIVE`**；状态拉取；3 并发 governor；**429 区分处理（常规 vs THROTTLED）**；**分钟限流头管理**（`x-ratelimit-remaining-minute`）；cookie 失效检测（401 提示重登） |
-| `validate.py` | **本地预检层（省配额核心）** | AST 语法 lint（arity/括号/look-ahead/维度/保留字）；**字段白名单校验**（对照字段元数据，防 LLM 幻觉字段名）；表达式 SHA-256 哈希去重；复杂度控制（公共子树≤8、ratio<0.5） |
-| `candidates.py` | **候选读入** | 读取 agent 写入的 `data/candidates/YYYY-MM-DD.json`（格式：`[{description, hypothesis, expression, dataset_ids}]`）→ 供 validate/screener 处理。**项目内不生成、不调用 LLM**——生成由对话层 agent 完成（agent 读 knowledge/ 后自行产出） |
-| `screener.py` | 门槛过滤 + 去重 | 硬门槛：Fitness≥1.0(D1)/1.3(D0)、Sharpe>1.25(D1)/2.0(D0)、TO 1-70%、自相关<0.7（Sharpe≥1.375 豁免）、子宇宙公式 `0.75·√(sub/alpha)·sharpe`；**提交前免费相关门** `/correlations/self`（max<0.7，实测可用）；**日收益相关**去重（非累计 PnL）；AST 结构相似性 + 批次内去重 |
-| `optimizer.py` | 优化循环 | 仅 MARGINAL 候选轻量调整（LLM 微调 → 重模拟 ≤2 轮）；**止损式触发**（无提升 N 步才调，控成本+控因子总量） |
-| `knowledge.py` | 知识检索 | 静态库（`knowledge/`）+ 脱敏 playbook + **证伪库**；关键词 + TF-IDF（**RAG 可开关**，保留零样本基线）；提供字段/信号簇分布 + **字段饱和度（alphaCount）** |
-| `report.py` | 报告 | 候选清单（指标含 **IC 与 Rank IC 双报** + 解释 + 建议排序）；每日达标汇总文档（`reports/daily/YYYY-MM-DD.md` + `reports/SUMMARY.md` 累计趋势） |
-| `store.py` | 持久化 | SQLite（alphas/simulations/submissions/lessons 表，**lessons 含假设/评审列**）+ JSONL 审计；幂等、中断恢复；**存日收益序列**供相关性计算 |
-| `cli.py` | 命令入口 | `qa run` / `qa submit` / `qa report` / `qa update-knowledge` / `qa status` |
+| `paths.py` | 路径单点定义 | 仓库内私有文件路径集中管理（COOKIE/ACCOUNT_INFO/DB/AUDIT_DIR/REPORTS_DIR/CANDIDATES_DIR）；根目录可注入（测试用 tmp 仓库根） |
+| `stage.py` | **账号阶段检测** | 读 cookie → `GET /users/self` → 解析 level/geniusLevel/consultant → 输出阶段配置（并发/区域/字段/语言/配额） |
+| `auth.py` | **账号密码登录** ✅ v1.2 | `POST /authentication`（HTTP Basic Auth）→ 提取 Set-Cookie 的 `t=` JWT 写入 cookie 文件；凭据不落盘、不进审计；401 凭据错误/Persona 人机验证（`WWW-Authenticate: persona`）分别抛异常提示；替代/补充浏览器复制 cURL 方式 |
+| `brain_client.py` | BRAIN API 封装 | 认证（读 `secrets/worldquant_cookies.txt`）；模拟 POST+轮询+结果（含 is.checks，实测状态值 `COMPLETE`）；`/correlations/self` 相关门；**429 区分处理（常规 Retry-After 退避 vs THROTTLED 抛错）**；分钟限流头读取；401/403 抛 PermissionError 提示重登 |
+| `validate.py` | **本地预检层（省配额核心）** | 语法 lint（括号配对/未知算子）+ **字段白名单校验**（对照 TOP_FIELDS.json 295 字段 + 核心字段，防 LLM 幻觉字段名）+ 表达式 SHA-256 哈希去重 + 复杂度控制（算子 ≤30、嵌套 ≤8） |
+| `candidates.py` | **候选读入** | 读取 agent 写入的 `data/candidates/YYYY-MM-DD.json`（格式：`[{description, hypothesis, expression, dataset_ids}]`）→ 供 validate/screener 处理。**项目内不生成、不调用 LLM**——生成由对话层 agent 完成 |
+| `screener.py` | 门槛过滤 + 去重 | 硬门槛：Fitness≥1.0(D1)/1.3(D0)、Sharpe>1.25(D1)/2.0(D0)、TO 1-70%（本地）；平台 `is.checks` FAIL 直接采信；MARGINAL（距门槛 10% 内）；日收益 Pearson 相关；按 score 降序排序 |
+| `store.py` | 持久化 | SQLite（alphas/simulations/submissions/daily_returns/lessons/failures 表）+ JSONL 审计（`append_audit` 返回时间戳关联 simulations.audit_path）；幂等（INSERT OR REPLACE）、中断后重跑跳过已完成项（靠 alphas.ast_hash 去重） |
+| `report.py` | 报告 | 候选清单 markdown（指标/说明/建议排序）；每日达标汇总文档（`reports/daily/YYYY-MM-DD.md` 追加 + 去重） |
+| `cli.py` | 命令入口 | `qa login` / `qa status` / `qa run` / `qa report`；run 内并发模拟（ThreadPoolExecutor，并发数取 stage 检测值，写库回主线程避免 sqlite 跨线程） |
+| `optimizer.py` | 优化循环 | ⏳ **未实现**（第二批规划：仅 MARGINAL 候选轻量调整 ≤2 轮 + 止损式触发） |
+| `knowledge.py` | 知识检索 | ⏳ **未实现**（第三批规划：静态库检索 + TF-IDF，RAG 可开关） |
 
 ### 4.1 命令清单（agent 工作流接口）
 
 | 命令 | 功能 | 说明 |
 |---|---|---|
-| `qa status` | **启动首查** | 阶段检测 + cookie 验证 + 配额/限流状态 + 待确认提交 + OS 跟踪 |
-| `qa run [--idea ...] [--batch 10]` | 完整闭环：读入候选→预检→模拟→筛选→报告 | **候选由 agent 写入 `data/candidates/` 后项目读入**（agent 先读 knowledge/ 生成候选；也可直接调 `qa run --idea` 由 agent 生成后落盘）。`--smoke` 模式 3 个候选验证链路 |
-| `qa submit <alpha_id>` | 人工确认后提交 | **只允许在用户显式确认后调用**；提交前展示全部检查结果；提交后回查 ACTIVE |
-| `qa report [--daily]` | 查看报告 | 当日候选清单 / 每日累计汇总 |
-| `qa update-knowledge` | 更新知识库 | 重抓算子/字段/教程/论坛数据；**成顾问后抓 12 区域 40 万字段 + 重跑阶段检测** |
+| `qa login [--username ...] [--password ...]` | **账号密码登录** ✅ | `POST /authentication`（Basic Auth）→ 写 `secrets/worldquant_cookies.txt` 并验证会话；凭据不落盘/不进审计；无参数时交互输入（getpass 不回显）；Persona 验证提示人工处理 |
+| `qa status` | **启动首查** ✅ | 阶段检测 + cookie 验证 + 配额/限流状态 |
+| `qa run [--candidates-file ...] [--idea ...]` | 完整闭环：读入候选→预检→模拟→筛选→报告 ✅ | **候选由 agent 写入 `data/candidates/` 后项目读入**（默认读当日文件）；并发模拟；结果落库（save_alpha + save_simulation + 审计） |
+| `qa report [--daily]` | 查看报告 ✅ | 当日候选清单 / 每日累计汇总 |
+| `qa submit <alpha_id>` | 人工确认后提交 | ⏳ 第二批：提交前展示全部检查结果；提交后回查 ACTIVE |
+| `qa update-knowledge` | 更新知识库 | ⏳ 第三批：重抓算子/字段/教程；成顾问后 12 区域 40 万字段 |
 
 ---
 
@@ -189,22 +196,24 @@ agent 启动 → 读 cookie → GET /users/self
 ```
 QuantAlpha/
 ├── AGENTS.md                    # ⭐ 跨 agent 工作流入口（目标/启动流程/九步闭环/命令/合规红线）
-├── README.md                    # 人类说明：安装、cookie 配置、快速开始、使用者上手指南
-├── quantalpha-design.md           # ⭐ 本文件：设计文档（智能体职能说明书）
+├── README.md                    # 人类说明：安装、认证配置（双选）、快速开始、使用者上手指南
+├── quantalpha-design.md         # ⭐ 本文件：设计文档（智能体职能说明书）
 ├── qa/                          # Python 工具库
-│   └── (config, stage, brain_client, validate, candidates, screener, optimizer, knowledge, report, store, cli).py
+│   └── (auth, config, stage, brain_client, validate, candidates,
+│        screener, report, store, cli, paths).py
+│       # ⏳ 规划未实现：optimizer.py、knowledge.py
 ├── knowledge/                   # ✅ 可分享：静态知识库（由 platform-data 整理）
 │   ├── operators.md             # 67 算子参考
-│   ├── fields/                  # 字段元数据索引（8642 字段）+ 字段饱和度
+│   ├── fields/                  # 字段元数据索引（TOP_FIELDS.json 295 精选）+ 字段饱和度
 │   ├── rules.md                 # 平台规则/提交门槛/收入机制/计分规则
 │   ├── playbook.md              # ⭐ 脱敏经验沉淀（随仓库分享）
 │   ├── failures.md              # 证伪库（已证伪路径）
 │   └── pitfalls.md              # 量化陷阱/反过拟合
-├── docs/                        # ✅ 可分享：教程、FAQ
-├── data/                        # 🔒 gitignored：qa.db + audit/ + daily_returns
+├── pyrightconfig.json           # LSP 配置（basedpyright：venv 解释器 + basic 检查模式）
+├── data/                        # 🔒 gitignored：qa.db + audit/ + candidates/
 ├── experience/                  # 🔒 gitignored：原始经验（含真实表达式/指标）
 ├── reports/                     # 🔒 gitignored：个人每日成果（可选分享）
-├── secrets/                # 🔒 gitignored：cookie 等
+├── secrets/                     # 🔒 gitignored：cookie、account_info.json（凭据绝不落盘为文件）
 └── pyproject.toml
 ```
 
@@ -231,19 +240,21 @@ QuantAlpha/
 
 ## 10. 测试策略与 MVP 范围
 
-**测试：**
+**测试（已实现，50 个单测全过）：**
 - candidates：候选 JSON 读入/容错单测
 - validate：语法 lint / 字段白名单 / 哈希去重 单测（LLM 幻觉字段拦截验证）
 - screener：门槛逻辑单测（构造数据模拟 PASS/MARGINAL/FAIL）+ 相关性计算单测
-- store：SQLite CRUD + 幂等 + 日收益 diff 相关
-- brain_client：mock HTTP（不真调 API）；真实调用仅冒烟 1-2 次
+- store：SQLite CRUD + 幂等 + 审计
+- brain_client：mock HTTP（不真调 API）
 - stage：users/self 响应解析单测（BRONZE / 顾问 / cookie 失效三种形态）
-- 端到端：`qa run --smoke`（3 候选全链路验证）
+- auth：登录成功提取 t= / 200 也接受 / 多 Set-Cookie / 401 凭据错误 / Persona / 缺 cookie
+- cli：命令分发 + run 端到端（mock 阶段检测与模拟）
+- 真实调用：`qa login` 实测成功（BRONZE 用户；JWT `amr=['pwd']` 证实 API 登录无需验证码）+ 401 错误路径实测
 
-**MVP 阶段：**
-- 第一批：config + store + stage + validate + candidates + brain_client(模拟) + screener(基础门槛) + report + cli(run/report/status)
-- 第二批：optimizer + 提交流（含 ACTIVE 回查）+ 每日文档 + playbook/failures 沉淀
-- 第三批：update-knowledge 命令 + 知识库整理（platform-data → knowledge/）+ 字段饱和度
+**MVP 状态（v1.2）：**
+- ✅ 第一批完成：config + paths + store + stage + auth + validate + candidates + brain_client(模拟) + screener(门槛) + report + cli(login/status/run/report)
+- ⏳ 第二批：optimizer + 提交流（`qa submit` 含 ACTIVE 回查）+ playbook/failures 沉淀
+- ⏳ 第三批：update-knowledge 命令 + 知识库整理 + 字段饱和度
 - 明确不做（现阶段）：向量检索（RAG 开关预留）、Web UI、多用户、定时任务、D0、复杂组合优化、顾问专属功能（PYTHON/ML、12 区域——由阶段检测启用但 MVP 不实现）、**项目内 LLM 调用（生成在 agent 侧）**
 
 ---
@@ -269,6 +280,7 @@ QuantAlpha/
 | 用户 alpha 库 | `/users/self/alphas` 拉取 | 每次会话 |
 
 **关键 API 备忘（已实测验证，供后续 agent）：**
+- 认证：`POST /authentication`（HTTP Basic Auth，email:password）→ 201 + Set-Cookie `t=` JWT（**会话 ~4h**，`token.expiry ≈ 14222s`；API 登录 JWT `amr=['pwd']` 无验证码——Altcha PoW 仅用于注册 `POST /users`）；`DELETE /authentication` 登出；Persona 人机验证：401 + `WWW-Authenticate: persona` + `{"inquiry": ...}` → `POST /authentication/persona`
 - 会话/阶段：`GET /users/self` → `level`/`geniusLevel`/`consultant`（阶段检测）；`GET /users/self/consultant` 403=非顾问
 - 数据集枚举：`GET /data-sets?region=USA&universe=TOP3000&delay=1&instrumentType=EQUITY&limit=20`（limit 上限 ~50）
 - 字段元数据：`GET /data-fields?dataset.id={id}&region=...&delay=1&universe=TOP3000&limit=50&offset={n}`（**参数名是 `dataset.id` 点号写法**，不是 `dataset`）
@@ -296,6 +308,8 @@ QuantAlpha/
 | 生成批次 | 10-20 个/轮 | 非顾问每日 1-2 个成功即可；省配额 |
 | **LLM 调用** | **项目内不调用 LLM**——生成由对话层 agent 完成（读 knowledge/ 写候选文件） | 用户拍板：agent 读项目文件后直接生成 alpha 写入项目，项目跑后续流程 |
 | **账号阶段检测** | 启动时 users/self 判定 → 动态配置 | 非顾问/顾问变量差异大（并发/区域/字段/语言） |
+| **认证方式（v1.2）** | 双选：`qa login` 账号密码（推荐，可自动续期）或浏览器复制 cURL（敏感用户） | 账号密码不落盘/不进审计；会话 ~4h，长时间模拟需重登 |
+| **并发模拟（v1.2）** | `qa run` 内 ThreadPoolExecutor，并发数取阶段检测值；写库回主线程 | API 允许 3 并发；sqlite 连接跨线程不安全 |
 | **validate 前置层** | LLM 生成后、模拟前本地预检 | 拦截幻觉字段/语法错，省无效模拟配额 |
 | **相关门** | 提交前 `/correlations/self`（max<0.7）+ 日收益相关 | 避免浪费提交槽位；累计 PnL 相关会误判 |
 | **计分策略** | 每日集中提交 1-2 个高质量（美东 3AM 日界） | 官方计分规则：每日 2000 分封顶、相对分 |

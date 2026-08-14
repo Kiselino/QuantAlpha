@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -51,7 +52,7 @@ def read_cookie(path: Path) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-def fetch_self(cookie: str, base_url: str = BASE_URL) -> dict:
+def fetch_self(cookie: str, base_url: str = BASE_URL) -> dict[str, Any]:
     """GET /users/self —— 阶段检测的数据来源。"""
     resp = requests.get(
         f"{base_url}/users/self",
@@ -62,7 +63,7 @@ def fetch_self(cookie: str, base_url: str = BASE_URL) -> dict:
     return resp.json()
 
 
-def detect_stage(self_data: dict) -> StageInfo:
+def detect_stage(self_data: dict[str, Any]) -> StageInfo:
     """从 /users/self 响应判定阶段（实测：level/geniusLevel/consultant 字段）。"""
     is_consultant = (
         self_data.get("consultant") is not None

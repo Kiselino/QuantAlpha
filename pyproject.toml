@@ -21,3 +21,8 @@ include = ["qa*"]
 testpaths = ["qa/tests"]
 python_files = ["test_*.py"]
 addopts = "-v"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

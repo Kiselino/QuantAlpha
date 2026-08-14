@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 import json
+from typing import TypedDict
 
 import pytest
 
 from qa.candidates import Candidate, load_candidates, write_candidates
 from qa.paths import QaPaths
 
-SAMPLE = [
+
+class SampleCand(TypedDict):
+    description: str
+    hypothesis: str
+    expression: str
+    dataset_ids: list[str]
+
+
+SAMPLE: list[SampleCand] = [
     {
         "description": "价格动量",
         "hypothesis": "近期涨幅延续",

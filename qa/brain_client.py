@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 import requests
 
@@ -33,9 +34,9 @@ class SimulationResult:
     sim_id: str
     status: str                     # PENDING / COMPLETE / ERROR / FAILED
     alpha_id: str | None = None
-    checks: list[dict] = field(default_factory=list)
-    metrics: dict = field(default_factory=dict)
-    raw: dict = field(default_factory=dict)
+    checks: list[dict[str, Any]] = field(default_factory=list)
+    metrics: dict[str, float | None] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
 class BrainClient:
@@ -58,7 +59,9 @@ class BrainClient:
         )
 
     # ---- 基础请求 ----
-    def get(self, path: str, params: dict | None = None) -> tuple[int, dict | list, dict]:
+    def get(
+        self, path: str, params: dict[str, Any] | None = None
+    ) -> tuple[int, dict[str, Any] | list[Any], dict[str, Any]]:
         """GET 请求：返回 (状态码, JSON, headers)。
 
         401/403 抛 PermissionError（cookie 失效，提示用户重新复制 Cookie）；
@@ -76,8 +79,8 @@ class BrainClient:
         return resp.status_code, resp.json(), dict(resp.headers)
 
     def _retry_get(
-        self, path: str, params: dict | None = None, attempts: int = 3
-    ) -> tuple[int, dict | list, dict]:
+        self, path: str, params: dict[str, Any] | None = None, attempts: int = 3
+    ) -> tuple[int, dict[str, Any] | list[Any], dict[str, Any]]:
         """带 429 退避的 GET（区分常规限流与 THROTTLED）。"""
         for attempt in range(attempts):
             resp = self.session.get(
@@ -101,7 +104,7 @@ class BrainClient:
         raise TimeoutError(f"GET {path} 重试 {attempts} 次后仍被限流")
 
     # ---- 模拟 ----
-    def simulate(self, code: str, settings: dict) -> str:
+    def simulate(self, code: str, settings: dict[str, Any]) -> str:
         """POST /simulations → 返回 sim_id（来自 Location 头）。
 
         平台实测要求：regular 为字符串；settings 必含 unitHandling/visualization。

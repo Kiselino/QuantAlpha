@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import statistics
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 from qa.config import Thresholds
 
@@ -19,7 +21,7 @@ class ScreeningVerdict:
 
 
 def apply_thresholds(
-    metrics: dict, checks: list[dict], t: Thresholds
+    metrics: Mapping[str, float | None], checks: list[dict[str, Any]], t: Thresholds
 ) -> ScreeningVerdict:
     """用平台 is.checks 结果 + 本地门槛判断。
 
@@ -78,6 +80,6 @@ def compute_correlation(a: list[float], b: list[float]) -> float:
     return cov / (va ** 0.5 * vb ** 0.5)
 
 
-def rank_candidates(scored: list[dict]) -> list[dict]:
+def rank_candidates(scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """按 score 降序排序（供提交建议排序）。"""
     return sorted(scored, key=lambda x: x.get("score", 0.0), reverse=True)

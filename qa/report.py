@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 
-def format_candidates(candidates: list[dict]) -> str:
+def format_candidates(candidates: list[dict[str, Any]]) -> str:
     """生成候选清单 markdown（指标/通过项/逻辑解释/建议排序）。"""
     lines = ["## 候选清单", ""]
     if not candidates:
@@ -30,7 +31,7 @@ def format_candidates(candidates: list[dict]) -> str:
 
 
 def write_daily_summary(
-    candidates: list[dict], reports_dir: Path, date: str | None = None
+    candidates: list[dict[str, Any]], reports_dir: Path, date: str | None = None
 ) -> Path:
     """把通过候选追加到 reports/daily/YYYY-MM-DD.md。返回文件路径。
 

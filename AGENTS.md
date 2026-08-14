@@ -17,7 +17,9 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 1. 运行 `qa status`（或读取 secrets/worldquant_cookies.txt 调 API）
    → 账号阶段检测（level/geniusLevel/consultant）+ cookie 有效性 + 配额/限流状态
    → 动态配置：并发数、可用区域、字段范围、表达式语言
-2. 询问用户本次意图（生成候选？查看报告？提交确认？更新知识库？）
+2. cookie 无效时：`qa login --username ... --password ...`（账号密码方式）
+   或让用户提供 Copy as cURL（敏感用户可选用）
+3. 询问用户本次意图（生成候选？查看报告？提交确认？更新知识库？）
    不要擅自开始生成/提交
 ```
 
@@ -39,6 +41,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 | 命令 | 功能 | 状态 |
 |---|---|---|
+| `qa login [--username ...] [--password ...]` | 账号密码登录 → 写 cookie（凭据不落盘；Persona 人机验证会提示） | ✅ 已实现 |
 | `qa status` | 阶段检测 + cookie 验证 + 配额（启动首查） | ✅ 已实现（第一批） |
 | `qa run [--candidates-file ...]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`** | ✅ 已实现（第一批） |
 | `qa report [--daily]` | 当日候选清单 / 每日累计汇总 | ✅ 已实现（第一批） |

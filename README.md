@@ -51,9 +51,23 @@ pip install -e .
 
 > 首次运行 `qa status` / `qa run` 会自动创建 `data/`、`reports/` 等私有目录（gitignored）。
 
-### 2. 配置会话 Cookie
+### 2. 配置会话认证
 
-BRAIN API 使用浏览器会话 cookie 认证（JWT，约 4-8 小时有效）。**用户无需手动编辑文件**——只需把请求交给 agent，由 agent 解析写入：
+BRAIN API 使用会话 JWT 认证（`t=...` cookie，约 4 小时有效，过期后需重新登录）。两种方式任选：
+
+**方式 A：账号密码登录（推荐，可自动续期）** —— 直接把账号交给 agent 或自行运行：
+
+```bash
+qa login --username your@email.com --password your_password
+# 或交互式（密码不回显）：
+qa login
+```
+
+- 登录成功后自动写入 `secrets/worldquant_cookies.txt`（gitignored）并验证会话
+- **安全约定**：账号密码只用于本次登录请求，**不写入任何文件、不进审计、不进 git**；磁盘上只有登录后生成的 cookie
+- 触发平台 Persona 人机验证时会明确提示，需人工完成后再重试
+
+**方式 B：浏览器复制 Cookie（对账号密码敏感的使用者）** —— 无需提供账号密码：
 
 1. 登录 [platform.worldquantbrain.com](https://platform.worldquantbrain.com)
 2. 打开浏览器开发者工具（F12）→ Network 面板
@@ -61,7 +75,7 @@ BRAIN API 使用浏览器会话 cookie 认证（JWT，约 4-8 小时有效）。
 4. 右键该请求 → Copy → **Copy as cURL** → 把整段命令粘贴给 agent（对话里说"更新 cookie"）
 5. agent 解析出 Cookie 后写入 `secrets/worldquant_cookies.txt`，随后运行 `qa status` 验证
 
-> cookie 过期后（提示 401/403）重复上述步骤即可。
+> cookie 过期后（提示 401/403）用任一方式重新认证即可。长时间批量模拟建议方式 A（可自动重新登录）。
 
 ### 3. 开始使用（生成由 agent 完成）
 

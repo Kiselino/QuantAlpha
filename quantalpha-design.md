@@ -118,6 +118,7 @@ agent 启动 → 读 cookie → GET /users/self
 |---|---|---|
 | `config.py` | 配置 | 阈值（Sharpe/TO/自相关）、region/universe/delay 默认值；**阶段相关变量**（并发/区域/字段/语言由 stage.py 动态注入）。**无 LLM 配置——项目不调用 LLM** |
 | `stage.py` | **账号阶段检测** | 启动时读 cookie → `GET /users/self` → 解析 level/geniusLevel/consultant → 输出阶段配置（并发/区域/字段/语言/配额） |
+| `auth.py` | **账号密码登录** | `POST /authentication`（HTTP Basic Auth）→ 提取 Set-Cookie 的 `t=` JWT 写入 cookie 文件；凭据不落盘；Persona 人机验证时抛异常提示人工处理（替代/补充浏览器复制 cURL） |
 | `brain_client.py` | BRAIN API 封装 | 认证（读 `secrets/worldquant_cookies.txt`）；模拟 POST+轮询+结果（含 is.checks）；提交 + **回查 `status==ACTIVE`**；状态拉取；3 并发 governor；**429 区分处理（常规 vs THROTTLED）**；**分钟限流头管理**（`x-ratelimit-remaining-minute`）；cookie 失效检测（401 提示重登） |
 | `validate.py` | **本地预检层（省配额核心）** | AST 语法 lint（arity/括号/look-ahead/维度/保留字）；**字段白名单校验**（对照字段元数据，防 LLM 幻觉字段名）；表达式 SHA-256 哈希去重；复杂度控制（公共子树≤8、ratio<0.5） |
 | `candidates.py` | **候选读入** | 读取 agent 写入的 `data/candidates/YYYY-MM-DD.json`（格式：`[{description, hypothesis, expression, dataset_ids}]`）→ 供 validate/screener 处理。**项目内不生成、不调用 LLM**——生成由对话层 agent 完成（agent 读 knowledge/ 后自行产出） |
@@ -215,7 +216,7 @@ QuantAlpha/
 
 | 场景 | 处理 |
 |---|---|
-| cookie 过期（~8h JWT；实测 session 实际 ~4h） | brain_client 检测 401/403 → 报告"请重新提供 Cookie" → 暂停流程等待 |
+| cookie 过期（~4h JWT 会话） | brain_client 检测 401/403 → 报告"请重新认证"（`qa login` 账号密码，或浏览器复制 Cookie）→ 暂停流程等待 |
 | **429 常规限流** | `Retry-After` 按 **float** 解析并 clamp（[1s,120s]）；连续 3 次 → 降级 8/4/1 → 仍失败中止本批 |
 | **429 + `THROTTLED`**（平台相关性子系统卡死） | 非普通限流 → 提示"平台故障，稍后重试"，暂停批处理 |
 | **分钟限流（实测 30 req/min）** | 读取 `x-ratelimit-remaining-minute` / `x-ratelimit-limit-minute`；remaining 低 → 主动限速；remaining=0 → 等 reset |

@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
+from qa import auth
 from qa.brain_client import BrainClient, SimulationResult
 from qa.candidates import Candidate, load_candidates
 from qa.config import AppConfig
@@ -262,6 +263,13 @@ def main(argv: list[str] | None = None) -> int:
     p_status = sub.add_parser("status", help="启动首查（阶段检测/配额）")
     p_status.set_defaults(func=lambda a: cmd_status(paths, cfg))
 
+    p_login = sub.add_parser(
+        "login", help="账号密码登录，写入会话 cookie（替代浏览器复制 cURL）"
+    )
+    p_login.add_argument("--username", type=str, default=None, help="BRAIN 账号邮箱")
+    p_login.add_argument("--password", type=str, default=None, help="BRAIN 账号密码（也可交互输入）")
+    p_login.set_defaults(func=lambda a: _cmd_login(paths, a.username, a.password))
+
     p_run = sub.add_parser("run", help="完整闭环（读入候选→预检→模拟→筛选→报告）")
     p_run.add_argument("--candidates-file", type=str, default=None,
                        help="候选 JSON 文件路径（默认读当日 data/candidates/YYYY-MM-DD.json）")
@@ -277,6 +285,44 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 2
     return args.func(args)
+
+
+def _cmd_login(paths: QaPaths, username: str | None, password: str | None) -> int:
+    """账号密码登录 → 写入 secrets/worldquant_cookies.txt。
+
+    账号密码支持 --username/--password 参数或交互输入（getpass 不回显）。
+    凭据不落盘、不进审计；仅写入的 cookie 存于 gitignored 的 secrets/。
+    """
+    try:
+        import getpass
+
+        email = username or input("BRAIN 账号邮箱: ").strip()
+        pwd = password or getpass.getpass("BRAIN 账号密码: ")
+        if not email or not pwd:
+            print("[login] 账号或密码为空。")
+            return 1
+        cookie = auth.login(email, pwd)
+    except auth.PersonaRequired as e:
+        print(f"[login] {e}")
+        return 1
+    except auth.AuthError as e:
+        print(f"[login] {e}")
+        return 1
+    except Exception as e:
+        print(f"[login] 登录失败: {e}")
+        return 1
+
+    paths.COOKIE.parent.mkdir(parents=True, exist_ok=True)
+    paths.COOKIE.write_text(cookie, encoding="utf-8")
+    print(f"[login] 登录成功，会话 cookie 已写入 {paths.COOKIE}")
+    print("[login] 验证会话……")
+    try:
+        stage = get_stage(paths)
+        print(f"账号阶段: {stage.level}  {'顾问' if stage.is_consultant else '用户'}")
+        return 0
+    except Exception as e:
+        print(f"[login] cookie 已写入但阶段检测失败: {e}")
+        return 1
 
 
 def _cmd_report(paths: QaPaths, args) -> int:

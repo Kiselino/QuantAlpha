@@ -59,6 +59,11 @@ class BrainClient:
         )
 
     # ---- 基础请求 ----
+    def get_json(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any] | list[Any]:
+        """GET 并返回 JSON 载荷（带 429 退避/空响应防御）。供知识库抓取等批量读操作。"""
+        _, data, _ = self._retry_get(path, params=params)
+        return data
+
     def _retry_get(
         self, path: str, params: dict[str, Any] | None = None, attempts: int = 3
     ) -> tuple[int, dict[str, Any] | list[Any], dict[str, Any]]:

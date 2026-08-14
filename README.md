@@ -4,7 +4,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
-> 当前状态：v1.3 · 第一批已实现跑通（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset`）。
+> 当前状态：v1.4 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
 > 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---
@@ -77,33 +77,52 @@ qa login
 
 > cookie 过期后（提示 401/403）用任一方式重新认证即可。长时间批量模拟建议方式 A（可自动重新登录）。
 
-### 3. 开始使用（生成由 agent 完成）
+### 3. 首次运行：生成本地知识库（必做）
+
+v1.4 起字段知识**按账户权限生成、仅存本地**（gitignored 不上传）：
+
+```bash
+qa update-knowledge      # 按账户阶段抓取字段元数据 → 写入 experience/fields/（约几分钟）
+```
+
+- 非顾问账户抓取 USA 区域字段；顾问账户默认 12 区域（可用 `--regions USA,KOR` 限定）
+- 生成后 `qa status` 会展示知识库状态；字段白名单（`qa run` 预检）读自本地
+- `experience/` 目录已在 `.gitignore` 中，克隆/推送不会包含这些数据
+
+### 4. 开始使用（生成由 agent 完成）
 
 项目不调用 LLM——**候选 alpha 由你的 agent 生成**。工作流：
 
 ```bash
 qa login                                              # 账号密码登录（写入会话 cookie；也可 --username/--password）
-qa status                                             # 启动首查：阶段检测 + 配额
-# agent 读 knowledge/ 知识库 → 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
+qa status                                             # 启动首查：阶段检测 + 配额 + 本地知识库状态
+qa update-knowledge                                   # 首次运行必做：按账户生成本地字段知识库
+# agent 读 knowledge/（公开）+ experience/（本地字段/playbook/failures）→ 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
 qa run                                                # 读入候选 → 预检 → 模拟 → 筛选 → 报告
 qa report --daily                                     # 查看每日达标汇总
 qa submit <alpha_id>                                  # 人工确认后提交（展示检查 + 回查 ACTIVE）
-qa reset [--yes]                                      # 清除积累的经验，回到初始状态（保留登录凭证与知识库）
+qa suggest                                            # 随机建议研究方向（agent 生成候选时的主题来源之一）
+qa reset [--yes]                                      # 清除积累的经验，回到初始状态（保留登录凭证与本地字段知识）
 ```
 
-> 在 agent 对话中直接说"根据 knowledge/ 里的算子字段知识，为【研究想法】生成 10 个候选 alpha 写入 data/candidates/"，agent 会完成生成步骤。
+> 在 agent 对话中直接说"根据知识库为【研究想法】生成 10 个候选 alpha 写入 data/candidates/"，agent 会完成生成步骤（生成前会询问主题来源：随机 / 网络热门 / 你指定）。
 
 ---
 
 ## 使用者指南（公开仓库）
 
-这个仓库是公开的：**工具 + 静态知识库 + 脱敏经验** 随仓库分发；你的私有数据（cookie、账号密码、原始经验、个人成果）已被 gitignore 隔离，其他使用者克隆后不会看到。
+这个仓库是公开的：**工具 + 公开知识库（平台文档）** 随仓库分发；你的私有数据（cookie、账号密码、本地字段知识、个人经验、个人成果）已被 gitignore 隔离，其他使用者克隆后不会看到。
+
+知识库拆分（v1.4）：
+
+- **公开 `knowledge/`**：operators（FASTEXPR 算子）、rules（平台规则）、pitfalls（量化陷阱）、字段策略说明——平台公开文档，随仓库分发
+- **本地 `experience/`**（gitignored）：字段元数据（`qa update-knowledge` 按账户权限生成）、playbook/failures（个人经验沉淀）——**账户专属，不上传**，因为字段可用范围随账户权限变化，且表达式/字段研究属于个人数据
 
 使用者需要：
 
 1. 自己的 BRAIN 账号 + 认证（见上方"配置会话认证"：账号密码登录或复制 Cookie 二选一）
-2. 自己的 AI agent 工具（生成候选用；项目本身不需要 LLM 配置）
-3. 可选：`qa update-knowledge`（第三批规划，暂未实现——当前使用仓库内置的 knowledge/ 知识库即可）
+2. 首次运行 `qa update-knowledge` 生成本地字段知识库
+3. 自己的 AI agent 工具（生成候选用；项目本身不需要 LLM 配置）
 
 ⚠️ **合规提醒**：平台条款禁止分享真实 alpha 表达式/账号 ID/盈亏数据。仓库中的经验教训均已脱敏；请勿把你自己生成的 alpha 表达式提交到任何公开仓库。
 
@@ -116,9 +135,10 @@ QuantAlpha/
 ├── AGENTS.md              # agent 工作流入口（agent 打开先读这个）
 ├── README.md              # 本文件：安装、认证配置、快速开始
 ├── quantalpha-design.md   # 权威设计（系统设计/模块/数据模型）
-├── qa/                    # Python 工具库（auth/stage/brain_client/...）
-├── knowledge/             # 静态知识库（算子/字段/规则/playbook/证伪库）
+├── qa/                    # Python 工具库（auth/stage/brain_client/knowledge/...）
+├── knowledge/             # 公开知识库（算子/规则/陷阱/字段策略——平台公开文档）
 ├── pyrightconfig.json     # LSP 配置（basedpyright）
+├── experience/            # 🔒 本地账户知识库：fields/ + playbook.md + failures.md（gitignored）
 ├── data/                  # 🔒 私有：qa.db + audit + candidates（gitignored）
 ├── reports/               # 🔒 私有：个人成果（gitignored）
 ├── secrets/               # 🔒 私有：cookie、account_info.json（gitignored）
@@ -129,7 +149,7 @@ QuantAlpha/
 
 - `quantalpha-design.md` — 系统设计（模块/数据模型/错误处理/MVP）
 - `AGENTS.md` — agent 工作流入口与关键知识速查
-- `knowledge/` — 平台规则、算子参考、字段索引、经验 playbook
+- `knowledge/` — 平台规则、算子参考、字段策略说明（公开）；本地字段/经验见 `experience/`（`qa update-knowledge` 生成）
 
 ## 免责声明
 

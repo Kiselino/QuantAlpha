@@ -2,9 +2,35 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from qa import cli
+
+
+def _seed_knowledge(paths) -> None:
+    """写最小本地知识库（fields.json + top_fields.json + meta.json）。"""
+    paths.KNOWLEDGE_FIELDS_DIR.mkdir(parents=True, exist_ok=True)
+    fields = [
+        {"id": "close", "description": "close", "dataset": "pv1",
+         "type": "MATRIX", "coverage": 1.0, "userCount": 100},
+        {"id": "volume", "description": "volume", "dataset": "pv1",
+         "type": "MATRIX", "coverage": 1.0, "userCount": 50},
+        {"id": "subindustry", "description": "subindustry", "dataset": "grp",
+         "type": "GROUP", "coverage": 1.0, "userCount": 200},
+    ]
+    paths.KNOWLEDGE_FIELDS_JSON.write_text(
+        json.dumps(fields, ensure_ascii=False), encoding="utf-8"
+    )
+    paths.KNOWLEDGE_TOP_FIELDS_JSON.write_text(
+        json.dumps(fields, ensure_ascii=False), encoding="utf-8"
+    )
+    paths.KNOWLEDGE_META_JSON.write_text(
+        json.dumps({"field_count": len(fields), "dataset_count": 2,
+                    "regions": ["USA"], "generated_at": "2026-08-15T00:00:00+00:00"}),
+        encoding="utf-8",
+    )
 
 
 def test_main_unknown_command():
@@ -56,6 +82,8 @@ def test_cmd_run_end_to_end(tmp_qa, monkeypatch, capsys):
     )
     # 写 cookie（阶段检测 mock 需要）
     paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    # 本地知识库（v1.4：字段白名单改读 experience/）
+    _seed_knowledge(paths)
 
     cfg = cli_mod.AppConfig()
 
@@ -88,8 +116,10 @@ def test_cmd_run_end_to_end(tmp_qa, monkeypatch, capsys):
     assert "PASS" in out              # 合法候选通过
     assert "完成" in out
 
-    # 每日汇总已写入
-    daily = paths.REPORTS_DIR / "daily" / "2026-08-14.md"
+    # 每日汇总已写入（按当天日期命名）
+    from datetime import datetime
+
+    daily = paths.REPORTS_DIR / "daily" / f"{datetime.now().strftime('%Y-%m-%d')}.md"
     assert daily.exists()
 
 
@@ -145,6 +175,147 @@ def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
     assert updated[0]["status"] == "SUBMITTED"
 
 
+def test_cmd_run_missing_knowledge_errors(tmp_qa, monkeypatch, capsys):
+    """v1.4：未生成本地知识库时 qa run 拒绝执行并提示 update-knowledge。"""
+    from qa.candidates import Candidate, write_candidates
+    from qa.paths import QaPaths
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    write_candidates(cand_path, [Candidate(description="x", expression="rank(close)")])
+    monkeypatch.setattr(cli_mod, "get_stage", lambda p: None)
+
+    rc = cli_mod.cmd_run(paths, cli_mod.AppConfig(), str(cand_path), idea=None)
+    out = capsys.readouterr().out
+
+    assert rc == 1
+    assert "update-knowledge" in out
+
+
+def test_cmd_run_auto_sediments_lessons_and_failures(tmp_qa, monkeypatch, capsys):
+    """v1.4：run 后 PASS→lessons、FAIL→failures 自动写入 SQLite + experience/。"""
+    from qa.candidates import Candidate, write_candidates
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.brain_client import SimulationResult
+    from qa.store import Store
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    write_candidates(
+        cand_path,
+        [
+            Candidate(description="有效动量", hypothesis="动量延续",
+                      expression="rank(ts_delta(close, 5))", dataset_ids=["pv1"]),
+            Candidate(description="低夏普失败", hypothesis="弱信号",
+                      expression="rank(close)", dataset_ids=["pv1"]),
+        ],
+    )
+    monkeypatch.setattr(
+        cli_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+
+    def fake_poll(self, sim_id, max_wait=600.0):
+        sharpe = 1.5 if "ts_" in sim_id else 0.8
+        return SimulationResult(
+            sim_id=sim_id, status="COMPLETED", alpha_id="a1",
+            checks=[{"name": "SHARPE", "result": "PASS" if sharpe > 1.0 else "FAIL",
+                     "value": sharpe}],
+            metrics={"sharpe": sharpe, "fitness": 1.1, "turnover": 0.2},
+        )
+
+    monkeypatch.setattr(cli_mod.BrainClient, "poll_simulation", fake_poll)
+    monkeypatch.setattr(cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}")
+
+    rc = cli_mod.cmd_run(paths, cli_mod.AppConfig(), str(cand_path), idea=None)
+    assert rc == 0
+
+    store = Store(paths.DB)
+    lessons = store._conn.execute("SELECT * FROM lessons").fetchall()
+    failures = store._conn.execute("SELECT * FROM failures").fetchall()
+    assert len(lessons) == 1
+    assert len(failures) == 1
+    assert "有效动量" in paths.PLAYBOOK.read_text(encoding="utf-8")
+    assert "低夏普失败" in paths.FAILURES.read_text(encoding="utf-8")
+
+
+def test_cmd_update_knowledge_end_to_end(tmp_qa, monkeypatch, capsys):
+    """v1.4：qa update-knowledge 按账户区域抓字段 → 写 experience/（mock API）。"""
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    monkeypatch.setattr(
+        cli_mod, "get_stage",
+        lambda p: StageInfo(level="BRONZE", is_consultant=False, regions=["USA"]),
+    )
+
+    def fake_get_json(self, path, params=None):
+        if path == "/data-sets":
+            return {"results": [{"id": "pv1"}], "count": 1}
+        if path == "/data-fields":
+            return {"results": [{"id": "close", "description": "c",
+                                 "type": "MATRIX", "coverage": 1.0, "userCount": 10}],
+                    "count": 1}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(cli_mod.BrainClient, "get_json", fake_get_json)
+
+    rc = cli_mod.cmd_update_knowledge(paths, regions_arg=None, pace=0.0)
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert "完成" in out and "1 字段" in out
+    assert paths.KNOWLEDGE_FIELDS_JSON.exists()
+    assert "close" in paths.KNOWLEDGE_FIELDS_JSON.read_text(encoding="utf-8")
+    assert paths.PLAYBOOK.exists()  # 模板随构建创建
+
+
+def test_cmd_suggest_requires_and_uses_knowledge(tmp_qa, monkeypatch, capsys):
+    """v1.4：qa suggest 无知识库报错；有知识库输出随机研究方向。"""
+    from qa.paths import QaPaths
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    assert cli_mod.cmd_suggest(paths) == 1
+
+    _seed_knowledge(paths)
+    rc = cli_mod.cmd_suggest(paths)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "建议研究方向" in out
+    assert any(f in out for f in ("close", "volume", "subindustry"))
+
+
+def test_cmd_status_prompts_knowledge_generation(tmp_qa, monkeypatch, capsys):
+    """v1.4：status 展示知识库状态，缺失时提示 update-knowledge。"""
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    monkeypatch.setattr(
+        cli_mod, "get_stage",
+        lambda p: StageInfo(level="BRONZE", is_consultant=False),
+    )
+    assert cli_mod.cmd_status(paths) == 0
+    out = capsys.readouterr().out
+    assert "update-knowledge" in out
+
+    _seed_knowledge(paths)
+    assert cli_mod.cmd_status(paths) == 0
+    out = capsys.readouterr().out
+    assert "字段" in out and "生成于" in out
+
+
 def test_cmd_reset_clears_experience_keeps_credentials(tmp_qa, monkeypatch, capsys):
     """qa reset：清除经验数据，保留 cookie/账号/知识库。"""
     from qa.paths import QaPaths
@@ -164,6 +335,12 @@ def test_cmd_reset_clears_experience_keeps_credentials(tmp_qa, monkeypatch, caps
     s.save_alpha({"id": "a1", "expression": "rank(close)", "ast_hash": "h1",
                   "status": "COMPLETE"})
     s.save_lesson({"id": "l1", "trigger": "x", "lesson": "y"})
+    # 本地知识库：fields 保留、playbook/failures 恢复模板
+    _seed_knowledge(paths)
+    from qa import knowledge
+
+    knowledge.append_experience(paths, "lesson", "h9", "某经验", "内容")
+    knowledge.append_experience(paths, "failure", "h9", "某证伪", "内容")
 
     rc = cli_mod._cmd_reset(paths, yes=True)
     out = capsys.readouterr().out
@@ -174,4 +351,7 @@ def test_cmd_reset_clears_experience_keeps_credentials(tmp_qa, monkeypatch, caps
     assert not list((paths.REPORTS_DIR / "daily").glob("*"))
     assert not pending.exists()           # 待提交暂存已删
     assert paths.COOKIE.exists()          # cookie 保留
+    assert "某经验" not in paths.PLAYBOOK.read_text(encoding="utf-8")  # playbook 恢复模板
+    assert "某证伪" not in paths.FAILURES.read_text(encoding="utf-8")
+    assert paths.KNOWLEDGE_FIELDS_JSON.exists()  # 账户字段知识保留
     assert "保留" in out

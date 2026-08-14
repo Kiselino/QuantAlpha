@@ -1,10 +1,12 @@
 # QuantAlpha — 系统设计文档（项目职能说明书）
 
-**版本:** v1.3 · **日期:** 2026-08-14 · **状态:** 第一批已实现跑通（login/status/run/report/submit/reset）
+**版本:** v1.4 · **日期:** 2026-08-15 · **状态:** 第一批已实现跑通 + v1.4 知识库本地化落地（login/status/run/report/submit/reset/update-knowledge/suggest）
 **读者:** 任何 AI agent / 人类协作者。打开本仓库后，先读 `AGENTS.md`（工作流入口），再读本文（系统全貌）。
 
 > 本文档是 QuantAlpha 系统的唯一权威设计来源。实现、修改、扩展均以本文为准。
-> 本仓库公开分发：工具 + 静态知识库 + 脱敏 playbook 随仓库分发；私有数据（cookie、账号密码、原始经验、个人成果）gitignore 隔离。
+> 本仓库公开分发：工具 + 公开知识库（平台文档）；私有数据（cookie、账号密码、本地字段知识、个人经验、个人成果）gitignore 隔离。
+>
+> **v1.4 更新（知识库本地化，用户拍板）：** ① **知识库拆分**：公开 `knowledge/`（operators/rules/pitfalls/字段策略说明——平台公开文档，随仓库分发）与本地 `experience/`（字段元数据 + playbook + failures——账户专属，gitignored 不上传）。字段可用范围随账户权限变化（用户=USA / 顾问=12 区域），且表达式/字段研究属个人数据，不再随仓库分享 ② **`qa update-knowledge` 落地**：按账户阶段抓取字段（`/data-sets` + `/data-fields?dataset.id=...`，限流节流 ~2s/请求）→ 写 `experience/fields/{fields,top_fields,meta}.json`；`qa status` 提示/展示知识库状态；`qa run` 字段白名单改读本地（缺失即报错引导首跑）③ **`qa suggest` 落地**：本地知识库随机数据集+字段+主题模板，供生成候选的主题来源之一 ④ **经验自动沉淀接线**（第二批部分完成）：run 后 PASS→lessons、FAIL→failures 自动写 SQLite + `experience/playbook.md`/`failures.md` 自动追加（幂等去重）；submit 相关门饱和/失败/ACTIVE 同样沉淀 ⑤ `TOP_FIELDS.json`、playbook/failures 迁出公开仓库（原内容已迁移本地，脱敏方法论保留在本地 playbook）。**明确未实现（后续批次）：** `optimizer.py`、`--smoke`/`--batch` 参数、RAG 向量检索。
 >
 > **v1.1 更新（外部经验复查 + 实测验证）：** ① 新增**账号阶段检测**（启动时判定 用户/顾问，动态配置并发/区域/字段/语言）② 限流机制实测修正（`x-ratelimit-*-minute` 30/分，非日配额）③ 新增 `validate.py` 前置校验层（省无效模拟配额）④ 提交前免费相关门 `/correlations/self`（实测可用）⑤ 提交后二次确认 `status==ACTIVE` ⑥ 自相关改算**日收益**相关 ⑦ 每日提交 1-2 个即达 2000 分封顶（官方计分规则）；用户口径补充：**顾问阶段提交 3+ 个当日奖励封顶** ⑧ 字段优先级/decay 经验值写入生成提示词 ⑨ 经验 schema 扩展 + 证伪库 ⑩ 知识库 RAG 可开关 ⑪ **生成架构调整：项目内不调用 LLM API——生成由对话层 agent（harness）完成，agent 读 knowledge/ 后写候选到 `data/candidates/`，项目只做执行**。
 >
@@ -42,7 +44,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。用户通过对话�
 | P2 | **模拟全自动，提交人工确认** | 生成/模拟/筛选/报告全自动；提交必须逐条展示检查结果 + 研究逻辑，等待用户显式确认后 agent 代提交。**禁止无人值守自动提交**（ToS 红线） |
 | P3 | **组合视角（alpha 非独立）** | 平台按全部 alpha 的整体表现评判：SELF_CORRELATION 检查（对已提交集 max corr <0.7）、IQC 合并计分（新 alpha 不加值即降分）、Base Quality Factor（低相关得分）。生成与筛选必须考虑与现有组合的关系，不能只盯单 alpha 指标 |
 | P4 | **单数据集优先（ATOM）** | 优先生成单数据集表达（ATOM 原则放宽提交标准：只看 2Y Sharpe D1>1）；多数据集需显式标记 |
-| P5 | **可分享** | 工具 + 静态知识 + 脱敏 playbook 随仓库分发；私有数据（cookie/原始经验/个人成果）gitignore 隔离。**严禁在分享内容中包含真实 alpha 表达式/账号 ID/盈亏数据** |
+| P5 | **可分享** | 工具 + 公开知识库（平台文档）随仓库分发；私有数据（cookie/本地字段知识/个人经验/个人成果）gitignore 隔离。**严禁在分享内容中包含真实 alpha 表达式/账号 ID/盈亏数据**；字段元数据按账户权限生成存本地（v1.4） |
 | P6 | **YAGNI** | 不做：本地回测、Web UI、多用户、定时任务、D0 支持（需 5000 分解锁）、顾问专属功能（PYTHON/ML、12 区域——由阶段检测启用但 MVP 不实现）。向量检索初期 TF-IDF，**RAG 做成可开关**（FAFM 领域无定论，保留零样本基线 A/B） |
 
 ---
@@ -95,6 +97,8 @@ agent 启动 → 读 cookie（secrets/worldquant_cookies.txt）
   │      level       = BRONZE/SILVER/GOLD（Challenge 等级）
   │      geniusLevel = 顾问 Genius 等级（null = 非顾问）
   │      consultant  = 顾问信息（null = 非顾问）
+  ├─ 本地知识库检查（experience/fields/meta.json）：
+  │    缺失 → 提示"首次运行需先 `qa update-knowledge`"（账户专属字段知识，不上传）
   ├─ 检查待提交暂存 secrets/pending_submits.json（跨会话接力）：
   │    有内容 → 告知用户"有 N 个达标 alpha 暂存待提交"，用户确认后逐个
   │    `qa submit <local_id> --yes`，提交成功从文件删除对应条目
@@ -105,15 +109,15 @@ agent 启动 → 读 cookie（secrets/worldquant_cookies.txt）
 
 | 步骤 | 动作 | 组件 | 自动化 |
 |---|---|---|---|
-| 0 | **启动：阶段检测 + cookie 验证 + 配额状态** | stage / brain_client | 自动 |
-| 1 | 用户给研究方向/点子（或让 agent 自主提议） | 对话 | 人工 |
-| 2 | **agent（对话层自身）读 knowledge/ 知识库 → 生成 10-20 个候选表达式 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM） | 对话层 + candidates | 自动 |
-| 3 | **validate 前置预检**（AST 语法 lint + 字段白名单 + 哈希去重 + 复杂度控制） | validate | 自动 |
+| 0 | **启动：阶段检测 + cookie 验证 + 配额状态 + 本地知识库检查** | stage / brain_client / knowledge | 自动 |
+| 1 | **生成前询问主题来源三选一**：① `qa suggest`/agent 随机抽取 ② agent 网络调研热门主题 ③ 用户指定方向 | 对话 | 人工 |
+| 2 | **agent（对话层自身）读知识库（公开 `knowledge/` + 本地 `experience/`：字段/playbook/failures）→ 生成 10-20 个候选表达式 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM） | 对话层 + candidates | 自动 |
+| 3 | **validate 前置预检**（AST 语法 lint + 字段白名单（读本地 experience/fields/）+ 哈希去重 + 复杂度控制） | validate | 自动 |
 | 4 | 批量云端模拟（3 并发 / 分钟限流头管理 / 429 区分处理 / JSONL 审计） | brain_client | 自动 |
 | 5 | 门槛过滤（用平台 `is.checks` 结果）+ 组合视角排序 + 免费相关门预检 | screener | 自动 |
 | 6 | 生成候选清单报告（指标/通过项/逻辑解释/提交建议） | report | 自动 |
 | 7 | **用户逐条确认** → agent 调提交 API → **回查 `status==ACTIVE`** | brain_client | **人工确认** |
-| 8 | 指纹 diff → 经验教训写入 SQLite（lessons/failures 自动）+ playbook.md 手动沉淀（自动追加第二批）+ 原始库（私有） | store | 自动/手动 |
+| 8 | **经验自动沉淀（v1.4 接线）**：模拟 PASS→lessons、FAIL→failures 写入 SQLite + `experience/playbook.md`/`failures.md` 自动追加（幂等去重）；submit 相关门饱和/失败/ACTIVE 同样沉淀 | store + knowledge | 自动 |
 
 ### 3.2 优化迭代循环（简化版，符合"简单优化即可"）
 
@@ -131,30 +135,31 @@ agent 启动 → 读 cookie（secrets/worldquant_cookies.txt）
 | 文件 | 职责 | 关键实现 |
 |---|---|---|
 | `config.py` | 配置 | 阈值（Sharpe/TO/自相关）、region/universe/delay 默认值；**阶段相关变量**（并发/区域/字段/语言由 stage.py 动态注入）。**无 LLM 配置——项目不调用 LLM** |
-| `paths.py` | 路径单点定义 | 仓库内私有文件路径集中管理（COOKIE/ACCOUNT_INFO/DB/AUDIT_DIR/REPORTS_DIR/CANDIDATES_DIR）；根目录可注入（测试用 tmp 仓库根） |
+| `paths.py` | 路径单点定义 | 仓库内私有文件路径集中管理（COOKIE/ACCOUNT_INFO/DB/AUDIT_DIR/REPORTS_DIR/CANDIDATES_DIR + experience/ 本地知识库路径：KNOWLEDGE_FIELDS_DIR/PLAYBOOK/FAILURES 等）；根目录可注入（测试用 tmp 仓库根） |
 | `stage.py` | **账号阶段检测** | 读 cookie → `GET /users/self` → 解析 level/geniusLevel/consultant → 输出阶段配置（并发/区域/字段/语言/配额） |
 | `auth.py` | **账号密码登录** ✅ v1.2 | `POST /authentication`（HTTP Basic Auth）→ 提取 Set-Cookie 的 `t=` JWT 写入 cookie 文件；凭据不落盘、不进审计；401 凭据错误/Persona 人机验证（`WWW-Authenticate: persona`）分别抛异常提示；替代/补充浏览器复制 cURL 方式 |
-| `brain_client.py` | BRAIN API 封装 | 认证（读 `secrets/worldquant_cookies.txt`）；模拟 POST+轮询+结果（含 is.checks，实测状态值 `COMPLETE`）；`/correlations/self` 相关门；提交 `submit()` + 回查 `get_alpha()`；**429 区分处理（常规 Retry-After 退避 vs THROTTLED 抛错）**；**空响应/非 JSON body 重试防御**（实测偶发）；分钟限流头读取；401/403 抛 PermissionError 提示重登 |
-| `validate.py` | **本地预检层（省配额核心）** | 语法 lint（括号配对/未知算子）+ **字段白名单校验**（对照 TOP_FIELDS.json 295 字段 + 核心字段，防 LLM 幻觉字段名）+ 表达式 SHA-256 哈希去重 + 复杂度控制（算子 ≤30、嵌套 ≤8） |
+| `brain_client.py` | BRAIN API 封装 | 认证（读 `secrets/worldquant_cookies.txt`）；模拟 POST+轮询+结果（含 is.checks，实测状态值 `COMPLETE`）；`/correlations/self` 相关门；提交 `submit()` + 回查 `get_alpha()`；**429 区分处理（常规 Retry-After 退避 vs THROTTLED 抛错）**；**空响应/非 JSON body 重试防御**（实测偶发）；分钟限流头读取；`get_json()` 批量读端点（知识库抓取用）；401/403 抛 PermissionError 提示重登 |
+| `validate.py` | **本地预检层（省配额核心）** | 语法 lint（括号配对/未知算子）+ **字段白名单校验（读本地 `experience/fields/fields.json`，v1.4；缺失抛 KnowledgeMissingError 引导 `qa update-knowledge`）** + 表达式 SHA-256 哈希去重 + 复杂度控制（算子 ≤30、嵌套 ≤8） |
 | `candidates.py` | **候选读入** | 读取 agent 写入的 `data/candidates/YYYY-MM-DD.json`（格式：`[{description, hypothesis, expression, dataset_ids}]`）→ 供 validate/screener 处理。**项目内不生成、不调用 LLM**——生成由对话层 agent 完成 |
 | `screener.py` | 门槛过滤 + 去重 | 硬门槛：Fitness≥1.0(D1)/1.3(D0)、Sharpe>1.25(D1)/2.0(D0)、TO 1-70%（本地兜底）；平台 `is.checks` 为权威（P1）：FAIL 直接采信、全 PASS 不降级；MARGINAL（距门槛 10% 内）仅当平台 checks 缺失时使用；日收益 Pearson 相关；按 score 降序排序 |
 | `store.py` | 持久化 | SQLite（alphas/simulations/submissions/daily_returns/lessons/failures 表）+ JSONL 审计（`append_audit` 返回时间戳关联 simulations.audit_path）；幂等（INSERT OR REPLACE）、中断后重跑跳过已完成项（靠 alphas.ast_hash 去重） |
 | `report.py` | 报告 | 候选清单 markdown（指标/说明/建议排序）；每日达标汇总文档（`reports/daily/YYYY-MM-DD.md` 追加 + 去重） |
-| `cli.py` | 命令入口 | `qa login` / `qa status` / `qa run` / `qa report` / `qa submit`（`--yes` agent 代提交 + 回查 ACTIVE 轮询）/ `qa reset`（清除经验回初始态）；run 内并发模拟（ThreadPoolExecutor，并发数取 stage 检测值，写库回主线程避免 sqlite 跨线程） |
-| `optimizer.py` | 优化循环 | ⏳ **未实现**（第二批规划：仅 MARGINAL 候选轻量调整 ≤2 轮 + 止损式触发） |
-| `knowledge.py` | 知识检索 | ⏳ **未实现**（第三批规划：静态库检索 + TF-IDF，RAG 可开关） |
+| `cli.py` | 命令入口 | `qa login` / `qa status` / `qa run` / `qa report` / `qa submit`（`--yes` agent 代提交 + 回查 ACTIVE 轮询）/ `qa reset`（清除经验回初始态）/ `qa update-knowledge`（v1.4）/ `qa suggest`（v1.4）；run 内并发模拟（ThreadPoolExecutor，并发数取 stage 检测值，写库回主线程避免 sqlite 跨线程）；run/submit 自动沉淀经验到 SQLite + experience/（v1.4 接线） |
+| `optimizer.py` | 优化循环 | ⏳ **未实现**（后续批次规划：仅 MARGINAL 候选轻量调整 ≤2 轮 + 止损式触发） |
+| `knowledge.py` | **本地知识库管理（v1.4 实现）** | 按账户阶段抓取字段（`/data-sets` + `/data-fields`，分页 + 限流节流 ~2s/请求）→ 写 `experience/fields/{fields,top_fields,meta}.json`（全量白名单/top 参考/状态 meta）；读取接口 `load_field_ids`/`load_top_fields`/`knowledge_status`；经验沉淀 `append_experience`（playbook/failures 自动追加，按 entry_id 幂等去重）/`restore_experience_templates`（reset 用） |
 
 ### 4.1 命令清单（agent 工作流接口）
 
 | 命令 | 功能 | 说明 |
 |---|---|---|
 | `qa login [--username ...] [--password ...]` | **账号密码登录** ✅ | `POST /authentication`（Basic Auth）→ 写 `secrets/worldquant_cookies.txt` 并验证会话；凭据不落盘/不进审计；无参数时交互输入（getpass 不回显）；Persona 验证提示人工处理 |
-| `qa status` | **启动首查** ✅ | 阶段检测 + cookie 验证 + 配额/限流状态 |
-| `qa run [--candidates-file ...] [--idea ...]` | 完整闭环：读入候选→预检→模拟→筛选→报告 ✅ | **候选由 agent 写入 `data/candidates/` 后项目读入**（默认读当日文件）；并发模拟；结果落库（save_alpha + save_simulation + 审计） |
+| `qa status` | **启动首查** ✅ | 阶段检测 + cookie 验证 + 配额/限流状态 + 本地知识库状态（缺失提示 `qa update-knowledge`） |
+| `qa run [--candidates-file ...] [--idea ...]` | 完整闭环：读入候选→预检→模拟→筛选→报告 ✅ | **候选由 agent 写入 `data/candidates/` 后项目读入**（默认读当日文件）；字段白名单读本地知识库（缺失报错引导首跑）；并发模拟；结果落库（save_alpha + save_simulation + 审计）；经验自动沉淀 |
 | `qa report [--daily]` | 查看报告 ✅ | 当日候选清单 / 每日累计汇总 |
-| `qa submit <alpha_id> [--yes]` | 人工确认后提交 ✅ | 展示全部检查 + 免费相关门 → 交互确认（或 --yes agent 代提交）→ `POST /alphas/{id}/submit` → **轮询回查 ACTIVE**（平台状态更新有延迟）；写 submissions 表 + 审计 |
-| `qa reset [--yes]` | **清除经验，回到初始状态** ✅ | 删除 qa.db/audit/candidates/reports/pending_submits.json + playbook/failures 恢复模板；**保留** secrets/ 凭证与 knowledge/ 静态库；执行前展示清单 + 确认（合规） |
-| `qa update-knowledge` | 更新知识库 | ⏳ 第三批：重抓算子/字段/教程；成顾问后 12 区域 40 万字段 |
+| `qa submit <alpha_id> [--yes]` | 人工确认后提交 ✅ | 展示全部检查 + 免费相关门 → 交互确认（或 --yes agent 代提交）→ `POST /alphas/{id}/submit` → **轮询回查 ACTIVE**（平台状态更新有延迟）；写 submissions 表 + 审计；相关门饱和/失败/ACTIVE 沉淀经验 |
+| `qa reset [--yes]` | **清除经验，回到初始状态** ✅ | 删除 qa.db/audit/candidates/reports/pending_submits.json + experience/playbook/failures 恢复模板；**保留** secrets/ 凭证、knowledge/ 公开库与 experience/fields/ 字段知识；执行前展示清单 + 确认（合规） |
+| `qa update-knowledge [--regions ...]` | **按账户抓取字段知识 → 写本地 experience/fields/** ✅ v1.4 | 首次运行必做；按账户阶段抓区域（用户=USA / 顾问=12 区域）；`--regions USA,KOR` 限定；限流节流 ~2s/请求；数据 gitignored 不上传 |
+| `qa suggest` | 随机建议研究方向 ✅ v1.4 | 本地知识库随机数据集+top 字段+主题模板，供 agent 生成候选时作主题来源 |
 
 ---
 
@@ -210,15 +215,17 @@ QuantAlpha/
 ├── quantalpha-design.md         # ⭐ 本文件：设计文档（智能体职能说明书）
 ├── qa/                          # Python 工具库
 │   └── (auth, config, stage, brain_client, validate, candidates,
-│        screener, report, store, cli, paths).py
-│       # ⏳ 规划未实现：optimizer.py、knowledge.py
-├── knowledge/                   # ✅ 可分享：静态知识库（由 platform-data 整理）
+│        screener, report, store, cli, paths, knowledge).py
+│       # ⏳ 规划未实现：optimizer.py
+├── knowledge/                   # ✅ 公开知识库（平台公开文档，随仓库分发）
 │   ├── operators.md             # 67 算子参考
-│   ├── fields/                  # 字段元数据索引（TOP_FIELDS.json 295 精选）+ 字段饱和度
+│   ├── fields/README.md         # 字段策略要点（公开机制说明；字段数据本地化）
 │   ├── rules.md                 # 平台规则/提交门槛/收入机制/计分规则
-│   ├── playbook.md              # ⭐ 脱敏经验沉淀（随仓库分享）
-│   ├── failures.md              # 证伪库（已证伪路径）
 │   └── pitfalls.md              # 量化陷阱/反过拟合
+├── experience/                  # 🔒 gitignored：本地账户知识库（字段元数据 + playbook + failures）
+│   ├── fields/                  #   qa update-knowledge 生成：fields.json/top_fields.json/meta.json
+│   ├── playbook.md              #   经验沉淀（自动追加）
+│   └── failures.md              #   证伪库（自动追加）
 ├── pyrightconfig.json           # LSP 配置（basedpyright：venv 解释器 + basic 检查模式）
 ├── data/                        # 🔒 gitignored：qa.db + audit/ + candidates/
 ├── reports/                     # 🔒 gitignored：个人每日成果（可选分享）
@@ -226,7 +233,7 @@ QuantAlpha/
 └── pyproject.toml
 ```
 
-**gitignore 安全线：** `data/`、`reports/`、`secrets/`、`.omo/`、`experience/`（预留）、`audit/`（预留）全部忽略——其他使用者克隆只拿到工具+知识，不含任何私有数据。待提交暂存 `secrets/pending_submits.json` 位于 secrets/ 下自动覆盖。
+**gitignore 安全线：** `data/`、`reports/`、`secrets/`、`.omo/`、`experience/`、`audit/`（预留）全部忽略——其他使用者克隆只拿到工具+公开知识库，不含任何私有数据（字段知识/经验/凭证）。待提交暂存 `secrets/pending_submits.json` 位于 secrets/ 下自动覆盖。
 
 ---
 
@@ -249,7 +256,7 @@ QuantAlpha/
 
 ## 10. 测试策略与 MVP 范围
 
-**测试（已实现，55 个单测全过）：**
+**测试（已实现，74 个单测全过）：**
 - candidates：候选 JSON 读入/容错单测
 - validate：语法 lint / 字段白名单 / 哈希去重 单测（LLM 幻觉字段拦截验证）
 - screener：门槛逻辑单测（构造数据模拟 PASS/MARGINAL/FAIL）+ 相关性计算单测 + 平台 checks 全 PASS 不降级
@@ -257,13 +264,14 @@ QuantAlpha/
 - brain_client：mock HTTP（不真调 API）+ 429 退避 + 空响应重试防御 + submit/get_alpha
 - stage：users/self 响应解析单测（BRONZE / 顾问 / cookie 失效三种形态）
 - auth：登录成功提取 t= / 200 也接受 / 多 Set-Cookie / 401 凭据错误 / Persona / 缺 cookie
-- cli：命令分发 + run 端到端 + submit 端到端 + reset 清除（mock 阶段检测与模拟）
+- cli：命令分发 + run 端到端 + submit 端到端 + reset 清除 + status 知识库提示 + update-knowledge 端到端 + suggest + run 自动沉淀（mock 阶段检测与模拟）
+- knowledge（v1.4）：构建写文件/分页/防御解析/top 字段/读取/经验追加去重/模板恢复
 - 真实调用：`qa login` 实测成功（BRONZE 用户；JWT `amr=['pwd']` 证实 API 登录无需验证码）+ 401 错误路径实测 + 提交 ACTIVE 实测
 
-**MVP 状态（v1.3）：**
+**MVP 状态（v1.4）：**
 - ✅ 第一批完成：config + paths + store + stage + auth + validate + candidates + brain_client(模拟/提交) + screener(门槛) + report + cli(login/status/run/report/submit/reset)
-- ⏳ 第二批：optimizer + playbook/failures 自动沉淀
-- ⏳ 第三批：update-knowledge 命令 + 知识库整理 + 字段饱和度
+- ✅ v1.4 完成：update-knowledge（按账户抓字段→本地）+ suggest（随机主题）+ 经验自动沉淀接线（run/submit → SQLite + experience/playbook/failures）+ 知识库本地化拆分
+- ⏳ 后续批次：optimizer（MARGINAL 轻调 + 止损式触发）
 - 明确不做（现阶段）：向量检索（RAG 开关预留）、Web UI、多用户、定时任务、D0、复杂组合优化、顾问专属功能（PYTHON/ML、12 区域——由阶段检测启用但 MVP 不实现）、**项目内 LLM 调用（生成在 agent 侧）**
 
 ---
@@ -278,15 +286,21 @@ QuantAlpha/
 
 ---
 
-## 12. 知识库更新（`qa update-knowledge`）
+## 12. 知识库（v1.4 已落地：账户专属字段知识本地生成）
 
-| 数据 | 来源 | 频率 |
+**拆分原则（用户拍板）：** 公开 `knowledge/`（operators/rules/pitfalls/字段策略说明——平台公开文档）随仓库分发；本地 `experience/`（字段元数据 + playbook/failures——账户专属）gitignored 不上传。
+
+**`qa update-knowledge` 已实现：** 按账户阶段（用户=USA / 顾问=12 区域）抓取字段元数据 → 写：
+
+| 文件 | 内容 | 用途 |
 |---|---|---|
-| 67 算子文档 | platform-data/OPERATORS_REFERENCE.md | 平台变更时 |
-| 8642 字段元数据（USA） | platform-data/field_metadata/ | 平台变更时 |
-| 教程/论坛/Help Center | platform-data/ 各目录 | 需要时 |
-| **顾问 12 区域 40 万字段** | 成为顾问后 API 抓取（`/data-fields?dataset.id=...&region=...`） | 成顾问后 |
-| 用户 alpha 库 | `/users/self/alphas` 拉取 | 每次会话 |
+| `experience/fields/fields.json` | 全量字段 `{id, description, dataset, type, coverage, userCount}` | `qa run` 字段白名单（validate） |
+| `experience/fields/top_fields.json` | 每数据集 userCount top 15 | agent 生成候选选字段 + `qa suggest` |
+| `experience/fields/meta.json` | 生成时间/阶段/区域/数量 | `qa status` 展示 |
+
+- 抓取：`GET /data-sets` → 每数据集 `GET /data-fields?dataset.id=...`（分页 limit=50，offset 翻页；防御解析 `{results:[]}` 与裸数组两种形态）
+- 限流节流：~2s/请求（30 req/min 分钟配额内安全）；429 由 brain_client 退避兜底
+- 首次运行必做：`qa status` 检测缺失提示；`qa run` 缺失即报错引导
 
 **关键 API 备忘（已实测验证，供后续 agent）：**
 - 认证：`POST /authentication`（HTTP Basic Auth，email:password）→ 201 + Set-Cookie `t=` JWT（**会话 ~4h**，`token.expiry ≈ 14222s`；API 登录 JWT `amr=['pwd']` 无验证码——Altcha PoW 仅用于注册 `POST /users`）；`DELETE /authentication` 登出；Persona 人机验证：401 + `WWW-Authenticate: persona` + `{"inquiry": ...}` → `POST /authentication/persona`
@@ -311,7 +325,7 @@ QuantAlpha/
 | LLM | **不使用 LLM API——生成由对话层 agent（harness）完成**，项目内零 LLM 调用 | 用户拍板：agent 读项目文件后直接生成 alpha 写入项目，项目跑后续流程 |
 | 技术栈 | Python + opencode agent | CS 背景；可测可复用 |
 | 测试位置 | 仅平台模拟（本地零回测） | 本地无真实数据（P1） |
-| 知识分享 | 脱敏 playbook + 证伪库随仓库分享 | 用户决定；合规允许方法论分享 |
+| 知识分享 | 公开平台文档随仓库分发；**字段元数据/playbook/failures 本地化不上传（v1.4 用户拍板）** | 字段可用范围随账户权限变化；表达式/字段研究属个人数据，分享价值低且敏感 |
 | 优化循环 | 仅 MARGINAL ≤2 轮轻调 + 止损式触发 | 省配额（用户要求"简单优化"） |
 | 检索 | TF-IDF 起步，RAG 可开关 | YAGNI，后期可升 RAG |
 | 生成批次 | 10-20 个/轮 | 非顾问每日 1-2 个成功即可；省配额 |
@@ -322,3 +336,5 @@ QuantAlpha/
 | **validate 前置层** | LLM 生成后、模拟前本地预检 | 拦截幻觉字段/语法错，省无效模拟配额 |
 | **相关门** | 提交前 `/correlations/self`（max<0.7）+ 日收益相关 | 避免浪费提交槽位；累计 PnL 相关会误判 |
 | **计分策略** | 每日集中提交 1-2 个高质量（美东 3AM 日界） | 官方计分规则：每日 2000 分封顶、相对分 |
+| **知识库本地化（v1.4）** | 字段/经验本地生成，公开仓库只留平台文档 | 用户拍板：账户权限差异 + 敏感数据不上传；首次运行 `qa update-knowledge` 生成 |
+| **经验自动沉淀（v1.4）** | run/submit 后 PASS→lessons、FAIL→failures 自动写 SQLite + experience/ markdown（幂等去重） | 沉淀闭环指导后续生成；省人工整理 |

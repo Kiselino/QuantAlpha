@@ -1,7 +1,7 @@
 # QuantAlpha — Agent 工作流入口 + 项目知识库
 
 > 任何 AI agent（opencode / claude code / codex）打开本仓库后的**第一读取文件**。
-> 权威系统设计见 `quantalpha-design.md`（v1.3）。实现以设计文档为准。
+> 权威系统设计见 `quantalpha-design.md`（v1.4）。实现以设计文档为准。
 
 ## 项目是什么
 
@@ -17,6 +17,8 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 1. 运行 `qa status`（或读取 secrets/worldquant_cookies.txt 调 API）
    → 账号阶段检测（level/geniusLevel/consultant）+ cookie 有效性 + 配额/限流状态
    → 动态配置：并发数、可用区域、字段范围、表达式语言
+   → 同时检查本地知识库 `experience/fields/`（v1.4 起字段数据本地化）：
+     缺失 → 主动提示用户"首次运行需先 `qa update-knowledge` 生成账户专属字段知识库"
 2. 检查待提交暂存 `secrets/pending_submits.json`：
    → 有内容 → 主动告知用户"有 N 个已达标 alpha 暂存待提交"
      （列出每个的 local_id/描述/指标），询问是否提交（用户确认后逐个
@@ -26,33 +28,39 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
    或让用户提供 Copy as cURL（敏感用户可选用）
 4. 询问用户本次意图（生成候选？查看报告？提交确认？更新知识库？）
    不要擅自开始生成/提交
+5. 若本次要生成候选：**先询问主题来源，三选一**——
+   ① 随机抽取（agent 跑 `qa suggest` 或自行随机）
+   ② 网络热门（agent 用 web 搜索 BRAIN 社区/论坛/教程的热门研究方向）
+   ③ 用户指定（用户直接给方向/点子）
+   用户选择后再进入生成（不擅自替用户选主题）
 ```
 
 ## 工作流（九步闭环）
 
 | 步骤 | 动作 | 自动/人工 |
 |---|---|---|
-| 0 | 启动：阶段检测 + cookie 验证 + 配额状态 | 自动 |
-| 1 | 用户给研究方向/点子（或 agent 提议） | 人工 |
-| 2 | **agent（你）读 knowledge/ 知识库 → 生成 10-20 个候选表达式 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM，生成是你的事） | 自动 |
-| 3 | validate 预检：语法 lint + 字段白名单 + 去重 + 复杂度 | 自动 |
+| 0 | 启动：阶段检测 + cookie 验证 + 配额状态 + 本地知识库检查 | 自动 |
+| 1 | **生成前询问主题来源三选一**：① `qa suggest`/agent 随机抽取 ② agent 网络调研热门主题 ③ 用户指定方向 | 人工 |
+| 2 | **agent（你）读知识库（公开 `knowledge/` + 本地 `experience/`：字段/playbook/failures）→ 生成 10-20 个候选表达式 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM，生成是你的事） | 自动 |
+| 3 | validate 预检：语法 lint + 字段白名单（**读本地 experience/fields/**）+ 去重 + 复杂度 | 自动 |
 | 4 | 批量云端模拟（3 并发 / 分钟限流管理） | 自动 |
 | 5 | 门槛过滤 + 组合视角排序 + 免费相关门 | 自动 |
 | 6 | 候选清单报告（指标/解释/提交建议） | 自动 |
 | 7 | **用户逐条确认** → agent 代提交 → 回查 ACTIVE | **人工确认** |
-| 8 | 经验教训写入 SQLite（lessons/failures 自动；playbook.md 手动沉淀，自动追加第二批） | 自动/手动 |
+| 8 | 经验自动沉淀：模拟 PASS→lessons、FAIL→failures（SQLite + experience/playbook.md/failures.md 自动追加，v1.4 已接线） | 自动 |
 
 ## 命令清单
 
 | 命令 | 功能 | 状态 |
 |---|---|---|
 | `qa login [--username ...] [--password ...]` | 账号密码登录 → 写 cookie（凭据不落盘；Persona 人机验证会提示） | ✅ 已实现 |
-| `qa status` | 阶段检测 + cookie 验证 + 配额（启动首查） | ✅ 已实现（第一批） |
+| `qa status` | 阶段检测 + cookie 验证 + 配额 + 本地知识库状态（启动首查） | ✅ 已实现（第一批） |
 | `qa run [--candidates-file ...]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`** | ✅ 已实现（第一批） |
 | `qa report [--daily]` | 当日候选清单 / 每日累计汇总 | ✅ 已实现（第一批） |
 | `qa submit <alpha_id> [--yes]` | 人工确认后提交（提交前展示全部检查 + 免费相关门，提交后回查 ACTIVE） | ✅ 已实现 |
 | `qa reset [--yes]` | **清除积累的经验，回到初始状态**（见下方"经验清除范围"） | ✅ 已实现 |
-| `qa update-knowledge` | 更新知识库（算子/字段/教程；成顾问后 12 区域 40 万字段） | ⏳ 第三批 |
+| `qa update-knowledge [--regions ...]` | **按账户抓取字段知识 → 写本地 experience/fields/**（首次运行必做；数据 gitignored 不上传；顾问可 --regions 限定区域） | ✅ 已实现（v1.4） |
+| `qa suggest` | 随机建议研究方向（本地知识库随机数据集+字段+主题），供生成候选 | ✅ 已实现（v1.4） |
 
 ### 经验清除范围（用户说"清除经验/重置"时，agent 执行 `qa reset`）
 
@@ -60,11 +68,12 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 - `data/qa.db` — 全部记录（候选/模拟/提交/经验/证伪/日收益）
 - `data/audit/`、`data/candidates/`、`reports/daily/` — 审计/候选/每日汇总
 - `secrets/pending_submits.json` — 待提交暂存（⚠️ 含未提交 alpha 时清除前必须警告用户）
-- `knowledge/playbook.md` + `failures.md` — 沉淀段落恢复为模板
+- `experience/playbook.md` + `failures.md` — 本地经验沉淀恢复为模板
 
 **保留（非经验）：**
 - `secrets/` 下 cookie 与 account_info.json（登录凭证，重置后无需重新登录）
-- `knowledge/` 静态知识库（operators/rules/pitfalls/fields）
+- `knowledge/` 公开静态知识库（operators/rules/pitfalls/fields 策略说明）
+- `experience/fields/` 账户字段知识（按账户生成，非经验积累）
 - `qa/` 代码、`pyproject.toml`、`pyrightconfig.json`
 
 > `qa reset` 执行前必须展示将清除的清单 + 等待用户确认（与提交同级的合规要求）；`--yes` 仅限用户在对话中已显式确认后由 agent 使用。
@@ -82,11 +91,12 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 - **提交门槛：** Fitness≥1.0(D1)/1.3(D0)、Sharpe>1.25(D1)/2.0(D0)、TO 1-70%、自相关<0.7（Sharpe≥1.375 豁免）、子宇宙 `0.75·√(sub/alpha)·sharpe`
 - **ATOM：** 单数据集 alpha 放宽（只看 2Y Sharpe D1>1）→ 优先单数据集表达
 - **计分：** 非顾问阶段每天生成 1-2 个成功的 alpha 即可；顾问阶段提交 3+ 个当天奖励封顶；相对分（看当天其他用户）；美东 3AM 结算；小宇宙+D1 分更高
-- **生成架构：** 项目内不调用 LLM API——候选生成由 agent（你）完成：读 knowledge/ 后写 `data/candidates/YYYY-MM-DD.json`，项目只做预检/模拟/筛选/报告
+- **生成架构：** 项目内不调用 LLM API——候选生成由 agent（你）完成：读公开 `knowledge/` + 本地 `experience/`（字段/playbook/failures）后写 `data/candidates/YYYY-MM-DD.json`，项目只做预检/模拟/筛选/报告
 - **测试只在平台：** 本地零回测，所有性能测试 = 平台 API 模拟
 - **组合视角：** alpha 非独立，平台按整体评判 → 生成/筛选考虑与现有组合相关性
 - **字段优先级：** 基本面 40% > 混合 12.7% > 纯技术 5.3%；黄金组合 `group_rank(ts_rank(x,N),subindustry)`
 - **decay 经验值：** 基本面 0 / 分析师 0-4 / 技术 10-30；truncation 0.05-0.1
+- **知识库拆分（v1.4）：** 公开 `knowledge/`（operators/rules/pitfalls，平台公开文档）随仓库分发；本地 `experience/`（字段元数据 + playbook + failures，账户专属）gitignored 不上传——**生成前必须读本地 experience/ 的字段与经验**
 
 ## 项目结构与文档导航
 
@@ -94,10 +104,11 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 QuantAlpha/
 ├── AGENTS.md                    # 本文件（工作流入口）
 ├── README.md                    # 人类说明：安装、认证配置（双选）、快速开始
-├── quantalpha-design.md         # ⭐ 权威设计 v1.3（模块职责/数据模型/错误处理/MVP）
-├── qa/                          # Python 工具库（auth/stage/brain_client/validate/...）
-├── knowledge/                   # ✅ 静态知识库：operators/rules/pitfalls/playbook/failures/fields
+├── quantalpha-design.md         # ⭐ 权威设计 v1.4（模块职责/数据模型/错误处理/MVP）
+├── qa/                          # Python 工具库（auth/stage/brain_client/validate/knowledge/...）
+├── knowledge/                   # ✅ 公开静态知识库：operators/rules/pitfalls/fields 策略说明
 ├── pyrightconfig.json           # LSP 配置（basedpyright）
+├── experience/                  # 🔒 gitignored：本地账户知识库（fields/ + playbook.md + failures.md）
 ├── data/                        # 🔒 gitignored：qa.db + audit/ + candidates/
 ├── reports/                     # 🔒 gitignored：个人成果
 ├── secrets/                     # 🔒 gitignored：cookie、account_info.json
@@ -106,8 +117,8 @@ QuantAlpha/
 
 ## COMMANDS
 
-- 实现后：`qa login` / `qa status` / `qa run` / `qa submit` / `qa report` / `qa reset` / `qa update-knowledge`
-- 测试：`pytest qa/tests/`（设计 v1.3 §10）
+- 实现后：`qa login` / `qa status` / `qa run` / `qa submit` / `qa report` / `qa reset` / `qa update-knowledge` / `qa suggest`
+- 测试：`pytest qa/tests/`（设计 v1.4 §10）
 - 开发节奏：1.0 可跑通版本后首次 commit；之后每 2-3 功能更新再提交
 
 ## 最终提交范围（用户约定，提交时遵守）

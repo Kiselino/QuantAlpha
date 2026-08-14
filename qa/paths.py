@@ -39,3 +39,32 @@ class QaPaths:
     @property
     def CANDIDATES_DIR(self) -> Path:  # noqa: N802
         return self.root / "data" / "candidates"
+
+    # ---- 本地知识库（experience/，gitignored，账户专属不上传）----
+    @property
+    def EXPERIENCE_DIR(self) -> Path:  # noqa: N802
+        return self.root / "experience"
+
+    @property
+    def KNOWLEDGE_FIELDS_DIR(self) -> Path:  # noqa: N802
+        return self.EXPERIENCE_DIR / "fields"
+
+    @property
+    def KNOWLEDGE_FIELDS_JSON(self) -> Path:  # noqa: N802
+        return self.KNOWLEDGE_FIELDS_DIR / "fields.json"
+
+    @property
+    def KNOWLEDGE_TOP_FIELDS_JSON(self) -> Path:  # noqa: N802
+        return self.KNOWLEDGE_FIELDS_DIR / "top_fields.json"
+
+    @property
+    def KNOWLEDGE_META_JSON(self) -> Path:  # noqa: N802
+        return self.KNOWLEDGE_FIELDS_DIR / "meta.json"
+
+    @property
+    def PLAYBOOK(self) -> Path:  # noqa: N802
+        return self.EXPERIENCE_DIR / "playbook.md"
+
+    @property
+    def FAILURES(self) -> Path:  # noqa: N802
+        return self.EXPERIENCE_DIR / "failures.md"

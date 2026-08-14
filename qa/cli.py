@@ -23,9 +23,11 @@ from qa.validate import validate_expression
 
 
 def _load_operators_and_fields() -> tuple[set[str], set[str]]:
-    """从 knowledge/ 加载算子与字段白名单（MVP：内置最小集 + knowledge 覆盖）。
+    """从 knowledge/ 加载算子与字段白名单。
 
-    TODO(第二/三批)：由 knowledge 模块从 platform-data 加载完整集合。
+    算子：内置核心集（67 算子的常用子集）。
+    字段：knowledge/fields/TOP_FIELDS.json（295 个精选字段），
+    与 agent 生成候选时使用的知识库一致，避免误拦。
     """
     operators = {
         "rank", "ts_rank", "ts_mean", "ts_delta", "ts_decay_linear",
@@ -38,6 +40,12 @@ def _load_operators_and_fields() -> tuple[set[str], set[str]]:
         "assets", "liabilities", "equity", "cashflow", "sales",
         "earnings_est", "cashflow_flag", "est_eps", "free_cash_flow",
     }
+    fields_file = QaPaths().root / "knowledge" / "fields" / "TOP_FIELDS.json"
+    if fields_file.exists():
+        import json
+
+        data = json.loads(fields_file.read_text(encoding="utf-8"))
+        fields.update(x["id"] for x in data if isinstance(x, dict) and x.get("id"))
     return operators, fields
 
 

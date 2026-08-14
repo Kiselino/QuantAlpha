@@ -1,0 +1,2362 @@
+[
+ {
+  "id": "anl4_adjusted_netincome_ft",
+  "description": "Adjusted net income - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8706,
+  "userCount": 29660
+ },
+ {
+  "id": "anl4_ptp_flag",
+  "description": "Pretax income - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8289,
+  "userCount": 11350
+ },
+ {
+  "id": "anl4_bvps_flag",
+  "description": "Book value per share - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8223,
+  "userCount": 8690
+ },
+ {
+  "id": "anl4_epsr_flag",
+  "description": "GAAP Earnings - estimation type (revision/new/...), per share",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8742,
+  "userCount": 8590
+ },
+ {
+  "id": "anl4_flag_erbfintax",
+  "description": "Earnings before interest and taxes - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8184,
+  "userCount": 8068
+ },
+ {
+  "id": "anl4_cff_flag",
+  "description": "Cash Flow From Financing Activities - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8244,
+  "userCount": 7650
+ },
+ {
+  "id": "anl4_netprofit_flag",
+  "description": "Net profit - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8778,
+  "userCount": 7368
+ },
+ {
+  "id": "anl4_netdebt_flag",
+  "description": "Net debt - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8602,
+  "userCount": 7347
+ },
+ {
+  "id": "anl4_netprofit_number",
+  "description": "Net profit - number of estimations",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.7667,
+  "userCount": 6839
+ },
+ {
+  "id": "est_eps",
+  "description": "Earnings per share - mean of estimations",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.7848,
+  "userCount": 6548
+ },
+ {
+  "id": "anl4_tbve_ft",
+  "description": "Tangible Book Value per Share - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.9305,
+  "userCount": 6225
+ },
+ {
+  "id": "anl4_gric_flag",
+  "description": "Gross income - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8951,
+  "userCount": 6058
+ },
+ {
+  "id": "anl4_totassets_flag",
+  "description": "Total Assets - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.8122,
+  "userCount": 5923
+ },
+ {
+  "id": "anl4_ptpr_flag",
+  "description": "Reported Pretax income - forecast type (revision/new/...)",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.9008,
+  "userCount": 5683
+ },
+ {
+  "id": "anl4_qf_az_eps_number",
+  "description": "Earnings per share - number of estimations",
+  "dataset": "analyst4",
+  "type": "MATRIX",
+  "coverage": 0.7848,
+  "userCount": 5417
+ },
+ {
+  "id": "ern4_fcsterneffct",
+  "description": "Forecasted earnings effect on implied volatility (percent)",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 428
+ },
+ {
+  "id": "ern4_ernmv1",
+  "description": "Stock price move on the most recent past earnings date, expressed as a percentage change (float, decimal fraction)",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 405
+ },
+ {
+  "id": "ern4_erneffct1",
+  "description": "The earn effect for earnings date number1.",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 373
+ },
+ {
+  "id": "avg_option_volume_20d",
+  "description": "Average option volume for all strikes over the last 20 days",
+  "dataset": "earnings4",
+  "type": "MATRIX",
+  "coverage": 0.9692,
+  "userCount": 261
+ },
+ {
+  "id": "ern4_1000dclshv",
+  "description": "1000-day close-to-close historical volatility, annualized percent",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 206
+ },
+ {
+  "id": "eleventh_event_straddle_price_percent_of_equity",
+  "description": "Cost of the earnings straddle/strangle as a percent of stock price for earnings event number 11",
+  "dataset": "earnings4",
+  "type": "MATRIX",
+  "coverage": 0.9693,
+  "userCount": 183
+ },
+ {
+  "id": "ern4_avg20doptvolu",
+  "description": "20-day average total options trading volume",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 162
+ },
+ {
+  "id": "aggregate_option_open_interest",
+  "description": "Total open interest",
+  "dataset": "earnings4",
+  "type": "MATRIX",
+  "coverage": 0.9693,
+  "userCount": 161
+ },
+ {
+  "id": "eighth_historical_announcement_percent_move",
+  "description": "Percentage stock price move on the 8th prior earnings announcement (back 8)",
+  "dataset": "earnings4",
+  "type": "MATRIX",
+  "coverage": 0.9693,
+  "userCount": 130
+ },
+ {
+  "id": "forecasted_announcement_effect",
+  "description": "ORATS forecasted earnings effect incorporating day-of/day-after behavior, seasonality, recency, and move vs expected move",
+  "dataset": "earnings4",
+  "type": "MATRIX",
+  "coverage": 0.9693,
+  "userCount": 124
+ },
+ {
+  "id": "ern4_ernmv2",
+  "description": "Stock price move on the second most recent past earnings date, expressed as a percentage change (float, decimal fraction)",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 114
+ },
+ {
+  "id": "ern4_nexterntod",
+  "description": "Time-of-day code for the next earnings release (0900=BMO, 1200=During, 1630=AMC, 2359=Unknown)",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 114
+ },
+ {
+  "id": "abs_avg_pct_move_announcements_12",
+  "description": "Absolute average percent earnings move across the last 12 earnings announcements, measured at the time of the announcement",
+  "dataset": "earnings4",
+  "type": "MATRIX",
+  "coverage": 0.9692,
+  "userCount": 109
+ },
+ {
+  "id": "ern4_90div",
+  "description": "Interpolated implied volatility over 90 calendar days, annualized percent",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 109
+ },
+ {
+  "id": "ern4_ernstrapct12",
+  "description": "Straddle price as a percentage of the stock price for the 12th past earnings date",
+  "dataset": "earnings4",
+  "type": "VECTOR",
+  "coverage": 0.9692,
+  "userCount": 103
+ },
+ {
+  "id": "fn_liab_fair_val_l1_a",
+  "description": "Liabilities Fair Value, Recurring, Level 1",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.3604,
+  "userCount": 17699
+ },
+ {
+  "id": "fn_oth_income_loss_fx_transaction_and_tax_translation_adj_a",
+  "description": "Amount after tax and reclassification adjustments of gain (loss) on foreign currency translation adjustments, foreign currency transactions designated and effective as economic hedges of a net investment in a foreign entity, and intra-entity foreign currency transactions that are of a long-term-investment nature.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.426,
+  "userCount": 11856
+ },
+ {
+  "id": "fn_accrued_liab_a",
+  "description": "Carrying value as of the balance sheet date of obligations incurred and payable, pertaining to costs that are statutory in nature, are incurred on contractual obligations, or accumulate over time and for which invoices have not yet been received or will not be rendered.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.3934,
+  "userCount": 3679
+ },
+ {
+  "id": "fn_op_lease_rent_exp_a",
+  "description": "Rental expense for the reporting period incurred under operating leases, including minimum and any contingent rent expense, net of related sublease income.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.6377,
+  "userCount": 1188
+ },
+ {
+  "id": "fn_business_acq_ppne_a",
+  "description": "Business Combination, Assumed Property, Plant and Equipment",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.2265,
+  "userCount": 1177
+ },
+ {
+  "id": "fn_comp_options_grants_weighted_avg_q",
+  "description": "Weighted average price at which grantees could have acquired the underlying shares with respect to stock options that were terminated.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.2882,
+  "userCount": 1113
+ },
+ {
+  "id": "fn_accum_oth_income_loss_net_of_tax_a",
+  "description": "Accumulated change in equity from transactions and other events and circumstances from non-owner sources, net of tax effect, at period end. Excludes Net Income (Loss), and accumulated changes in equity from transactions resulting from investments by owners and distributions to owners. Includes foreign currency translation items, certain pension adjustments, unrealized gains and losses on certain investments in debt and equity securities, other than temporary impairment (OTTI) losses related to factors other than credit losses on available-for-sale and held-to-maturity debt securities that an entity does not intend to sell and it is not more likely than not that the entity will be required to sell before recovery of the amortized cost basis, as well as changes in the fair value of derivatives related to the effective portion of a designated cash flow hedge.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.6936,
+  "userCount": 1076
+ },
+ {
+  "id": "fn_comp_not_rec_a",
+  "description": "Unrecognized cost of unvested share-based compensation awards.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.6526,
+  "userCount": 953
+ },
+ {
+  "id": "fn_op_lease_min_pay_due_a",
+  "description": "Amount of required minimum rental payments for leases having an initial or remaining non-cancelable letter-terms in excess of 1 year.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.6027,
+  "userCount": 900
+ },
+ {
+  "id": "fn_comp_options_grants_a",
+  "description": "Net number of share options (or share units) granted during the period.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.6394,
+  "userCount": 804
+ },
+ {
+  "id": "fnd2_oprlsfmpdcurr",
+  "description": "Amount of required minimum rental payments for operating leases having an initial or remaining non-cancelable lease term in excess of 1 year due in the next fiscal year following the latest fiscal year. Excludes interim and annual periods when interim periods are reported on a rolling approach, from latest balance sheet date.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.6378,
+  "userCount": 766
+ },
+ {
+  "id": "fn_comp_options_exercises_weighted_avg_a",
+  "description": "Share-Based Compensation, Options Assumed, Weighted Average Exercise Price",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.6187,
+  "userCount": 759
+ },
+ {
+  "id": "fn_eff_income_tax_rate_continuing_operations_a",
+  "description": "Percentage of current income tax expense (benefit) and deferred income tax expense (benefit) pertaining to continuing operations.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.4545,
+  "userCount": 722
+ },
+ {
+  "id": "fn_new_shares_issued_a",
+  "description": "Number of new stock issued during the period.",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.3746,
+  "userCount": 716
+ },
+ {
+  "id": "fn_oth_income_loss_net_of_tax_a",
+  "description": "Amount after tax and reclassification adjustments of other comprehensive income (loss).",
+  "dataset": "fundamental2",
+  "type": "MATRIX",
+  "coverage": 0.499,
+  "userCount": 701
+ },
+ {
+  "id": "assets",
+  "description": "Assets - Total",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 54187
+ },
+ {
+  "id": "liabilities",
+  "description": "Liabilities - Total",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 43198
+ },
+ {
+  "id": "operating_income",
+  "description": "Operating Income After Depreciation - Quarterly",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 28891
+ },
+ {
+  "id": "capex",
+  "description": "Capital Expenditures",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 13855
+ },
+ {
+  "id": "sales",
+  "description": "Sales/Turnover (Net)",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 13215
+ },
+ {
+  "id": "enterprise_value",
+  "description": "Enterprise Value",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 12368
+ },
+ {
+  "id": "debt",
+  "description": "Debt",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 12342
+ },
+ {
+  "id": "cashflow_op",
+  "description": "Operating Activities - Net Cash Flow",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 9917
+ },
+ {
+  "id": "ebit",
+  "description": "Earnings Before Interest and Taxes",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 9873
+ },
+ {
+  "id": "ebitda",
+  "description": "Earnings Before Interest",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 9571
+ },
+ {
+  "id": "debt_lt",
+  "description": "Long-Term Debt - Total",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 9356
+ },
+ {
+  "id": "fnd6_fopo",
+  "description": "Funds from Operations - Other",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 8311
+ },
+ {
+  "id": "equity",
+  "description": "Common/Ordinary Equity - Total",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 8264
+ },
+ {
+  "id": "fnd6_acdo",
+  "description": "Current Assets of Discontinued Operations",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 7785
+ },
+ {
+  "id": "fnd6_drc",
+  "description": "Deferred Revenue - Current",
+  "dataset": "fundamental6",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 7013
+ },
+ {
+  "id": "fnd7_ointfund_21fpeo",
+  "description": "Diluted earnings per share from operations, trailing 12 months",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 382
+ },
+ {
+  "id": "fnd7_ointfund_qxspeo",
+  "description": "Quarterly diluted earnings per share from operations, as reported",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 369
+ },
+ {
+  "id": "fnd7_ointfund_21speo",
+  "description": "Earnings per share from operations, trailing 12 months",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 283
+ },
+ {
+  "id": "fnd7_ointhstfund_hqxspeo",
+  "description": "Historical Quarterly footnote information: Earnings Per Share - Diluted - from Operations (second file)",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 0.2946,
+  "userCount": 261
+ },
+ {
+  "id": "fnd7_ointfund_qip",
+  "description": "Quarterly pretax income",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 228
+ },
+ {
+  "id": "fnd7_ointfund_qfcnao",
+  "description": "Net cash flow from operating activities (cash flow statement, quarterly)",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 198
+ },
+ {
+  "id": "fnd7_ointfund_qin",
+  "description": "Quarterly net income (loss)",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 197
+ },
+ {
+  "id": "fnd7_ointfund_qxeja",
+  "description": "Adjustment factor (company), cumulative by ex-date, quarterly",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 188
+ },
+ {
+  "id": "fnd7_ointfund_qbi",
+  "description": "Income before extraordinary items (quarterly)",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 184
+ },
+ {
+  "id": "fnd7_ointfund_qhctsvi",
+  "description": "Quarterly change in short-term investments reported on the statement of cash flows",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 0.6685,
+  "userCount": 181
+ },
+ {
+  "id": "fnd7_ointfund_qxpspe",
+  "description": "Basic earnings per share excluding extraordinary items for the quarter",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 180
+ },
+ {
+  "id": "fnd7_ointfund_21fspe",
+  "description": "Trailing 12-month diluted earnings per share excluding extraordinary items",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 178
+ },
+ {
+  "id": "fnd7_ointfund_qepps",
+  "description": "Quarterly cash inflow from sale of property, plant, and equipment (statement of cash flows)",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 0.8253,
+  "userCount": 169
+ },
+ {
+  "id": "fnd7_ointfund_qifspe",
+  "description": "Quarterly diluted earnings per share including extraordinary items",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 168
+ },
+ {
+  "id": "fnd7_ointfund_21xspe",
+  "description": "Trailing 12-month basic earnings per share excluding extraordinary items (consolidated)",
+  "dataset": "fundamental7",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 167
+ },
+ {
+  "id": "fscore_quality",
+  "description": "Composite measuring the sustainability and certainty of earnings",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 0.2993,
+  "userCount": 835
+ },
+ {
+  "id": "analyst_revision_rank_derivative",
+  "description": "Daily-indicator variant of momentum capturing recent price moves and analyst estimate revisions",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 773
+ },
+ {
+  "id": "earnings_certainty_rank_derivative",
+  "description": "Measures the sustainability and certainty of earnings quality",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 511
+ },
+ {
+  "id": "composite_factor_score_derivative",
+  "description": "Momentum score based on analyst revisions; intraday variant",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 497
+ },
+ {
+  "id": "fscore_momentum",
+  "description": "Composite momentum metric focused on recent analyst estimate revisions to identify stocks experiencing upward or downward revisions",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 0.2973,
+  "userCount": 484
+ },
+ {
+  "id": "fscore_value",
+  "description": "Composite assessing whether the stock is under- or overpriced using standard valuation measures (e.g., multiples)",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 0.2981,
+  "userCount": 462
+ },
+ {
+  "id": "cashflow_efficiency_rank_derivative",
+  "description": "Ranks stocks by their ability to generate cash flows and operational profitability",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 377
+ },
+ {
+  "id": "multi_factor_acceleration_score_derivative",
+  "description": "Change in the acceleration of multi-factor score compared to previous period.",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 272
+ },
+ {
+  "id": "growth_potential_rank_derivative",
+  "description": "Composite growth score qualifying the stock’s expected medium‑term growth potential",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 244
+ },
+ {
+  "id": "fscore_profitability",
+  "description": "Composite ranking stocks by their ability to generate cash flows and operational profitability",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 0.2981,
+  "userCount": 226
+ },
+ {
+  "id": "relative_valuation_rank_derivative",
+  "description": "Assesses whether the stock is under or overpriced based on standard valuation multiples indicator variant",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 209
+ },
+ {
+  "id": "fscore_growth",
+  "description": "Composite measuring the stock’s expected medium-term growth potential",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 0.2987,
+  "userCount": 205
+ },
+ {
+  "id": "multi_factor_static_score_derivative",
+  "description": "Change in static multi-factor score compared to previous period.",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 201
+ },
+ {
+  "id": "fscore_surface",
+  "description": "Static overall “style surface” score combining Value, Growth, Profitability, Momentum, and Quality; larger surface implies higher rank",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 0.2957,
+  "userCount": 198
+ },
+ {
+  "id": "fscore_total",
+  "description": "Final blended score that combines the static pentagon surface score with its acceleration",
+  "dataset": "model16",
+  "type": "MATRIX",
+  "coverage": 0.2946,
+  "userCount": 162
+ },
+ {
+  "id": "mdl17_est_z_epsgrowthest",
+  "description": "Median analyst expected growth in operating earnings over next full business cycle",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4173,
+  "userCount": 122
+ },
+ {
+  "id": "mdl17_score_epsgrowthest",
+  "description": "Median of analysts’ estimates for the company's operating earnings growth over the next full business cycle (typically 3-5 years)",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.3603,
+  "userCount": 86
+ },
+ {
+  "id": "mdl17_est_z_earningssurprise",
+  "description": "Current quarter earnings surprise",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4494,
+  "userCount": 72
+ },
+ {
+  "id": "median_long_term_eps_growth_projection",
+  "description": "Median analyst forecast for long-term operating earnings growth over the next business cycle.",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.3603,
+  "userCount": 60
+ },
+ {
+  "id": "mdl17_score_earningssurprise",
+  "description": "The difference between the most recent actual reported earnings and the consensus analyst estimate for the quarter, possibly expressed relative to price",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4201,
+  "userCount": 43
+ },
+ {
+  "id": "earnings_actual_minus_expected_scaled_price",
+  "description": "Difference between actual and expected earnings, divided by week-end stock price.",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4201,
+  "userCount": 42
+ },
+ {
+  "id": "mdl17_dynamicfocusrank",
+  "description": "Rank measure based on fundamental and technical metrics, focused on the very short-term (1-2 week) trading horizon, reflecting buy/sell signal strength",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4387,
+  "userCount": 37
+ },
+ {
+  "id": "mdl17_est_z_earningstorpedo",
+  "description": "Difference between FY1 earnings estimate and last 4 quarters' earnings.",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4464,
+  "userCount": 30
+ },
+ {
+  "id": "mdl17_score",
+  "description": "A composite sentiment score summarizing analyst estimates, revisions, recommendations, and dispersion, used as a buy/sell/neutral indicator",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.5408,
+  "userCount": 27
+ },
+ {
+  "id": "mdl17_score_earningstorpedo",
+  "description": "Difference between the current mean estimate of next fiscal year earnings and the sum of actual earnings over the last four quarters",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4167,
+  "userCount": 23
+ },
+ {
+  "id": "mdl17_est_z_coverage",
+  "description": "No. of analysts covering the stock",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.448,
+  "userCount": 22
+ },
+ {
+  "id": "mdl17_est_z_earningsrevision",
+  "description": "Change in mean earnings estimate divided by weekend price",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4496,
+  "userCount": 21
+ },
+ {
+  "id": "mdl17_fnd_focusrank",
+  "description": "Rank measure based on fundamental and technical metrics, emphasizing longer-term (1-2 year) value/fundamental investing prospects",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4387,
+  "userCount": 20
+ },
+ {
+  "id": "mdl17_score_dtstsespe",
+  "description": "Standard deviation of analyst estimates of next fiscal year earnings, measuring dispersion or disagreement among analysts",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4176,
+  "userCount": 20
+ },
+ {
+  "id": "mdl17_est_z_downtarget_pct",
+  "description": "% of analysts revising their price target downwards",
+  "dataset": "model17",
+  "type": "MATRIX",
+  "coverage": 0.4414,
+  "userCount": 19
+ },
+ {
+  "id": "unsystematic_risk_last_360_days",
+  "description": "The portion of return variance not explained by SPY (idiosyncratic risk), calculated as 1 minus R² over the last 360 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.937,
+  "userCount": 4948
+ },
+ {
+  "id": "unsystematic_risk_last_90_days",
+  "description": "The portion of return variance not explained by SPY (idiosyncratic risk), calculated as 1 minus R² over the last 90 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9619,
+  "userCount": 3118
+ },
+ {
+  "id": "beta_last_360_days_spy",
+  "description": "The rolling beta value of the security relative to SPY, calculated via regression over the last 360 calendar days, representing market sensitivity",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9482,
+  "userCount": 1279
+ },
+ {
+  "id": "unsystematic_risk_last_60_days",
+  "description": "The portion of return variance not explained by SPY (idiosyncratic risk), calculated as 1 minus R² over the last 60 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9637,
+  "userCount": 1273
+ },
+ {
+  "id": "systematic_risk_last_90_days",
+  "description": "The portion of the security’s return variance attributed to systematic (market) risk, quantified as R² from a regression on SPY, over the last 90 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9619,
+  "userCount": 1269
+ },
+ {
+  "id": "correlation_last_360_days_spy",
+  "description": "The Pearson correlation coefficient of daily log returns between the security and SPY, calculated over the most recent 360 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9482,
+  "userCount": 1119
+ },
+ {
+  "id": "beta_last_60_days_spy",
+  "description": "The rolling beta value of the security relative to SPY, calculated via regression over the last 60 calendar days, representing market sensitivity",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9752,
+  "userCount": 1057
+ },
+ {
+  "id": "correlation_last_60_days_spy",
+  "description": "The Pearson correlation coefficient of daily log returns between the security and SPY, calculated over the most recent 60 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9752,
+  "userCount": 1023
+ },
+ {
+  "id": "systematic_risk_last_360_days",
+  "description": "The portion of the security’s return variance attributed to systematic (market) risk, quantified as R² from a regression on SPY, over the last 360 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.937,
+  "userCount": 990
+ },
+ {
+  "id": "unsystematic_risk_last_30_days",
+  "description": "The portion of return variance not explained by SPY (idiosyncratic risk), calculated as 1 minus R² over the last 30 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.965,
+  "userCount": 855
+ },
+ {
+  "id": "systematic_risk_last_60_days",
+  "description": "The portion of the security’s return variance attributed to systematic (market) risk, quantified as R² from a regression on SPY, over the last 60 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9637,
+  "userCount": 824
+ },
+ {
+  "id": "beta_last_30_days_spy",
+  "description": "The rolling beta value of the security relative to SPY, calculated via regression over the last 30 calendar days, representing market sensitivity",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9765,
+  "userCount": 796
+ },
+ {
+  "id": "beta_last_90_days_spy",
+  "description": "The rolling beta value of the security relative to SPY, calculated via regression over the last 90 calendar days, representing market sensitivity",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9734,
+  "userCount": 707
+ },
+ {
+  "id": "correlation_last_90_days_spy",
+  "description": "The Pearson correlation coefficient of daily log returns between the security and SPY, calculated over the most recent 90 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9734,
+  "userCount": 657
+ },
+ {
+  "id": "correlation_last_30_days_spy",
+  "description": "The Pearson correlation coefficient of daily log returns between the security and SPY, calculated over the most recent 30 calendar days",
+  "dataset": "model51",
+  "type": "MATRIX",
+  "coverage": 0.9765,
+  "userCount": 602
+ },
+ {
+  "id": "mdl53_jc5_1year",
+  "description": "Annualized default probability at the 1-year horizon (percentage)",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.965,
+  "userCount": 714
+ },
+ {
+  "id": "mdl53_jc5_10year",
+  "description": "Annualized default probability at the 10-year horizon (percentage)",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.965,
+  "userCount": 691
+ },
+ {
+  "id": "mdl53_jc5_5year",
+  "description": "Annualized default probability at the 5-year horizon (percentage)",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.965,
+  "userCount": 614
+ },
+ {
+  "id": "mdl53_implied_spreads",
+  "description": "Model-implied credit spread level for the issuer on the given date, typically expressed in basis points",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.9641,
+  "userCount": 334
+ },
+ {
+  "id": "mdl53_implied_ratings",
+  "description": "implied ratings modeling using ratings of Standard & Poor's as reported by S&P affiliate others, supplemented by a file with daily changes in ratings by Standard & Poor's",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 312
+ },
+ {
+  "id": "mdl53_jc5_7year",
+  "description": "Annualized default probability at the 7-year horizon (percentage)",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.965,
+  "userCount": 307
+ },
+ {
+  "id": "mdl53_jc6_4year",
+  "description": "Annualized default probability at the 4-year horizon (percentage) from the Kamakura Jarrow–Chava v6 model for US issuers",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.9147,
+  "userCount": 275
+ },
+ {
+  "id": "annualized_pd_10_year_jc7",
+  "description": "Annualized probability of default over a 10-year horizon using JC7 model.",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.8792,
+  "userCount": 260
+ },
+ {
+  "id": "probability_rating_b_minus",
+  "description": "Probability assigned to the B- credit rating category.",
+  "dataset": "model53",
+  "type": "VECTOR",
+  "coverage": 0.3503,
+  "userCount": 255
+ },
+ {
+  "id": "annualized_pd_3_year_jc7",
+  "description": "Annualized probability of default over a 3-year horizon using JC7 model.",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.8792,
+  "userCount": 244
+ },
+ {
+  "id": "mdl53_jc5_3month",
+  "description": "Annualized default probability at the 3-month horizon (percentage)",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.965,
+  "userCount": 236
+ },
+ {
+  "id": "annualized_pd_4_year_jc7",
+  "description": "Annualized probability of default over a 4-year horizon using JC7 model.",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.8792,
+  "userCount": 200
+ },
+ {
+  "id": "mdl53_jc5_2year",
+  "description": "Annualized default probability at the 2-year horizon (percentage)",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.965,
+  "userCount": 198
+ },
+ {
+  "id": "annualized_pd_2_year_jc7",
+  "description": "Annualized probability of default over a 2-year horizon using JC7 model.",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.8792,
+  "userCount": 188
+ },
+ {
+  "id": "implied_credit_spread_array",
+  "description": "Array of credit spreads implied by model for various maturities.",
+  "dataset": "model53",
+  "type": "MATRIX",
+  "coverage": 0.9179,
+  "userCount": 186
+ },
+ {
+  "id": "mdl177_2_5yearrelativevaluefactor_rel5yfwdep",
+  "description": "5-year Relative Leading 12-Month Earnings Yield: next 4-quarter consensus analyst earnings-to-price ratio minus the 60-month average, scaled by the standard deviation",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 0.8515,
+  "userCount": 1651
+ },
+ {
+  "id": "mdl177_garpanalystmodel_qgp_vfpriceratio",
+  "description": "Value to Price Rank",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 1447
+ },
+ {
+  "id": "book_leverage_ratio_3",
+  "description": "Book leverage ratio; total assets divided by book equity",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 1094
+ },
+ {
+  "id": "mdl177_5shortsentimentfactor_act_util",
+  "description": "Actual Utilization Rate: the real observed proportion of shares lent out (actively used for short selling) versus available supply",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 1075
+ },
+ {
+  "id": "asia_pacific_sales_exposure",
+  "description": "Proportion of company sales from the Asia-Pacific region",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 0.7924,
+  "userCount": 900
+ },
+ {
+  "id": "mdl177_fangma_gpam_usa_fangma_gpam11",
+  "description": "A composite or specialized metric summarizing growth or profitability characteristics for a group of prominent technology firms.",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 839
+ },
+ {
+  "id": "mdl177_garpanalystmodel_qgp_relgrowth",
+  "description": "Rank comparing company's growth metrics against its industry peers, showing relative growth strength",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 748
+ },
+ {
+  "id": "mdl177_2_deepvaluefactor_curep",
+  "description": "Current Earnings Yield (sum of recent 3 quarters EPS and analyst estimates, divided by price)",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 0.9442,
+  "userCount": 733
+ },
+ {
+  "id": "mdl177_2_garpanalystmodel_qgp_vfpriceratio",
+  "description": "Ranking based on the ratio of intrinsic (fundamental, value-based) valuation to market price, indicating relative under/overvaluation",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 0.9546,
+  "userCount": 697
+ },
+ {
+  "id": "mdl177_2_garpanalystmodel_qgp_capeff",
+  "description": "Measurement of how efficiently a company utilizes its capital/resources, ranked relative to peers",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 0.9658,
+  "userCount": 691
+ },
+ {
+  "id": "mdl177_5shortsentimentfactor_dmd_supply",
+  "description": "Demand-to-supply ratio in securities lending, indicating borrow demand relative to lendable supply",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 684
+ },
+ {
+  "id": "mdl177_2_sensitivityfactor400_ttmocfev",
+  "description": "Trailing 12-month operating cash flow per share divided by enterprise value per share; a valuation and quality metric",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 654
+ },
+ {
+  "id": "mdl177_2_deepvaluefactor_fcfp",
+  "description": "Leading 12-Month Median Earnings Yield",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 0.9521,
+  "userCount": 638
+ },
+ {
+  "id": "mdl177_fangma_rvm_usa_fangma_rvm6",
+  "description": "Relative value model 6 for FANGMA (Facebook, Apple, Netflix, Google, Mircosoft, Amazon)",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 588
+ },
+ {
+  "id": "mdl177_2_sensitivityfactor400_ney",
+  "description": "Normalized Earnings Yield : It is defined as the average of three normalized earnings calculated by ROE, NPM and EPS FY2, scaled by price.",
+  "dataset": "model77",
+  "type": "MATRIX",
+  "coverage": 0.851,
+  "userCount": 571
+ },
+ {
+  "id": "nws12_afterhsz_sl",
+  "description": "Whether a long or short position would have been more advantageous: If (EODHigh - Last) > (Last - EODLow) Then LS = 1; If (EODHigh - Last) = (Last - EODLow) Then LS = 0; If (EODHigh - Last) < (Last - EODLow) Then LS = -1.",
+  "dataset": "news12",
+  "type": "VECTOR",
+  "coverage": 0.707,
+  "userCount": 15898
+ },
+ {
+  "id": "news_mins_10_pct_dn",
+  "description": "Number of minutes elapsed before price decreases by 10 percentage points after the event",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.0428,
+  "userCount": 4112
+ },
+ {
+  "id": "news_max_up_ret",
+  "description": "Percent change from price at time of news to highest price after news",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.8458,
+  "userCount": 2118
+ },
+ {
+  "id": "news_cap",
+  "description": "Reported total market capitalization for the calendar day of the session",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.8272,
+  "userCount": 2084
+ },
+ {
+  "id": "news_mins_10_pct_up",
+  "description": "Number of minutes before the price increased by at least 10 percent after the news release",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.6282,
+  "userCount": 1608
+ },
+ {
+  "id": "nws12_prez_4l",
+  "description": "Number of minutes that elapsed before price went up 4 percentage points",
+  "dataset": "news12",
+  "type": "VECTOR",
+  "coverage": 0.9199,
+  "userCount": 1516
+ },
+ {
+  "id": "news_pe_ratio",
+  "description": "Reported price-to-earnings ratio for the calendar day of the session",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.9662,
+  "userCount": 1416
+ },
+ {
+  "id": "news_mins_20_chg",
+  "description": "The minimum of L or S above for 20-minute bucket",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.9142,
+  "userCount": 1326
+ },
+ {
+  "id": "news_eod_close",
+  "description": "Session closing price",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.8778,
+  "userCount": 1289
+ },
+ {
+  "id": "news_pct_1min",
+  "description": "Percent change in price during the first minute following the news release",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.9717,
+  "userCount": 1285
+ },
+ {
+  "id": "news_tot_ticks",
+  "description": "Total number of ticks during the trading day",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.9691,
+  "userCount": 1217
+ },
+ {
+  "id": "nws12_prez_57p",
+  "description": "The minimum of L or S above for 7.5-minute bucket",
+  "dataset": "news12",
+  "type": "VECTOR",
+  "coverage": 0.9199,
+  "userCount": 1028
+ },
+ {
+  "id": "news_mins_20_pct_dn",
+  "description": "Number of minutes that elapsed before price went down 20 percentage points",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.9678,
+  "userCount": 996
+ },
+ {
+  "id": "news_spy_close",
+  "description": "SPY price at session close",
+  "dataset": "news12",
+  "type": "MATRIX",
+  "coverage": 0.9717,
+  "userCount": 907
+ },
+ {
+  "id": "nws12_mainz_01p",
+  "description": "The minimum of L or S above for 10-minute bucket",
+  "dataset": "news12",
+  "type": "VECTOR",
+  "coverage": 0.9741,
+  "userCount": 877
+ },
+ {
+  "id": "rp_css_business",
+  "description": "Composite sentiment score of business-related news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 1365
+ },
+ {
+  "id": "rp_css_ratings",
+  "description": "Composite sentiment score of analyst ratings-related news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 1261
+ },
+ {
+  "id": "rp_nip_ratings",
+  "description": "News impact projection of analyst ratings-related news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 1178
+ },
+ {
+  "id": "rp_ess_ratings",
+  "description": "Event sentiment score of analyst ratings-related news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 1101
+ },
+ {
+  "id": "rp_ess_partner",
+  "description": "Event sentiment score of partnership news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 967
+ },
+ {
+  "id": "rp_css_earnings",
+  "description": "Composite sentiment score of earnings news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 902
+ },
+ {
+  "id": "rp_nip_inverstor",
+  "description": "News impact projection of investor relations news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 883
+ },
+ {
+  "id": "rp_ess_product",
+  "description": "Event sentiment score of product and service-related news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 818
+ },
+ {
+  "id": "rp_css_inverstor",
+  "description": "Composite sentiment score of investor relations news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 760
+ },
+ {
+  "id": "rp_css_price",
+  "description": "Composite sentiment score of stock price news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 758
+ },
+ {
+  "id": "rp_ess_earnings",
+  "description": "Event sentiment score of earnings news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 741
+ },
+ {
+  "id": "nws18_ghc_lna",
+  "description": "Change in analyst recommendation",
+  "dataset": "news18",
+  "type": "VECTOR",
+  "coverage": 0.903,
+  "userCount": 678
+ },
+ {
+  "id": "rp_css_revenue",
+  "description": "Composite sentiment score of revenue news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 674
+ },
+ {
+  "id": "rp_ess_mna",
+  "description": "Event sentiment score of mergers and acquisitions-related news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 660
+ },
+ {
+  "id": "rp_css_partner",
+  "description": "Composite sentiment score of partnership news",
+  "dataset": "news18",
+  "type": "MATRIX",
+  "coverage": 0.5,
+  "userCount": 640
+ },
+ {
+  "id": "opt6_fcstr2imp",
+  "description": "The goodness of fit of the implied forecast vs actual implied in 20 days.",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9781,
+  "userCount": 513
+ },
+ {
+  "id": "opt6_1000dorhv",
+  "description": "1000-day realized historical intraday volatility based on open-high-low-close prices",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9781,
+  "userCount": 276
+ },
+ {
+  "id": "opt6_divyield",
+  "description": "Annualized dividend yield calculated as dividends divided by current stock price",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 216
+ },
+ {
+  "id": "opt6_ivetfratiostd1y",
+  "description": "One-year standard deviation of the ratio of 30-day implied volatility excluding earnings over the ETF's 30-day vendor implied volatility",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 186
+ },
+ {
+  "id": "opt6_ivpctile1m",
+  "description": "Percentile of the current 30-day implied volatility ex-earnings vs. month range.",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 179
+ },
+ {
+  "id": "opt6_slopeavg1y",
+  "description": "Slope average for trailing year",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 177
+ },
+ {
+  "id": "opt6_lasterntod",
+  "description": "Deprecated field, no active use",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 167
+ },
+ {
+  "id": "opt6_ivspyratiostd1y",
+  "description": "One-year rolling standard deviation of the ratio between asset 30-day ex-earnings implied volatility and SPY 30-day implied volatility",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 164
+ },
+ {
+  "id": "opt6_stkvolu",
+  "description": "Total stock trading volume for the underlying asset, measured in shares",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9781,
+  "userCount": 147
+ },
+ {
+  "id": "opt6_optvolu20davg",
+  "description": "The 20-day moving average of total options trading volume for the symbol",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9781,
+  "userCount": 140
+ },
+ {
+  "id": "opt6_120dorhv",
+  "description": "120-day open-high-low-close realized historical volatility",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9781,
+  "userCount": 130
+ },
+ {
+  "id": "opt6_ivhvxernratiostd1y",
+  "description": "30-day implied volatility ex-earnings/HV20xErn Ratio vs yearly range standard deviation.",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 126
+ },
+ {
+  "id": "opt6_absavgernmv",
+  "description": "Average percentage absolute stock price move associated with the next earnings announcement",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 124
+ },
+ {
+  "id": "opt6_ioc",
+  "description": "Total call option open interest",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9781,
+  "userCount": 124
+ },
+ {
+  "id": "opt6_nexterntod",
+  "description": "Deprecated item.",
+  "dataset": "option6",
+  "type": "MATRIX",
+  "coverage": 0.9817,
+  "userCount": 120
+ },
+ {
+  "id": "implied_volatility_call_270",
+  "description": "Implied volatility of the at-the-money call for the stock with an expiration 270 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9729,
+  "userCount": 11608
+ },
+ {
+  "id": "implied_volatility_put_270",
+  "description": "Implied volatility of the at-the-money put for the stock with an expiration 270 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9727,
+  "userCount": 11472
+ },
+ {
+  "id": "implied_volatility_call_120",
+  "description": "Implied volatility of the at-the-money call for the stock with an expiration 120 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9729,
+  "userCount": 8350
+ },
+ {
+  "id": "implied_volatility_call_180",
+  "description": "Implied volatility of the at-the-money call for the stock with an expiration 180 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9729,
+  "userCount": 5045
+ },
+ {
+  "id": "implied_volatility_put_120",
+  "description": "At-the-money implied volatility of put options with 120 calendar days to expiration, annualized decimal",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9727,
+  "userCount": 4936
+ },
+ {
+  "id": "implied_volatility_call_60",
+  "description": "Implied volatility of the at-the-money call for the stock with an expiration 60 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9729,
+  "userCount": 4900
+ },
+ {
+  "id": "implied_volatility_put_180",
+  "description": "At-the-money implied volatility of put options with 180 calendar days to expiration, annualized decimal",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9727,
+  "userCount": 4608
+ },
+ {
+  "id": "implied_volatility_call_1080",
+  "description": "Implied volatility of the at-the-money call for the stock with an expiration 1080 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9729,
+  "userCount": 4265
+ },
+ {
+  "id": "implied_volatility_put_60",
+  "description": "Implied volatility of the at-the-money put for the stock with an expiration 60 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9727,
+  "userCount": 3813
+ },
+ {
+  "id": "implied_volatility_call_150",
+  "description": "Implied volatility of the at-the-money call for the stock with an expiration 150 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9729,
+  "userCount": 3446
+ },
+ {
+  "id": "implied_volatility_mean_10",
+  "description": "The average of IvCall10 and IvPut10",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9688,
+  "userCount": 3303
+ },
+ {
+  "id": "implied_volatility_call_30",
+  "description": "Implied volatility of the at-the-money call for the stock with an expiration 30 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9729,
+  "userCount": 3249
+ },
+ {
+  "id": "parkinson_volatility_120",
+  "description": "Historical Parkinson volatility for approximately 120 calendar days",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9801,
+  "userCount": 3207
+ },
+ {
+  "id": "implied_volatility_put_150",
+  "description": "At-the-money implied volatility of put options with 150 calendar days to expiration, annualized decimal",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9727,
+  "userCount": 3036
+ },
+ {
+  "id": "implied_volatility_call_10",
+  "description": "Implied volatility of the at-the-money call for the stock with an expiration 10 calendar days from the measurement date",
+  "dataset": "option8",
+  "type": "MATRIX",
+  "coverage": 0.9729,
+  "userCount": 2822
+ },
+ {
+  "id": "pcr_oi_270",
+  "description": "Ratio of put open interest to call open interest for options expiring in 270 days, indicating longer-term position skew",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 10676
+ },
+ {
+  "id": "pcr_oi_180",
+  "description": "Ratio of total put option open interest to call option open interest for options expiring in 180 days, representing longer-term positioning",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 2378
+ },
+ {
+  "id": "call_breakeven_20",
+  "description": "Open-interest-weighted average breakeven price of call options expiring in 20 days, representing the price at which call buyers break even",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9824,
+  "userCount": 1419
+ },
+ {
+  "id": "call_breakeven_10",
+  "description": "Price at which a stock's call options with expiration 10 days in the future break even based on its recent bid/ask mean, weighted by open interest or volume",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9824,
+  "userCount": 1258
+ },
+ {
+  "id": "pcr_oi_150",
+  "description": "Ratio of total put option open interest to total call option open interest for options expiring in 150 days, indicating longer-term put-call positioning",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 1218
+ },
+ {
+  "id": "pcr_oi_120",
+  "description": "Ratio of total put option open interest to total call option open interest for options expiring in 120 days, indicating longer-term put-call positioning",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 1066
+ },
+ {
+  "id": "pcr_oi_60",
+  "description": "Ratio of put open interest to call open interest for options expiring in 60 days, reflecting medium-to-long term option positioning",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 1050
+ },
+ {
+  "id": "pcr_oi_90",
+  "description": "Ratio of put open interest to call open interest for options expiring in 90 days, reflecting longer-term positioning",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 1037
+ },
+ {
+  "id": "pcr_oi_360",
+  "description": "Ratio of total put option open interest to call option open interest for options expiring in 360 days",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 896
+ },
+ {
+  "id": "pcr_oi_10",
+  "description": "Ratio of put open interest to call open interest for options expiring in 10 days, indicating short-term positioning",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 884
+ },
+ {
+  "id": "pcr_oi_720",
+  "description": "Ratio of put open interest to call open interest for options expiring in 720 days, indicating very long-term option sentiment",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 862
+ },
+ {
+  "id": "put_breakeven_10",
+  "description": "Open interest-weighted mean breakeven price for put options expiring in 10 days, average price at which put buyers break even",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9795,
+  "userCount": 813
+ },
+ {
+  "id": "pcr_oi_1080",
+  "description": "Ratio of put option open interest to call option open interest for stock options expiring in 1080 days, representing longer-term positioning",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 795
+ },
+ {
+  "id": "pcr_oi_30",
+  "description": "Ratio of put open interest to call open interest for options expiring in 30 days, reflecting medium-term option positioning",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9838,
+  "userCount": 786
+ },
+ {
+  "id": "put_breakeven_1080",
+  "description": "Price at which a stock's put options with expiration 1080 days in the future break even based on its recent bid/ask mean",
+  "dataset": "option9",
+  "type": "MATRIX",
+  "coverage": 0.9795,
+  "userCount": 752
+ },
+ {
+  "id": "close",
+  "description": "Daily close price",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 63282
+ },
+ {
+  "id": "volume",
+  "description": "Daily volume",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 45262
+ },
+ {
+  "id": "returns",
+  "description": "Daily returns",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 44066
+ },
+ {
+  "id": "subindustry",
+  "description": "Subindustry grouping",
+  "dataset": "pv1",
+  "type": "GROUP",
+  "coverage": 1.0,
+  "userCount": 39651
+ },
+ {
+  "id": "cap",
+  "description": "Daily market capitalization (in millions)",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 39266
+ },
+ {
+  "id": "industry",
+  "description": "Industry grouping",
+  "dataset": "pv1",
+  "type": "GROUP",
+  "coverage": 1.0,
+  "userCount": 36848
+ },
+ {
+  "id": "sector",
+  "description": "Sector grouping",
+  "dataset": "pv1",
+  "type": "GROUP",
+  "coverage": 1.0,
+  "userCount": 32206
+ },
+ {
+  "id": "market",
+  "description": "Market grouping",
+  "dataset": "pv1",
+  "type": "GROUP",
+  "coverage": 1.0,
+  "userCount": 23671
+ },
+ {
+  "id": "vwap",
+  "description": "Daily volume weighted average price",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 22545
+ },
+ {
+  "id": "adv20",
+  "description": "Average daily volume in past 20 days",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 22403
+ },
+ {
+  "id": "high",
+  "description": "Daily high price",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 17542
+ },
+ {
+  "id": "low",
+  "description": "Daily low price",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 16575
+ },
+ {
+  "id": "open",
+  "description": "Daily open price",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 16208
+ },
+ {
+  "id": "sharesout",
+  "description": "Daily outstanding shares (in millions)",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 7962
+ },
+ {
+  "id": "dividend",
+  "description": "Dividend",
+  "dataset": "pv1",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 5264
+ },
+ {
+  "id": "pv13_r2_min2_3000_sector",
+  "description": "grouping fields",
+  "dataset": "pv13",
+  "type": "GROUP",
+  "coverage": 1.0,
+  "userCount": 3896
+ },
+ {
+  "id": "pv13_h_min2_3000_sector",
+  "description": "grouping fields",
+  "dataset": "pv13",
+  "type": "GROUP",
+  "coverage": 1.0,
+  "userCount": 3703
+ },
+ {
+  "id": "rel_ret_comp",
+  "description": "Averaged one-day return of the competing companies",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.8228,
+  "userCount": 3173
+ },
+ {
+  "id": "pv13_r2_min20_3000_sector",
+  "description": "grouping fields",
+  "dataset": "pv13",
+  "type": "GROUP",
+  "coverage": 1.0,
+  "userCount": 2999
+ },
+ {
+  "id": "rel_num_part",
+  "description": "number of the instrument's partners",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.7837,
+  "userCount": 2986
+ },
+ {
+  "id": "rel_num_all",
+  "description": "number of the companies whose product overlapped with the instrument",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.9939,
+  "userCount": 2669
+ },
+ {
+  "id": "pv13_revere_key_sector_total",
+  "description": "Number of key focus sectors for the company",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.9334,
+  "userCount": 2666
+ },
+ {
+  "id": "pv13_h_min2_focused_pureplay_3000_sector",
+  "description": "grouping fields",
+  "dataset": "pv13",
+  "type": "GROUP",
+  "coverage": 1.0,
+  "userCount": 2609
+ },
+ {
+  "id": "rel_ret_all",
+  "description": "Averaged one-day return of the companies whose product overlapped with the instrument",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.9613,
+  "userCount": 2509
+ },
+ {
+  "id": "rel_ret_part",
+  "description": "Averaged one-day return of the instrument's partners",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.7097,
+  "userCount": 2430
+ },
+ {
+  "id": "pv13_custretsig_retsig",
+  "description": "Sign of customer return",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.9276,
+  "userCount": 2054
+ },
+ {
+  "id": "pv13_reveremap",
+  "description": "Mapping data",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.9924,
+  "userCount": 1838
+ },
+ {
+  "id": "pv13_com_rk_au",
+  "description": "the HITS authority score of competitors",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.9051,
+  "userCount": 1817
+ },
+ {
+  "id": "pv13_h_f1_sector",
+  "description": "grouping fields",
+  "dataset": "pv13",
+  "type": "GROUP",
+  "coverage": 0.9989,
+  "userCount": 1608
+ },
+ {
+  "id": "pv13_com_page_rank",
+  "description": "the PageRank of competitors",
+  "dataset": "pv13",
+  "type": "MATRIX",
+  "coverage": 0.9051,
+  "userCount": 1586
+ },
+ {
+  "id": "snt1_cored1_score",
+  "description": "Proprietary composite analyst score; bearish if < 5, bullish if > 5, neutral if between -5 and 5",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.6497,
+  "userCount": 643
+ },
+ {
+  "id": "snt1_d1_analystcoverage",
+  "description": "Number of analysts providing an earnings estimate for the stock",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5744,
+  "userCount": 628
+ },
+ {
+  "id": "snt1_d1_earningsrevision",
+  "description": "One-month change in the mean (average) analyst earnings estimate divided by the stock price",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5744,
+  "userCount": 578
+ },
+ {
+  "id": "snt1_d1_buyrecpercent",
+  "description": "Percentage of analysts recommending a buy, calculated as (# of analysts recommending buy) / (# of all analysts)",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5688,
+  "userCount": 564
+ },
+ {
+  "id": "snt1_d1_dtstsespe",
+  "description": "Standard deviation (dispersion) among analysts' earnings estimates for the next fiscal year",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5736,
+  "userCount": 552
+ },
+ {
+  "id": "snt1_d1_downtargetpercent",
+  "description": "Percent of analysts who have lowered their price target recently, out of all analysts covering the stock",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5733,
+  "userCount": 523
+ },
+ {
+  "id": "snt1_d1_sellrecpercent",
+  "description": "Percentage of analysts recommending a sell, calculated as (# of analysts recommending sell) / (# of all analysts)",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5688,
+  "userCount": 466
+ },
+ {
+  "id": "snt1_d1_earningssurprise",
+  "description": "Difference between actual reported earnings and expected earnings (consensus), divided by share price",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5736,
+  "userCount": 415
+ },
+ {
+  "id": "snt1_d1_netrecpercent",
+  "description": "Percentage difference between analysts recommending buy and those recommending sell, divided by total number of analysts",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5688,
+  "userCount": 400
+ },
+ {
+  "id": "snt1_d1_dynamicfocusrank",
+  "description": "Composite rank (0-100) emphasizing dynamic, short-term analyst sentiment signals; higher values indicate stronger buy signals, lower values indicate sell signals",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.603,
+  "userCount": 363
+ },
+ {
+  "id": "snt1_d1_fundamentalfocusrank",
+  "description": "Rank (0-100) emphasizing longer-term, fundamental/value metrics; higher values for buy signal, lower for sell signal",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.603,
+  "userCount": 299
+ },
+ {
+  "id": "snt1_d1_longtermepsgrowthest",
+  "description": "Median expected long-term (3-5 years) growth rate in operating earnings as forecasted by analysts",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5416,
+  "userCount": 286
+ },
+ {
+  "id": "snt1_d1_netearningsrevision",
+  "description": "Net percentage of analysts raising minus lowering earnings estimates, out of total analysts covering the stock",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5681,
+  "userCount": 280
+ },
+ {
+  "id": "snt1_d1_stockrank",
+  "description": "Rank (0-100) based on equity-style factors, where higher values reflect a stronger buy signal and lower values a sell signal",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.6026,
+  "userCount": 275
+ },
+ {
+  "id": "snt1_d1_nettargetpercent",
+  "description": "Net percentage of analysts raising minus lowering price targets, divided by total number of analysts",
+  "dataset": "sentiment1",
+  "type": "MATRIX",
+  "coverage": 0.5733,
+  "userCount": 272
+ },
+ {
+  "id": "scl12_buzz",
+  "description": "relative sentiment volume",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 16069
+ },
+ {
+  "id": "snt_buzz",
+  "description": "Negative relative sentiment volume measure for current day, with missing values filled as 0",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 3741
+ },
+ {
+  "id": "snt_buzz_bfl",
+  "description": "Negative relative sentiment volume measure for current day, with missing values filled as 1",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 3269
+ },
+ {
+  "id": "scl12_buzzvec",
+  "description": "Vector representing the volume of social media sentiment/mentions related to the instrument",
+  "dataset": "socialmedia12",
+  "type": "VECTOR",
+  "coverage": 1.0,
+  "userCount": 2785
+ },
+ {
+  "id": "snt_buzz_ret",
+  "description": "negative return of relative sentiment volume",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 2022
+ },
+ {
+  "id": "scl12_sentiment",
+  "description": "sentiment",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 1836
+ },
+ {
+  "id": "snt_value",
+  "description": "Negative sentiment score/indicator for current day, with missing values filled as 0",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 1199
+ },
+ {
+  "id": "snt_value_fast_d1",
+  "description": "Negative sentiment score/indicator for current day, with missing values filled as 0",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 0.9769,
+  "userCount": 682
+ },
+ {
+  "id": "scl12_alltype_buzzvec",
+  "description": "sentiment volume",
+  "dataset": "socialmedia12",
+  "type": "VECTOR",
+  "coverage": 0.9525,
+  "userCount": 586
+ },
+ {
+  "id": "scl12_sentvec",
+  "description": "Vector representing the sentiment score (bullish/bearish/neutral) derived from social media data for the instrument",
+  "dataset": "socialmedia12",
+  "type": "VECTOR",
+  "coverage": 1.0,
+  "userCount": 528
+ },
+ {
+  "id": "scl12_sentiment_fast_d1",
+  "description": "sentiment",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 0.9756,
+  "userCount": 372
+ },
+ {
+  "id": "scl12_typevec",
+  "description": "Vector containing the type indices identifying the categories of instruments in the dataset",
+  "dataset": "socialmedia12",
+  "type": "VECTOR",
+  "coverage": 1.0,
+  "userCount": 330
+ },
+ {
+  "id": "scl12_buzz_fast_d1",
+  "description": "relative sentiment volume",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 0.9756,
+  "userCount": 320
+ },
+ {
+  "id": "snt_buzz_fast_d1",
+  "description": "Negative relative sentiment volume measure for current day, with missing values filled as 0",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 0.9769,
+  "userCount": 273
+ },
+ {
+  "id": "snt_buzz_bfl_fast_d1",
+  "description": "Negative relative sentiment volume measure for current day, with missing values filled as 1",
+  "dataset": "socialmedia12",
+  "type": "MATRIX",
+  "coverage": 0.9998,
+  "userCount": 226
+ },
+ {
+  "id": "snt_social_value",
+  "description": "Z-score of sentiment",
+  "dataset": "socialmedia8",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 3438
+ },
+ {
+  "id": "snt_social_volume",
+  "description": "Normalized tweet volume",
+  "dataset": "socialmedia8",
+  "type": "MATRIX",
+  "coverage": 1.0,
+  "userCount": 3164
+ },
+ {
+  "id": "snt_social_volume_fast_d1",
+  "description": "Normalized tweet volume",
+  "dataset": "socialmedia8",
+  "type": "MATRIX",
+  "coverage": 0.9998,
+  "userCount": 1166
+ },
+ {
+  "id": "snt_social_value_fast_d1",
+  "description": "Z-score of sentiment",
+  "dataset": "socialmedia8",
+  "type": "MATRIX",
+  "coverage": 0.9998,
+  "userCount": 1065
+ },
+ {
+  "id": "top3000",
+  "description": "No field description",
+  "dataset": "univ1",
+  "type": "UNIVERSE",
+  "coverage": 1.0,
+  "userCount": 19
+ },
+ {
+  "id": "top500",
+  "description": "No field description",
+  "dataset": "univ1",
+  "type": "UNIVERSE",
+  "coverage": 1.0,
+  "userCount": 13
+ },
+ {
+  "id": "top1000",
+  "description": "No field description",
+  "dataset": "univ1",
+  "type": "UNIVERSE",
+  "coverage": 1.0,
+  "userCount": 8
+ },
+ {
+  "id": "top200",
+  "description": "No field description",
+  "dataset": "univ1",
+  "type": "UNIVERSE",
+  "coverage": 1.0,
+  "userCount": 4
+ },
+ {
+  "id": "topsp500",
+  "description": "No field description",
+  "dataset": "univ1",
+  "type": "UNIVERSE",
+  "coverage": 1.0,
+  "userCount": 4
+ },
+ {
+  "id": "top2000",
+  "description": "No field description",
+  "dataset": "univ1",
+  "type": "UNIVERSE",
+  "coverage": 1.0,
+  "userCount": 1
+ }
+]

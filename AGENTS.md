@@ -74,7 +74,7 @@ QuantAlpha/
 │   ├── quantalpha-design.md     # ⭐ 权威设计 v1.1（模块职责/数据模型/错误处理/MVP）
 │   └── 变更清单-v1.1-待拍板.md
 ├── qa/                          # Python 工具库（待实现）
-├── knowledge/                   # 静态知识库（待从 platform-data 整理）
+├── knowledge/                   # ✅ 静态知识库：operators/rules/pitfalls/playbook/failures/fields
 ├── data/                        # 🔒 gitignored：qa.db + audit/
 ├── experience/                  # 🔒 gitignored：原始经验
 ├── reports/                     # 🔒 gitignored：个人成果

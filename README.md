@@ -39,7 +39,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 ### 1. 安装
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:Kiselino/QuantAlpha.git
 cd QuantAlpha
 
 # 方式 A（推荐）：uv（自动管理 Python 版本）

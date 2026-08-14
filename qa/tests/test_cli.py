@@ -129,9 +129,8 @@ def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
     monkeypatch.setattr(cli_mod.BrainClient, "correlations_self", lambda self, aid: 0.12)
     monkeypatch.setattr(cli_mod.BrainClient, "submit", lambda self, aid: {"status": "SUBMITTED"})
     monkeypatch.setattr(cli_mod.BrainClient, "get_alpha", lambda self, aid: {"status": "ACTIVE"})
-    monkeypatch.setattr("builtins.input", lambda prompt: "y")
 
-    rc = cli_mod._cmd_submit(paths, h)
+    rc = cli_mod._cmd_submit(paths, h, yes=True)
     out = capsys.readouterr().out
 
     assert rc == 0

@@ -298,7 +298,9 @@ def main(argv: list[str] | None = None) -> int:
         "submit", help="人工确认后提交 alpha（提交前展示检查 + 回查 ACTIVE）"
     )
     p_submit.add_argument("alpha_id", type=str, help="本地 alpha id（alphas 表主键）")
-    p_submit.set_defaults(func=lambda a: _cmd_submit(paths, a.alpha_id))
+    p_submit.add_argument("--yes", action="store_true",
+                          help="跳过交互确认（仅限用户在对话中已显式确认后，由 agent 代提交）")
+    p_submit.set_defaults(func=lambda a: _cmd_submit(paths, a.alpha_id, a.yes))
 
     args = parser.parse_args(argv)
     if not hasattr(args, "func"):
@@ -345,11 +347,12 @@ def _cmd_login(paths: QaPaths, username: str | None, password: str | None) -> in
         return 1
 
 
-def _cmd_submit(paths: QaPaths, alpha_id: str) -> int:
+def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
     """人工确认后提交 alpha（合规红线：必须展示检查结果 + 用户显式确认）。
 
     流程：读本地记录 → 展示全部检查 + 免费相关门 → 交互确认 → 提交 → 回查 ACTIVE。
     alpha_id 为本地 expr_hash（alphas 表主键）；平台 alpha_id 取自模拟结果。
+    --yes 供 agent 代提交：用户已在对话中显式确认后传入；相关门检查不绕过。
     """
     try:
         cookie = read_cookie(paths.COOKIE)
@@ -394,8 +397,12 @@ def _cmd_submit(paths: QaPaths, alpha_id: str) -> int:
         print("[submit] 与已提交 alpha 相关性过高，放弃提交。")
         return 1
 
-    confirmed = input("确认提交？(y/N): ").strip().lower()
-    if confirmed not in ("y", "yes"):
+    if yes:
+        confirmed = True
+        print("  确认: --yes（用户已在对话中显式确认）")
+    else:
+        confirmed = input("确认提交？(y/N): ").strip().lower() in ("y", "yes")
+    if not confirmed:
         print("[submit] 已取消。")
         return 0
 

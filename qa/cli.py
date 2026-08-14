@@ -8,18 +8,19 @@ from __future__ import annotations
 
 import argparse
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-from qa.brain_client import BrainClient
-from qa.candidates import load_candidates
+from qa.brain_client import BrainClient, SimulationResult
+from qa.candidates import Candidate, load_candidates
 from qa.config import AppConfig
 from qa.paths import QaPaths
 from qa.report import format_candidates, write_daily_summary
 from qa.screener import apply_thresholds, rank_candidates
 from qa.stage import get_stage, read_cookie
 from qa.store import Store
-from qa.validate import validate_expression
+from qa.validate import ValidationResult, validate_expression
 
 
 def _load_operators_and_fields() -> tuple[set[str], set[str]]:
@@ -114,7 +115,7 @@ def cmd_run(
     store = Store(paths.DB)
     client = BrainClient(cookie)
 
-    results = []
+    todo: list[tuple[Candidate, ValidationResult]] = []
     for cand in candidates:
         vr = validate_expression(cand.expression, operators, fields)
         if not vr.ok:
@@ -130,41 +131,85 @@ def cmd_run(
         if store.alpha_hash_exists(vr.expr_hash):
             print(f"  - 去重跳过（已存在）: {cand.expression}")
             continue
-        print(f"  → 模拟: {cand.expression}")
+        todo.append((cand, vr))
+        print(f"  → 待模拟: {cand.expression}")
+
+    if not todo:
+        print("[run] 没有需要模拟的候选（全部预检未过或已存在）。")
+        write_daily_summary([], paths.REPORTS_DIR)
+        return 0
+
+    # 并发模拟（网络并发；写库回主线程串行，避免 sqlite 跨线程）
+    max_workers = min(stage.max_concurrency or cfg.concurrency, len(todo))
+    print(f"[run] 开始批量模拟：{len(todo)} 个候选，并发 {max_workers}")
+
+    def _simulate(
+        pair: tuple[Candidate, ValidationResult],
+    ) -> tuple[Candidate, ValidationResult, SimulationResult | None, Exception | None]:
+        cand, vr = pair
         try:
-            sim_id = client.simulate(cand.expression, _settings(cfg))
-            sim = client.poll_simulation(sim_id, max_wait=cfg.sim_timeout_seconds)
-        except Exception as e:
-            print(f"    ✗ 模拟失败: {e}")
-            store.save_simulation(
-                {"id": f"sim_{vr.expr_hash}", "alpha_id": None,
-                 "status": "ERROR", "result": {"error": str(e)}}
+            sim = client.poll_simulation(
+                client.simulate(cand.expression, _settings(cfg)),
+                max_wait=cfg.sim_timeout_seconds,
             )
-            continue
-        verdict = apply_thresholds(sim.metrics, sim.checks, cfg.thresholds)
-        results.append(
-            {
-                "id": vr.expr_hash,
-                "description": cand.description,
-                "expression": cand.expression,
-                "verdict": verdict.verdict,
-                "reason": verdict.reason,
-                "sharpe": sim.metrics.get("sharpe"),
-                "fitness": sim.metrics.get("fitness"),
-                "turnover": sim.metrics.get("turnover"),
-                "score": _score(sim.metrics),
-            }
-        )
-        store.save_simulation(
-            {
-                "id": f"sim_{vr.expr_hash}",
-                "alpha_id": vr.expr_hash,
-                "status": sim.status,
-                "result": sim.raw,
-                "checks": sim.checks,
-            }
-        )
-        print(f"    {verdict.verdict}: Sharpe={sim.metrics.get('sharpe') or '—'}")
+            return cand, vr, sim, None
+        except Exception as e:
+            return cand, vr, None, e
+
+    results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        for cand, vr, sim, err in pool.map(_simulate, todo):
+            if err is not None:
+                print(f"    ✗ 模拟失败: {cand.expression}: {err}")
+                audit_ts = store.append_audit(
+                    "simulation_error", {"expr_hash": vr.expr_hash, "error": str(err)}
+                )
+                store.save_simulation(
+                    {"id": f"sim_{vr.expr_hash}", "alpha_id": vr.expr_hash,
+                     "status": "ERROR", "result": {"error": str(err)},
+                     "audit_path": audit_ts}
+                )
+                continue
+            assert sim is not None, "模拟失败但 err 为 None"
+            verdict = apply_thresholds(sim.metrics, sim.checks, cfg.thresholds)
+            results.append(
+                {
+                    "id": vr.expr_hash,
+                    "description": cand.description,
+                    "expression": cand.expression,
+                    "verdict": verdict.verdict,
+                    "reason": verdict.reason,
+                    "sharpe": sim.metrics.get("sharpe"),
+                    "fitness": sim.metrics.get("fitness"),
+                    "turnover": sim.metrics.get("turnover"),
+                    "score": _score(sim.metrics),
+                }
+            )
+            store.save_alpha(
+                {
+                    "id": vr.expr_hash,
+                    "expression": cand.expression,
+                    "description": cand.description,
+                    "hypothesis": cand.hypothesis,
+                    "dataset_ids": cand.dataset_ids,
+                    "ast_hash": vr.expr_hash,
+                    "metrics": sim.metrics,
+                    "status": "COMPLETE",
+                }
+            )
+            audit_ts = store.append_audit("simulation", {"expr_hash": vr.expr_hash, "status": sim.status})
+            store.save_simulation(
+                {
+                    "id": f"sim_{vr.expr_hash}",
+                    "alpha_id": vr.expr_hash,
+                    "request": {"settings": _settings(cfg), "regular": cand.expression},
+                    "status": sim.status,
+                    "result": sim.raw,
+                    "checks": sim.checks,
+                    "audit_path": audit_ts,
+                }
+            )
+            print(f"    {verdict.verdict}: Sharpe={sim.metrics.get('sharpe') or '—'}")
 
     ranked = rank_candidates(results)
     print()
@@ -175,7 +220,7 @@ def cmd_run(
     return 0
 
 
-def _settings(cfg: AppConfig) -> dict:
+def _settings(cfg: AppConfig) -> dict[str, str | int | float | bool]:
     """把 SimulationDefaults 转成 BRAIN 模拟 API 的 settings 载荷。
 
     平台实测要求：unitHandling 与 visualization 必填（见 brain_client.simulate）。
@@ -200,7 +245,7 @@ def _settings(cfg: AppConfig) -> dict:
     }
 
 
-def _score(metrics: dict) -> float:
+def _score(metrics: dict[str, float | None]) -> float:
     """组合视角近似评分：Sharpe 主导 + Fitness + 低换手。"""
     sharpe = metrics.get("sharpe") or 0.0
     fitness = metrics.get("fitness") or 0.0

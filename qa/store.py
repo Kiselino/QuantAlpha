@@ -12,6 +12,7 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS alphas (
@@ -93,7 +94,7 @@ class Store:
         self._conn.close()
 
     # ---- alphas ----
-    def save_alpha(self, alpha: dict) -> int:
+    def save_alpha(self, alpha: dict[str, Any]) -> int:
         """保存/更新 alpha 记录（幂等，按 id 覆盖）。"""
         self._conn.execute(
             "INSERT OR REPLACE INTO alphas "
@@ -122,7 +123,7 @@ class Store:
         ).fetchone()
         return row is not None
 
-    def list_alphas(self, status: str | None = None) -> list[dict]:
+    def list_alphas(self, status: str | None = None) -> list[dict[str, Any]]:
         """列出 alpha 记录（可按状态过滤；创建时间倒序）。"""
         if status:
             rows = self._conn.execute(
@@ -141,7 +142,7 @@ class Store:
         return out
 
     # ---- simulations ----
-    def save_simulation(self, sim: dict) -> int:
+    def save_simulation(self, sim: dict[str, Any]) -> int:
         """保存/更新一次模拟记录（幂等，按 id 覆盖）。"""
         self._conn.execute(
             "INSERT OR REPLACE INTO simulations "
@@ -162,7 +163,7 @@ class Store:
         self._conn.commit()
         return self._conn.total_changes
 
-    def list_simulations(self, alpha_id: str | None = None) -> list[dict]:
+    def list_simulations(self, alpha_id: str | None = None) -> list[dict[str, Any]]:
         """列出模拟记录（可按 alpha_id 过滤；开始时间倒序）。"""
         if alpha_id:
             rows = self._conn.execute(
@@ -183,7 +184,7 @@ class Store:
         return out
 
     # ---- lessons / failures ----
-    def save_lesson(self, lesson: dict) -> int:
+    def save_lesson(self, lesson: dict[str, Any]) -> int:
         """保存一条经验教训（幂等，脱敏后写入 playbook 的数据源）。"""
         self._conn.execute(
             "INSERT OR REPLACE INTO lessons "
@@ -202,7 +203,7 @@ class Store:
         self._conn.commit()
         return self._conn.total_changes
 
-    def save_failure(self, failure: dict) -> int:
+    def save_failure(self, failure: dict[str, Any]) -> int:
         """保存一条证伪记录（幂等；记录已证伪路径，避免重复走死路）。"""
         self._conn.execute(
             "INSERT OR REPLACE INTO failures "
@@ -217,7 +218,7 @@ class Store:
         self._conn.commit()
         return self._conn.total_changes
 
-    def list_failures(self) -> list[dict]:
+    def list_failures(self) -> list[dict[str, Any]]:
         """列出全部证伪记录（按时间倒序）。"""
         rows = self._conn.execute(
             "SELECT * FROM failures ORDER BY created_at DESC"
@@ -225,12 +226,17 @@ class Store:
         return [dict(r) for r in rows]
 
     # ---- audit ----
-    def append_audit(self, kind: str, payload: dict) -> None:
-        """追加一行 JSONL 审计日志（不可变；模拟/提交等关键动作全记录）。"""
+    def append_audit(self, kind: str, payload: dict[str, Any]) -> str:
+        """追加一行 JSONL 审计日志（不可变；模拟/提交等关键动作全记录）。
+
+        返回该行的 UTC 时间戳，供 simulations.audit_path 关联定位。
+        """
+        ts = _now()
         with open(self.audit_path, "a", encoding="utf-8") as f:
             f.write(
                 json.dumps(
-                    {"ts": _now(), "kind": kind, **payload}, ensure_ascii=False
+                    {"ts": ts, "kind": kind, **payload}, ensure_ascii=False
                 )
                 + "\n"
             )
+        return ts

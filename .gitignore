@@ -1,0 +1,30 @@
+# 私有数据（分享安全线：朋友克隆只拿到工具+知识，不含任何私有数据）
+.omo/
+secrets/
+data/
+experience/
+reports/
+audit/
+
+# 中间态/skill 产物（不提交）
+design/plans/
+design/变更清单-v1.1-待拍板.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# 环境/密钥
+.env
+*.key
+*.pem
+
+# OS
+.DS_Store

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantalpha"
+version = "0.1.0"
+description = "WorldQuant BRAIN AI-assisted alpha research loop"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31"]
+
+[project.scripts]
+qa = "qa.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["qa*"]
+
+[tool.pytest.ini_options]
+testpaths = ["qa/tests"]
+python_files = ["test_*.py"]
+addopts = "-v"

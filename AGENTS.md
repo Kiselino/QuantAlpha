@@ -45,7 +45,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 | `qa status` | 阶段检测 + cookie 验证 + 配额（启动首查） | ✅ 已实现（第一批） |
 | `qa run [--candidates-file ...]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`** | ✅ 已实现（第一批） |
 | `qa report [--daily]` | 当日候选清单 / 每日累计汇总 | ✅ 已实现（第一批） |
-| `qa submit <alpha_id>` | 人工确认后提交（提交前展示全部检查，提交后回查 ACTIVE） | ⏳ 第二批 |
+| `qa submit <alpha_id>` | 人工确认后提交（提交前展示全部检查 + 免费相关门，提交后回查 ACTIVE） | ✅ 已实现 |
 | `qa update-knowledge` | 更新知识库（算子/字段/教程；成顾问后 12 区域 40 万字段） | ⏳ 第三批 |
 
 ## 合规红线（不可违背）

@@ -87,7 +87,7 @@ qa status                                             # 启动首查：阶段检
 # agent 读 knowledge/ 知识库 → 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
 qa run                                                # 读入候选 → 预检 → 模拟 → 筛选 → 报告
 qa report --daily                                     # 查看每日达标汇总
-qa submit <alpha_id>                                  # 确认后提交（第二批；agent 先展示检查结果）
+qa submit <alpha_id>                                  # 人工确认后提交（展示检查 + 回查 ACTIVE）
 ```
 
 > 在 agent 对话中直接说"根据 knowledge/ 里的算子字段知识，为【研究想法】生成 10 个候选 alpha 写入 data/candidates/"，agent 会完成生成步骤。

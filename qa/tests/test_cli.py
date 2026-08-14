@@ -91,3 +91,56 @@ def test_cmd_run_end_to_end(tmp_qa, monkeypatch, capsys):
     # 每日汇总已写入
     daily = paths.REPORTS_DIR / "daily" / "2026-08-14.md"
     assert daily.exists()
+
+
+def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
+    """qa submit 端到端：展示检查 → 交互确认 → 提交 → 回查 ACTIVE。"""
+    from qa.candidates import Candidate, write_candidates
+    from qa.paths import QaPaths
+    from qa.store import Store
+    from qa.validate import expression_hash
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    store = Store(paths.DB)
+
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    expr = "group_rank(ts_rank(close, 60), subindustry)"
+    write_candidates(
+        cand_path,
+        [Candidate(description="动量测试", hypothesis="h", expression=expr, dataset_ids=["pv1"])],
+    )
+    h = expression_hash(expr)
+    store.save_alpha(
+        {"id": h, "expression": expr, "description": "动量测试",
+         "hypothesis": "h", "dataset_ids": ["pv1"], "ast_hash": h,
+         "metrics": {"sharpe": 1.68, "fitness": 1.05, "turnover": 0.046},
+         "status": "COMPLETE"}
+    )
+    store.save_simulation(
+        {"id": f"sim_{h}", "alpha_id": h,
+         "result": {"regular": expr, "alpha": "PLATFORM_A1"},
+         "status": "COMPLETE",
+         "checks": [{"name": "LOW_SHARPE", "result": "PASS", "value": 1.68}]}
+    )
+
+    monkeypatch.setattr(cli_mod, "get_stage", lambda p: None)  # 不触发阶段检测
+    monkeypatch.setattr(cli_mod.BrainClient, "correlations_self", lambda self, aid: 0.12)
+    monkeypatch.setattr(cli_mod.BrainClient, "submit", lambda self, aid: {"status": "SUBMITTED"})
+    monkeypatch.setattr(cli_mod.BrainClient, "get_alpha", lambda self, aid: {"status": "ACTIVE"})
+    monkeypatch.setattr("builtins.input", lambda prompt: "y")
+
+    rc = cli_mod._cmd_submit(paths, h)
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert "平台检查" in out
+    assert "相关门" in out
+    assert "ACTIVE" in out
+
+    subs = store._conn.execute("SELECT * FROM submissions").fetchall()
+    assert len(subs) == 1
+    assert subs[0]["confirmed_active"] == 1
+    updated = store.list_alphas()
+    assert updated[0]["status"] == "SUBMITTED"

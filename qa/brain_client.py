@@ -172,6 +172,37 @@ class BrainClient:
             return float(data["max"])
         return 0.0
 
+    # ---- 提交 ----
+    def submit(self, alpha_id: str) -> dict[str, Any]:
+        """POST /alphas/{id}/submit → 提交 alpha，返回平台响应。
+
+        需先经 correlations_self 免费相关门确认（max<0.7）再提交。
+        429 常规限流按 Retry-After 退避重试；401/403 抛 PermissionError。
+        """
+        for attempt in range(3):
+            resp = self.session.post(
+                f"{self.base_url}/alphas/{alpha_id}/submit", timeout=self.timeout
+            )
+            if resp.status_code == 429:
+                body = resp.text
+                if "THROTTLED" in body:
+                    raise RuntimeError("平台相关性子系统繁忙（THROTTLED），请稍后重试。")
+                time.sleep(min(_parse_retry_after(resp.headers.get("Retry-After")), 120.0))
+                continue
+            if resp.status_code in (401, 403):
+                raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
+            resp.raise_for_status()
+            try:
+                return resp.json()
+            except ValueError:
+                return {"status": resp.status_code, "text": resp.text}
+        raise TimeoutError(f"POST /alphas/{alpha_id}/submit 重试 3 次后仍被限流")
+
+    def get_alpha(self, alpha_id: str) -> dict[str, Any]:
+        """GET /alphas/{id} → alpha 详情（提交后回查 status 是否 ACTIVE）。"""
+        _, data, _ = self._retry_get(f"/alphas/{alpha_id}")
+        return data if isinstance(data, dict) else {}
+
 
 def _parse_retry_after(value: str | None) -> float:
     """Retry-After 可能是浮点秒数字符串（实测）或 HTTP 日期。"""

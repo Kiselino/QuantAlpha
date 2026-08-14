@@ -8,7 +8,7 @@
 >
 > **v1.1 更新（外部经验复查 + 实测验证）：** ① 新增**账号阶段检测**（启动时判定 用户/顾问，动态配置并发/区域/字段/语言）② 限流机制实测修正（`x-ratelimit-*-minute` 30/分，非日配额）③ 新增 `validate.py` 前置校验层（省无效模拟配额）④ 提交前免费相关门 `/correlations/self`（实测可用）⑤ 提交后二次确认 `status==ACTIVE` ⑥ 自相关改算**日收益**相关 ⑦ 每日提交 1-2 个即达 2000 分封顶（官方计分规则）；用户口径补充：**顾问阶段提交 3+ 个当日奖励封顶** ⑧ 字段优先级/decay 经验值写入生成提示词 ⑨ 经验 schema 扩展 + 证伪库 ⑩ 知识库 RAG 可开关 ⑪ **生成架构调整：项目内不调用 LLM API——生成由对话层 agent（harness）完成，agent 读 knowledge/ 后写候选到 `data/candidates/`，项目只做执行**。
 >
-> **v1.2 更新（第一批实现落地 + 实测修正）：** ① **新增 `auth.py` 账号密码登录**（`qa login`：`POST /authentication` + HTTP Basic Auth → 提取 Set-Cookie `t=` JWT；凭据不落盘不进审计；Persona 人机验证检测提示；保留浏览器复制 cURL 方式）② **会话时长实测 ~4h**（登录响应 `token.expiry ≈ 14222s`；API 登录 JWT `amr=['pwd']` 证实无需验证码——Altcha 仅用于注册）③ **并发模拟落地**（cli `ThreadPoolExecutor`，并发数取阶段检测值，写库回主线程避免 sqlite 跨线程）④ **去重修复**：模拟完成 `save_alpha`（此前只写 simulations 导致 `alpha_hash_exists` 永远不命中、中断重跑重复模拟）⑤ **审计接线**：`append_audit` 返回时间戳写入 `simulations.audit_path`，错误路径也审计 ⑥ 新增 `paths.py`（私有文件路径单点定义）⑦ 全库类型注解补全（basedpyright 零 error）+ `pyrightconfig.json` LSP 配置 ⑧ 设计文档移至仓库根目录（删除 `design/` 目录）。**明确未实现（后续批次）：** `optimizer.py`/`knowledge.py` 模块、`qa submit`、`qa update-knowledge`、`--smoke`/`--batch` 参数、RAG 向量检索。
+> **v1.2 更新（第一批实现落地 + 实测修正）：** ① **新增 `auth.py` 账号密码登录**（`qa login`：`POST /authentication` + HTTP Basic Auth → 提取 Set-Cookie `t=` JWT；凭据不落盘不进审计；Persona 人机验证检测提示；保留浏览器复制 cURL 方式）② **会话时长实测 ~4h**（登录响应 `token.expiry ≈ 14222s`；API 登录 JWT `amr=['pwd']` 证实无需验证码——Altcha 仅用于注册）③ **并发模拟落地**（cli `ThreadPoolExecutor`，并发数取阶段检测值，写库回主线程避免 sqlite 跨线程）④ **去重修复**：模拟完成 `save_alpha`（此前只写 simulations 导致 `alpha_hash_exists` 永远不命中、中断重跑重复模拟）⑤ **审计接线**：`append_audit` 返回时间戳写入 `simulations.audit_path`，错误路径也审计 ⑥ 新增 `paths.py`（私有文件路径单点定义）⑦ 全库类型注解补全（basedpyright 零 error）+ `pyrightconfig.json` LSP 配置 ⑧ 设计文档移至仓库根目录（删除 `design/` 目录）⑨ **`qa submit` 落地**（提交前展示检查 + 免费相关门 → 交互确认 → 提交 → 回查 ACTIVE；写 submissions 表 + 审计）⑩ **screener 判定修正**：平台 checks 全 PASS 不再被本地 margin 降级（P1 权威）。**明确未实现（后续批次）：** `optimizer.py`/`knowledge.py` 模块、`qa update-knowledge`、`--smoke`/`--batch` 参数、RAG 向量检索。
 
 ---
 
@@ -143,7 +143,7 @@ agent 启动 → 读 cookie（secrets/worldquant_cookies.txt）
 | `qa status` | **启动首查** ✅ | 阶段检测 + cookie 验证 + 配额/限流状态 |
 | `qa run [--candidates-file ...] [--idea ...]` | 完整闭环：读入候选→预检→模拟→筛选→报告 ✅ | **候选由 agent 写入 `data/candidates/` 后项目读入**（默认读当日文件）；并发模拟；结果落库（save_alpha + save_simulation + 审计） |
 | `qa report [--daily]` | 查看报告 ✅ | 当日候选清单 / 每日累计汇总 |
-| `qa submit <alpha_id>` | 人工确认后提交 | ⏳ 第二批：提交前展示全部检查结果；提交后回查 ACTIVE |
+| `qa submit <alpha_id>` | 人工确认后提交 ✅ | 展示全部检查 + 免费相关门 → 交互确认 → `POST /alphas/{id}/submit` → 回查 ACTIVE；写 submissions 表 + 审计 |
 | `qa update-knowledge` | 更新知识库 | ⏳ 第三批：重抓算子/字段/教程；成顾问后 12 区域 40 万字段 |
 
 ---
@@ -252,8 +252,8 @@ QuantAlpha/
 - 真实调用：`qa login` 实测成功（BRONZE 用户；JWT `amr=['pwd']` 证实 API 登录无需验证码）+ 401 错误路径实测
 
 **MVP 状态（v1.2）：**
-- ✅ 第一批完成：config + paths + store + stage + auth + validate + candidates + brain_client(模拟) + screener(门槛) + report + cli(login/status/run/report)
-- ⏳ 第二批：optimizer + 提交流（`qa submit` 含 ACTIVE 回查）+ playbook/failures 沉淀
+- ✅ 第一批完成：config + paths + store + stage + auth + validate + candidates + brain_client(模拟/提交) + screener(门槛) + report + cli(login/status/run/report/submit)
+- ⏳ 第二批：optimizer + playbook/failures 沉淀
 - ⏳ 第三批：update-knowledge 命令 + 知识库整理 + 字段饱和度
 - 明确不做（现阶段）：向量检索（RAG 开关预留）、Web UI、多用户、定时任务、D0、复杂组合优化、顾问专属功能（PYTHON/ML、12 区域——由阶段检测启用但 MVP 不实现）、**项目内 LLM 调用（生成在 agent 侧）**
 

@@ -121,3 +121,27 @@ def test_correlations_self_max(monkeypatch):
 
     monkeypatch.setattr(client.session, "get", fake_get)
     assert client.correlations_self("XYZ") == 0.125
+
+
+def test_submit_returns_json(monkeypatch):
+    client = BrainClient("t=abc")
+
+    def fake_post(path, headers=None, json=None, timeout=None):
+        assert path == f"{BASE}/alphas/A1/submit"
+        return _fake_response(200, {"status": "SUBMITTED", "message": "ok"})
+
+    monkeypatch.setattr(client.session, "post", fake_post)
+    resp = client.submit("A1")
+    assert resp["status"] == "SUBMITTED"
+
+
+def test_get_alpha_returns_detail(monkeypatch):
+    client = BrainClient("t=abc")
+
+    def fake_get(path, headers=None, timeout=None, params=None):
+        assert path == f"{BASE}/alphas/A1"
+        return _fake_response(200, {"id": "A1", "status": "ACTIVE"})
+
+    monkeypatch.setattr(client.session, "get", fake_get)
+    detail = client.get_alpha("A1")
+    assert detail["status"] == "ACTIVE"

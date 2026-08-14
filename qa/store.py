@@ -180,6 +180,26 @@ class Store:
             out.append(d)
         return out
 
+    # ---- submissions ----
+    def save_submission(self, sub: dict[str, Any]) -> int:
+        """保存一条提交记录（幂等，按 id 覆盖；供 ACTIVE 回查）。"""
+        self._conn.execute(
+            "INSERT OR REPLACE INTO submissions "
+            "(id, alpha_id, submitted_at, user_confirmed, platform_response, current_status, confirmed_active) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (
+                sub.get("id"),
+                sub.get("alpha_id"),
+                sub.get("submitted_at", _now()),
+                1 if sub.get("user_confirmed") else 0,
+                json.dumps(sub.get("platform_response", {}), ensure_ascii=False),
+                sub.get("current_status"),
+                1 if sub.get("confirmed_active") else 0,
+            ),
+        )
+        self._conn.commit()
+        return self._conn.total_changes
+
     # ---- lessons / failures ----
     def save_lesson(self, lesson: dict[str, Any]) -> int:
         """保存一条经验教训（幂等，脱敏后写入 playbook 的数据源）。"""

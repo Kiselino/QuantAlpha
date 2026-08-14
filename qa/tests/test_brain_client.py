@@ -15,6 +15,7 @@ def _fake_response(status_code, payload=None, headers=None):
             self.status_code = status_code
             self.headers = headers or {}
             self._payload = payload
+            self.content = b"" if payload is None else b"{}"
 
         def json(self):
             return self._payload
@@ -42,6 +43,23 @@ def test_rate_limits_parse(monkeypatch):
     rl = client.rate_limits()
     assert rl.limit_minute == 30
     assert rl.remaining_minute == 29
+
+
+def test_retry_get_retries_empty_body(monkeypatch):
+    """空 body（平台瞬时异常）时重试而非抛 JSONDecodeError（实测偶发）。"""
+    client = BrainClient("t=abc")
+    calls = {"n": 0}
+
+    def fake_get(path, headers=None, timeout=None, params=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _fake_response(200, None)  # 空 body
+        return _fake_response(200, {"max": 0.5})
+
+    monkeypatch.setattr(client.session, "get", fake_get)
+    _, data, _ = client._retry_get("/alphas/A1/correlations/self")
+    assert calls["n"] == 2
+    assert data["max"] == 0.5
 
 
 def test_simulate_returns_location(monkeypatch):

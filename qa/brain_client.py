@@ -62,7 +62,11 @@ class BrainClient:
     def _retry_get(
         self, path: str, params: dict[str, Any] | None = None, attempts: int = 3
     ) -> tuple[int, dict[str, Any] | list[Any], dict[str, Any]]:
-        """带 429 退避的 GET（区分常规限流与 THROTTLED）。"""
+        """带 429 退避的 GET（区分常规限流与 THROTTLED）。
+
+        空响应/非 JSON body 视为平台瞬时异常，重试而非抛 JSONDecodeError
+        （实测：相关门等端点偶发空 body，直接调用正常）。
+        """
         for attempt in range(attempts):
             resp = self.session.get(
                 f"{self.base_url}{path}", params=params, timeout=self.timeout
@@ -81,8 +85,14 @@ class BrainClient:
                     "BRAIN 会话无效或已过期，请更新 cookie 文件。"
                 )
             resp.raise_for_status()
-            return resp.status_code, resp.json(), dict(resp.headers)
-        raise TimeoutError(f"GET {path} 重试 {attempts} 次后仍被限流")
+            if not resp.content:
+                time.sleep(self.poll_interval)
+                continue
+            try:
+                return resp.status_code, resp.json(), dict(resp.headers)
+            except ValueError:
+                time.sleep(self.poll_interval)
+        raise TimeoutError(f"GET {path} 重试 {attempts} 次后仍失败")
 
     # ---- 模拟 ----
     def simulate(self, code: str, settings: dict[str, Any]) -> str:

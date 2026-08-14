@@ -1,7 +1,7 @@
 # QuantAlpha — Agent 工作流入口 + 项目知识库
 
 > 任何 AI agent（opencode / claude code / codex）打开本仓库后的**第一读取文件**。
-> 权威系统设计见 `design/quantalpha-design.md`（v1.1）。实现以设计文档为准。
+> 权威系统设计见 `quantalpha-design.md`（v1.1）。实现以设计文档为准。
 
 ## 项目是什么
 
@@ -9,7 +9,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
-目标：冲 10,000 分拿顾问邀请（当前等级状态见私有 account_info.json）+ 学习量化研究。仓库可分享给朋友（工具+知识分享，私有数据 gitignore 隔离）。
+目标：冲 10,000 分拿顾问邀请（当前等级状态见私有 account_info.json）+ 学习量化研究。仓库公开（工具+知识分享，私有数据 gitignore 隔离）。
 
 ## 启动流程（每次会话第一步，勿跳过）
 
@@ -70,9 +70,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 QuantAlpha/
 ├── AGENTS.md                    # 本文件（工作流入口）
 ├── README.md                    # 人类说明（待创建）
-├── design/                      # 设计文档 + 变更清单
-│   ├── quantalpha-design.md     # ⭐ 权威设计 v1.1（模块职责/数据模型/错误处理/MVP）
-│   └── 变更清单-v1.1-待拍板.md
+├── quantalpha-design.md         # ⭐ 权威设计 v1.1（模块职责/数据模型/错误处理/MVP）
 ├── qa/                          # Python 工具库（待实现）
 ├── knowledge/                   # ✅ 静态知识库：operators/rules/pitfalls/playbook/failures/fields
 ├── data/                        # 🔒 gitignored：qa.db + audit/
@@ -97,20 +95,18 @@ QuantAlpha/
 
 **只提交：**
 1. 跑通全流程的代码：`qa/`（含测试）、`pyproject.toml`、`.gitignore`
-2. 让 agent 理解设计思想与全流程的文件：`AGENTS.md`、`README.md`、`design/quantalpha-design.md`、`knowledge/`
+2. 让 agent 理解设计思想与全流程的文件：`AGENTS.md`、`README.md`、`quantalpha-design.md`、`knowledge/`
 
 **不提交（中间态/skill 产物/私有数据）：**
-- `design/plans/`（实施计划，skill 中间态）
-- `design/变更清单-v1.1-待拍板.md`（需求分析过程产物）
 - `.omo/`（secrets + 调研资产）、`data/`、`experience/`、`reports/`（私有数据，gitignored）
-- 其他草稿/临时文件
+- 其他草稿/临时文件（含历史 `design/` 目录残留）
 
 ## 个人信息约定（用户要求，提交时遵守）
 
 - **个人账号信息集中存放**于 `secrets/account_info.json`（账号 ID、分数、诊断数据等——该目录 gitignored，永不提交）
 - 提交范围内的**所有文件必须零个人痕迹**：不含账号 ID、分数、邮箱、电话、姓名、教育信息、个人研究字段依赖等
 - 若需在提交文件中提及账号状态，仅可用"用户/顾问"二元描述（如"当前为用户阶段"），**不写具体等级、分数、数值**
-- 提交前扫描（把 `<账号ID>`/`<分数>` 替换为实际值后执行）：`grep -rn "<账号ID>\|<分数>\|<邮箱>" --include="*.py" --include="*.md" AGENTS.md README.md design/ qa/`
+- 提交前扫描（把 `<账号ID>`/`<分数>` 替换为实际值后执行）：`grep -rn "<账号ID>\|<分数>\|<邮箱>" --include="*.py" --include="*.md" AGENTS.md README.md quantalpha-design.md qa/`
 
 ## ANTI-PATTERNS（本项目）
 

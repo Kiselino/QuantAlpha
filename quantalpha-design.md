@@ -4,9 +4,9 @@
 **读者:** 任何 AI agent / 人类协作者。打开本仓库后，先读 `AGENTS.md`（工作流入口），再读本文（系统全貌）。
 
 > 本文档是 QuantAlpha 系统的唯一权威设计来源。实现、修改、扩展均以本文为准。
-> 本仓库可分享给朋友：工具 + 静态知识库 + 脱敏 playbook 随仓库分发；私有数据（cookie、原始经验、个人成果）gitignore 隔离。
+> 本仓库公开分发：工具 + 静态知识库 + 脱敏 playbook 随仓库分发；私有数据（cookie、账号密码、原始经验、个人成果）gitignore 隔离。
 >
-> **v1.1 更新（外部经验复查 + 实测验证）：** ① 新增**账号阶段检测**（启动时判定 用户/顾问，动态配置并发/区域/字段/语言）② 限流机制实测修正（`x-ratelimit-*-minute` 30/分，非日配额）③ 新增 `validate.py` 前置校验层（省无效模拟配额）④ 提交前免费相关门 `/correlations/self`（实测可用）⑤ 提交后二次确认 `status==ACTIVE` ⑥ 自相关改算**日收益**相关 ⑦ 每日提交 1-2 个即达 2000 分封顶（官方计分规则）；用户口径补充：**顾问阶段提交 3+ 个当日奖励封顶** ⑧ 字段优先级/decay 经验值写入生成提示词 ⑨ 经验 schema 扩展 + 证伪库 ⑩ 知识库 RAG 可开关 ⑪ **生成架构调整：项目内不调用 LLM API——生成由对话层 agent（harness）完成，agent 读 knowledge/ 后写候选到 `data/candidates/`，项目只做执行**。完整变更来源见 `design/变更清单-v1.1-待拍板.md`。
+> **v1.1 更新（外部经验复查 + 实测验证）：** ① 新增**账号阶段检测**（启动时判定 用户/顾问，动态配置并发/区域/字段/语言）② 限流机制实测修正（`x-ratelimit-*-minute` 30/分，非日配额）③ 新增 `validate.py` 前置校验层（省无效模拟配额）④ 提交前免费相关门 `/correlations/self`（实测可用）⑤ 提交后二次确认 `status==ACTIVE` ⑥ 自相关改算**日收益**相关 ⑦ 每日提交 1-2 个即达 2000 分封顶（官方计分规则）；用户口径补充：**顾问阶段提交 3+ 个当日奖励封顶** ⑧ 字段优先级/decay 经验值写入生成提示词 ⑨ 经验 schema 扩展 + 证伪库 ⑩ 知识库 RAG 可开关 ⑪ **生成架构调整：项目内不调用 LLM API——生成由对话层 agent（harness）完成，agent 读 knowledge/ 后写候选到 `data/candidates/`，项目只做执行**。
 
 ---
 
@@ -188,10 +188,8 @@ agent 启动 → 读 cookie → GET /users/self
 ```
 QuantAlpha/
 ├── AGENTS.md                    # ⭐ 跨 agent 工作流入口（目标/启动流程/九步闭环/命令/合规红线）
-├── README.md                    # 人类说明：安装、cookie 配置、快速开始、朋友上手指南
-├── design/                      # ⭐ 设计文档（智能体职能说明书）+ 变更清单
-│   ├── quantalpha-design.md
-│   └── 变更清单-v1.1-待拍板.md
+├── README.md                    # 人类说明：安装、cookie 配置、快速开始、使用者上手指南
+├── quantalpha-design.md           # ⭐ 本文件：设计文档（智能体职能说明书）
 ├── qa/                          # Python 工具库
 │   └── (config, stage, brain_client, validate, candidates, screener, optimizer, knowledge, report, store, cli).py
 ├── knowledge/                   # ✅ 可分享：静态知识库（由 platform-data 整理）
@@ -209,7 +207,7 @@ QuantAlpha/
 └── pyproject.toml
 ```
 
-**gitignore 安全线：** `data/`、`experience/`、`.omo/`、`audit/`、`reports/` 全部忽略——朋友克隆只拿到工具+知识，不含任何私有数据。
+**gitignore 安全线：** `data/`、`experience/`、`.omo/`、`audit/`、`reports/` 全部忽略——其他使用者克隆只拿到工具+知识，不含任何私有数据。
 
 ---
 

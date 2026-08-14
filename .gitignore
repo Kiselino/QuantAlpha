@@ -1,4 +1,4 @@
-# 私有数据（分享安全线：朋友克隆只拿到工具+知识，不含任何私有数据）
+# 私有数据（分享安全线：其他使用者克隆只拿到工具+知识，不含任何私有数据）
 .omo/
 secrets/
 data/
@@ -7,8 +7,7 @@ reports/
 audit/
 
 # 中间态/skill 产物（不提交）
-design/plans/
-design/变更清单-v1.1-待拍板.md
+design/
 
 # Python
 __pycache__/

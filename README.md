@@ -5,7 +5,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
 > 当前状态：设计定稿（v1.1），等待实现 1.0 可跑通版本。
-> 权威设计见 `design/quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
+> 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---
 
@@ -79,11 +79,11 @@ qa submit <alpha_id>                                  # 确认后提交（第二
 
 ---
 
-## 朋友使用指南（仓库分享）
+## 使用者指南（公开仓库）
 
-这个仓库可以分享给朋友：**工具 + 静态知识库 + 脱敏经验** 随仓库分发；你的私有数据（cookie、原始经验、个人成果）已被 gitignore 隔离，朋友克隆后不会看到。
+这个仓库是公开的：**工具 + 静态知识库 + 脱敏经验** 随仓库分发；你的私有数据（cookie、账号密码、原始经验、个人成果）已被 gitignore 隔离，其他使用者克隆后不会看到。
 
-朋友需要：
+使用者需要：
 
 1. 自己的 BRAIN 账号 + 自己的会话 cookie（见上方"配置会话 Cookie"）
 2. 自己的 AI agent 工具（生成候选用；项目本身不需要 LLM 配置）
@@ -98,7 +98,7 @@ qa submit <alpha_id>                                  # 确认后提交（第二
 ```
 QuantAlpha/
 ├── AGENTS.md              # agent 工作流入口（agent 打开先读这个）
-├── design/                # 设计文档 + 变更清单
+├── quantalpha-design.md   # 权威设计（系统设计/模块/数据模型）
 ├── qa/                    # Python 工具库
 ├── knowledge/             # 静态知识库（算子/字段/规则/playbook/证伪库）
 ├── docs/                  # 教程、FAQ
@@ -110,7 +110,7 @@ QuantAlpha/
 
 ## 文档
 
-- `design/quantalpha-design.md` — 系统设计（模块/数据模型/错误处理/MVP）
+- `quantalpha-design.md` — 系统设计（模块/数据模型/错误处理/MVP）
 - `AGENTS.md` — agent 工作流入口与关键知识速查
 - `knowledge/` — 平台规则、算子参考、字段索引、经验 playbook
 

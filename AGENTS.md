@@ -1,7 +1,7 @@
 # QuantAlpha — Agent 工作流入口 + 项目知识库
 
 > 任何 AI agent（opencode / claude code / codex）打开本仓库后的**第一读取文件**。
-> 权威系统设计见 `quantalpha-design.md`（v1.1）。实现以设计文档为准。
+> 权威系统设计见 `quantalpha-design.md`（v1.2）。实现以设计文档为准。
 
 ## 项目是什么
 
@@ -72,26 +72,21 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 ```
 QuantAlpha/
 ├── AGENTS.md                    # 本文件（工作流入口）
-├── README.md                    # 人类说明（待创建）
-├── quantalpha-design.md         # ⭐ 权威设计 v1.1（模块职责/数据模型/错误处理/MVP）
-├── qa/                          # Python 工具库（待实现）
+├── README.md                    # 人类说明：安装、认证配置（双选）、快速开始
+├── quantalpha-design.md         # ⭐ 权威设计 v1.2（模块职责/数据模型/错误处理/MVP）
+├── qa/                          # Python 工具库（auth/stage/brain_client/validate/...）
 ├── knowledge/                   # ✅ 静态知识库：operators/rules/pitfalls/playbook/failures/fields
-├── data/                        # 🔒 gitignored：qa.db + audit/
-├── experience/                  # 🔒 gitignored：原始经验
+├── pyrightconfig.json           # LSP 配置（basedpyright）
+├── data/                        # 🔒 gitignored：qa.db + audit/ + candidates/
 ├── reports/                     # 🔒 gitignored：个人成果
-└── .omo/                        # 🔒 gitignored：secrets/ + 调研资产
+├── secrets/                     # 🔒 gitignored：cookie、account_info.json
+└── .omo/                        # 🔒 gitignored：session 存档（调研资产未随仓库分发）
 ```
-
-**调研资产（已抓取，位于 `.omo/ulw-research/20260814-090436/`）：**
-- `platform-data/` — 22MB：67 算子参考、8642 字段元数据、291 官方文章、2022 论坛帖索引、1974 评论、28 教程、279 比赛、42 alpha 全量检查
-- `需求分析预备报告.md` — 信息资产清单 + 初步分析
-- `需求分析与搭建步骤.md` — v1.1 早期需求文档
-- `SYNTHESIS.md` — 调研收敛总结
 
 ## COMMANDS
 
 - 实现后：`qa status` / `qa run` / `qa submit` / `qa report` / `qa update-knowledge`
-- 测试：`pytest qa/tests/`（设计 v1.1 §10）
+- 测试：`pytest qa/tests/`（设计 v1.2 §10）
 - 开发节奏：1.0 可跑通版本后首次 commit；之后每 2-3 功能更新再提交
 
 ## 最终提交范围（用户约定，提交时遵守）
@@ -101,7 +96,7 @@ QuantAlpha/
 2. 让 agent 理解设计思想与全流程的文件：`AGENTS.md`、`README.md`、`quantalpha-design.md`、`knowledge/`
 
 **不提交（中间态/skill 产物/私有数据）：**
-- `.omo/`（secrets + 调研资产）、`data/`、`experience/`、`reports/`（私有数据，gitignored）
+- `.omo/`（secrets + 调研资产）、`data/`、`reports/`（私有数据，gitignored）
 - 其他草稿/临时文件（含历史 `design/` 目录残留）
 
 ## 个人信息约定（用户要求，提交时遵守）

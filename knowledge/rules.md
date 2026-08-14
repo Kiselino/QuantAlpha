@@ -54,7 +54,7 @@ delay=1、universe=TOP3000、truncation=0.08、decay=0、neutralization=INDUSTRY
 
 | 组成 | 金额 | 核心变量 |
 |---|---|---|
-| Base Payment | 1-60 USD/天 | 每日前 4 个 alpha + 每月前 5 个 D0 计入；Value Factor + Quantity + Self Growth |
+| Base Payment | 1-60 USD/天 | 每日前 4 个 alpha + 每月前 5 个 D0 计入；Value Factor + Quantity + Self Growth（注：顾问阶段"提交 3+ 个当天奖励封顶"为计分口径，Base 计入口径为前 4 个） |
 | Quarterly Payment | 100-25000 USD/季 | Weight Factor + Value Factor；当季 ≥20 提交天门槛；IQC 期间顾问 Net Weight≈0 |
 | Competition | 奖池（ATOM/IQC 等） | 名次（IQC 2026 奖池 $100k，较 2024 $400k 缩减中） |
 | Referral Bonus | 100-200 USD/人 上不封顶 | 官方页 $100/人（被荐者提交 10 天+顾问满 1 月）；中文论坛经验 $200/人（被荐者成顾问且提交 >10 天） |
@@ -78,7 +78,7 @@ delay=1、universe=TOP3000、truncation=0.08、decay=0、neutralization=INDUSTRY
 
 ## 平台 API 备忘
 
-- 会话：JWT cookie（`t=...`，约 8h 有效）；401/403 = 过期需更新
+- 会话：JWT cookie（`t=...`，实测约 4h，`token.expiry ≈ 14222s`）；401/403 = 过期需更新（`qa login` 或复制 cURL）；登录端点 `POST /authentication`（Basic Auth，API 登录无需验证码）
 - 数据集枚举：`GET /data-sets?region=USA&universe=TOP3000&delay=1&instrumentType=EQUITY&limit=20`
 - 字段元数据：`GET /data-fields?dataset.id={id}&region=...&delay=1&universe=TOP3000&limit=50&offset={n}`（**参数名 `dataset.id` 点号写法**）
 - 用户 alpha：`GET /users/self/alphas?limit=100`

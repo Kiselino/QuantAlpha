@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from qa.brain_client import BrainClient, RateLimits, SimulationResult

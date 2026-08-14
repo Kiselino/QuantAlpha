@@ -40,14 +40,14 @@ class StageInfo:
 def read_cookie(path: Path) -> str:
     """读取会话 cookie（secrets/worldquant_cookies.txt）。
 
-    cookie 文件由 agent 维护：用户只需把 BRAIN 请求的 "Copy as cURL"
-    内容发给 agent，agent 解析出 Cookie 后写入本文件（纯 Cookie 头值）。
+    cookie 文件由 agent 维护：通过 `qa login`（账号密码）登录生成，
+    或用户把 BRAIN 请求的 "Copy as cURL" 内容发给 agent 解析写入（纯 Cookie 头值）。
     """
     if not path.exists():
         raise FileNotFoundError(
             f"未找到 cookie 文件: {path}。\n"
-            "请把 api.worldquantbrain.com 请求的 Copy as cURL 内容发给 agent，\n"
-            "由 agent 解析并写入本文件（详见 README）。"
+            "请运行 `qa login --username ... --password ...` 登录生成，\n"
+            "或把 api.worldquantbrain.com 请求的 Copy as cURL 内容发给 agent 解析写入（详见 README）。"
         )
     return path.read_text(encoding="utf-8").strip()
 

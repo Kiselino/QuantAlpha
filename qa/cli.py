@@ -32,10 +32,23 @@ def _load_operators_and_fields() -> tuple[set[str], set[str]]:
     与 agent 生成候选时使用的知识库一致，避免误拦。
     """
     operators = {
-        "rank", "ts_rank", "ts_mean", "ts_delta", "ts_decay_linear",
-        "group_rank", "vec_avg", "vec_count", "is_nan", "ts_backfill",
-        "group_neutralize", "vector_neut", "pasteurize", "abs", "log",
-        "min", "max", "sum", "mean", "stddev", "zscore", "correlation",
+        # 算术
+        "abs", "log", "min", "max", "add", "subtract", "multiply", "divide",
+        "sqrt", "power", "sign", "inverse",
+        # 逻辑
+        "if_else", "is_nan", "not", "and", "or",
+        "greater", "less", "greater_equal", "less_equal", "equal", "not_equal",
+        # 时间序列（与 knowledge/operators.md 一致）
+        "ts_rank", "ts_mean", "ts_delta", "ts_decay_linear", "ts_backfill",
+        "ts_zscore", "ts_delay", "ts_sum", "ts_std_dev", "ts_corr",
+        "ts_scale", "ts_quantile", "ts_av_diff", "ts_arg_max", "ts_arg_min",
+        # 横截面
+        "rank", "zscore", "scale", "quantile", "normalize", "winsorize",
+        # 向量
+        "vec_avg", "vec_sum",
+        # 分组
+        "group_rank", "group_neutralize", "group_mean", "group_scale",
+        "group_zscore", "group_backfill",
     }
     fields = {
         "close", "open", "high", "low", "volume", "adv20", "cap",
@@ -51,7 +64,7 @@ def _load_operators_and_fields() -> tuple[set[str], set[str]]:
     return operators, fields
 
 
-def cmd_status(paths: QaPaths, cfg: AppConfig) -> int:
+def cmd_status(paths: QaPaths) -> int:
     """启动首查：cookie 验证 + 阶段检测 + 配额状态。"""
     try:
         stage = get_stage(paths)
@@ -142,6 +155,7 @@ def cmd_run(
 
     # 并发模拟（网络并发；写库回主线程串行，避免 sqlite 跨线程）
     max_workers = min(stage.max_concurrency or cfg.concurrency, len(todo))
+    settings = _settings(cfg)
     print(f"[run] 开始批量模拟：{len(todo)} 个候选，并发 {max_workers}")
 
     def _simulate(
@@ -150,7 +164,7 @@ def cmd_run(
         cand, vr = pair
         try:
             sim = client.poll_simulation(
-                client.simulate(cand.expression, _settings(cfg)),
+                client.simulate(cand.expression, settings),
                 max_wait=cfg.sim_timeout_seconds,
             )
             return cand, vr, sim, None
@@ -203,7 +217,7 @@ def cmd_run(
                 {
                     "id": f"sim_{vr.expr_hash}",
                     "alpha_id": vr.expr_hash,
-                    "request": {"settings": _settings(cfg), "regular": cand.expression},
+                    "request": {"settings": settings, "regular": cand.expression},
                     "status": sim.status,
                     "result": sim.raw,
                     "checks": sim.checks,
@@ -261,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command")
 
     p_status = sub.add_parser("status", help="启动首查（阶段检测/配额）")
-    p_status.set_defaults(func=lambda a: cmd_status(paths, cfg))
+    p_status.set_defaults(func=lambda a: cmd_status(paths))
 
     p_login = sub.add_parser(
         "login", help="账号密码登录，写入会话 cookie（替代浏览器复制 cURL）"

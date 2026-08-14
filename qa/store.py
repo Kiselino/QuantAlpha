@@ -90,9 +90,6 @@ class Store:
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
 
-    def close(self) -> None:
-        self._conn.close()
-
     # ---- alphas ----
     def save_alpha(self, alpha: dict[str, Any]) -> int:
         """保存/更新 alpha 记录（幂等，按 id 覆盖）。"""

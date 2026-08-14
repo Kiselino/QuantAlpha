@@ -180,7 +180,7 @@ agent 启动 → 读 cookie（secrets/worldquant_cookies.txt）
 
 | 表 | 字段（核心） | 说明 |
 |---|---|---|
-| `alphas` | id, expression, description, hypothesis, dataset_ids, ast_hash, metrics_json, status(DRAFT/SIMULATED/SUBMITTED/REJECTED), grade, created_at | 候选与已提交 alpha 全生命周期 |
+| `alphas` | id, expression, description, hypothesis, dataset_ids, ast_hash, metrics_json, status(COMPLETE/DRAFT/SUBMITTED/REJECTED——run 模拟完成写 COMPLETE), grade, created_at | 候选与已提交 alpha 全生命周期 |
 | `simulations` | id, alpha_id, request_json, result_json, checks_json, status, started_at, finished_at, audit_path | 每次模拟请求/结果/审计 |
 | `submissions` | id, alpha_id, submitted_at, user_confirmed(bool), platform_response, current_status(ACTIVE/OS/降级), **confirmed_active(bool)** | 提交记录与状态跟踪（含 ACTIVE 回查） |
 | `daily_returns` | alpha_id, date, pnl | **日收益序列**（供相关性计算；来自平台模拟/alpha 数据，diff 后算相关） |

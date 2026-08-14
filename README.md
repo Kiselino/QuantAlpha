@@ -4,7 +4,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
-> 当前状态：设计定稿（v1.1），等待实现 1.0 可跑通版本。
+> 当前状态：v1.2 · 第一批已实现跑通（`qa login` / `qa status` / `qa run` / `qa report`）。
 > 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---
@@ -82,6 +82,7 @@ qa login
 项目不调用 LLM——**候选 alpha 由你的 agent 生成**。工作流：
 
 ```bash
+qa login                                              # 账号密码登录（写入会话 cookie；也可 --username/--password）
 qa status                                             # 启动首查：阶段检测 + 配额
 # agent 读 knowledge/ 知识库 → 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
 qa run                                                # 读入候选 → 预检 → 模拟 → 筛选 → 报告
@@ -99,7 +100,7 @@ qa submit <alpha_id>                                  # 确认后提交（第二
 
 使用者需要：
 
-1. 自己的 BRAIN 账号 + 自己的会话 cookie（见上方"配置会话 Cookie"）
+1. 自己的 BRAIN 账号 + 认证（见上方"配置会话认证"：账号密码登录或复制 Cookie 二选一）
 2. 自己的 AI agent 工具（生成候选用；项目本身不需要 LLM 配置）
 3. 可选：为自己的账号运行 `qa update-knowledge` 抓取可用字段
 
@@ -112,14 +113,15 @@ qa submit <alpha_id>                                  # 确认后提交（第二
 ```
 QuantAlpha/
 ├── AGENTS.md              # agent 工作流入口（agent 打开先读这个）
+├── README.md              # 本文件：安装、认证配置、快速开始
 ├── quantalpha-design.md   # 权威设计（系统设计/模块/数据模型）
-├── qa/                    # Python 工具库
+├── qa/                    # Python 工具库（auth/stage/brain_client/...）
 ├── knowledge/             # 静态知识库（算子/字段/规则/playbook/证伪库）
-├── docs/                  # 教程、FAQ
-├── data/                  # 🔒 私有：qa.db + audit（gitignored）
-├── experience/            # 🔒 私有：原始经验（gitignored）
+├── pyrightconfig.json     # LSP 配置（basedpyright）
+├── data/                  # 🔒 私有：qa.db + audit + candidates（gitignored）
 ├── reports/               # 🔒 私有：个人成果（gitignored）
-└── .omo/                  # 🔒 私有：secrets/（gitignored）
+├── secrets/               # 🔒 私有：cookie、account_info.json（gitignored）
+└── .omo/                  # 🔒 私有：session 存档（gitignored）
 ```
 
 ## 文档

@@ -1,7 +1,8 @@
-"""QuantAlpha CLI：qa status / run / report。
+"""QuantAlpha CLI：qa login / status / run / report / submit / reset。
 
 生成由对话层 agent 完成（agent 读 knowledge/ 后写候选到 data/candidates/）。
-本项目只执行：读入候选 → 预检 → 模拟 → 筛选 → 报告。合规：run 只到报告，不自动提交。
+本项目只执行：读入候选 → 预检 → 模拟 → 筛选 → 报告 →（确认后）提交。
+合规：提交/清除必须等待用户显式确认（--yes 仅限用户对话中确认后由 agent 代执行）。
 """
 
 from __future__ import annotations
@@ -302,6 +303,13 @@ def main(argv: list[str] | None = None) -> int:
                           help="跳过交互确认（仅限用户在对话中已显式确认后，由 agent 代提交）")
     p_submit.set_defaults(func=lambda a: _cmd_submit(paths, a.alpha_id, a.yes))
 
+    p_reset = sub.add_parser(
+        "reset", help="清除积累的经验，回到初始状态（保留登录凭证与知识库）"
+    )
+    p_reset.add_argument("--yes", action="store_true",
+                         help="跳过交互确认（仅限用户在对话中已显式确认后，由 agent 执行）")
+    p_reset.set_defaults(func=lambda a: _cmd_reset(paths, a.yes))
+
     args = parser.parse_args(argv)
     if not hasattr(args, "func"):
         parser.print_help()
@@ -450,6 +458,85 @@ def _wait_for_active(client: BrainClient, platform_alpha_id: str, timeout: float
             return detail
         _time.sleep(5.0)
     return last
+
+
+def _cmd_reset(paths: QaPaths, yes: bool = False) -> int:
+    """清除积累的经验，回到项目初始状态（合规：保留登录凭证与静态知识库）。
+
+    清除：qa.db、audit/、candidates/、reports/daily/、pending_submits.json、
+    playbook/failures 的沉淀段落（恢复模板）。
+    保留：secrets/ 下 cookie 与 account_info（登录凭证）、knowledge/ 静态知识库。
+    """
+    targets = {
+        "qa.db（模拟/提交/经验全部记录）": paths.DB,
+        "审计日志 data/audit/": paths.AUDIT_DIR,
+        "候选文件 data/candidates/": paths.CANDIDATES_DIR,
+        "每日汇总 reports/daily/": paths.REPORTS_DIR / "daily",
+    }
+    pending = paths.COOKIE.parent / "pending_submits.json"
+    if pending.exists():
+        targets["待提交暂存 pending_submits.json"] = pending
+
+    print("[reset] 将清除以下经验积累（回到初始状态）：")
+    for label, p in targets.items():
+        print(f"  - {label} ({p})")
+    if pending.exists():
+        print("  ⚠️ 待提交暂存含未提交 alpha，清除后需重新模拟生成")
+    print("[reset] 保留：secrets/ 登录凭证、knowledge/ 静态知识库、qa/ 代码")
+
+    if yes:
+        confirmed = True
+    else:
+        try:
+            confirmed = input("确认清除？(y/N): ").strip().lower() in ("y", "yes")
+        except EOFError:
+            print("[reset] 非交互环境请使用 --yes（确认后由 agent 执行）。")
+            return 1
+    if not confirmed:
+        print("[reset] 已取消。")
+        return 0
+
+    for label, p in targets.items():
+        if p.is_dir():
+            for f in p.glob("*"):
+                f.unlink(missing_ok=True)
+            print(f"  ✓ 已清空 {label}")
+        elif p.exists():
+            p.unlink()
+            print(f"  ✓ 已删除 {label}")
+    _restore_template(paths.root / "knowledge" / "playbook.md", "playbook")
+    _restore_template(paths.root / "knowledge" / "failures.md", "failures")
+    print("[reset] 完成。项目已回到初始状态，可重新开始生成/模拟。")
+    return 0
+
+
+def _restore_template(path, kind: str) -> None:
+    """把 playbook/failures 恢复为初始模板（去掉沉淀段落，保留自动追加区）。"""
+    if kind == "playbook":
+        template = (
+            "# 经验 Playbook（脱敏）\n"
+            "\n"
+            "> 从每次 alpha 的研究/模拟/提交中沉淀的可复用经验。\n"
+            "> 当前沉淀落 SQLite（`qa/store.py` save_lesson 表）；本文件自动追加属第二批规划（`qa submit` 后接线）。**脱敏**：不含真实表达式/账号数据。\n"
+            "\n"
+            "## 格式\n"
+            "\n"
+            "每条经验：触发条件 → 假设 → 结论。\n"
+            "\n"
+            "<!-- 自动追加区（第二批接线） -->\n"
+        )
+    else:
+        template = (
+            "# 证伪库（已证伪路径）\n"
+            "\n"
+            "> 记录已验证失败的方向，避免 LLM 重复走死路。\n"
+            "> 当前沉淀落 SQLite（`qa/store.py` failures 表）；本文件自动追加属第二批规划。\n"
+            "\n"
+            "<!-- 自动追加区（第二批接线） -->\n"
+        )
+    if path.exists():
+        path.write_text(template, encoding="utf-8")
+        print(f"  ✓ {path.name} 已恢复模板")
 
 
 def _cmd_report(paths: QaPaths, args) -> int:

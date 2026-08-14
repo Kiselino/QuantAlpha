@@ -4,7 +4,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
-> 当前状态：v1.2 · 第一批已实现跑通（`qa login` / `qa status` / `qa run` / `qa report`）。
+> 当前状态：v1.3 · 第一批已实现跑通（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset`）。
 > 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---
@@ -88,6 +88,7 @@ qa status                                             # 启动首查：阶段检
 qa run                                                # 读入候选 → 预检 → 模拟 → 筛选 → 报告
 qa report --daily                                     # 查看每日达标汇总
 qa submit <alpha_id>                                  # 人工确认后提交（展示检查 + 回查 ACTIVE）
+qa reset [--yes]                                      # 清除积累的经验，回到初始状态（保留登录凭证与知识库）
 ```
 
 > 在 agent 对话中直接说"根据 knowledge/ 里的算子字段知识，为【研究想法】生成 10 个候选 alpha 写入 data/candidates/"，agent 会完成生成步骤。
@@ -102,7 +103,7 @@ qa submit <alpha_id>                                  # 人工确认后提交（
 
 1. 自己的 BRAIN 账号 + 认证（见上方"配置会话认证"：账号密码登录或复制 Cookie 二选一）
 2. 自己的 AI agent 工具（生成候选用；项目本身不需要 LLM 配置）
-3. 可选：为自己的账号运行 `qa update-knowledge` 抓取可用字段
+3. 可选：`qa update-knowledge`（第三批规划，暂未实现——当前使用仓库内置的 knowledge/ 知识库即可）
 
 ⚠️ **合规提醒**：平台条款禁止分享真实 alpha 表达式/账号 ID/盈亏数据。仓库中的经验教训均已脱敏；请勿把你自己生成的 alpha 表达式提交到任何公开仓库。
 

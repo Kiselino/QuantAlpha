@@ -143,3 +143,35 @@ def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
     assert subs[0]["confirmed_active"] == 1
     updated = store.list_alphas()
     assert updated[0]["status"] == "SUBMITTED"
+
+
+def test_cmd_reset_clears_experience_keeps_credentials(tmp_qa, monkeypatch, capsys):
+    """qa reset：清除经验数据，保留 cookie/账号/知识库。"""
+    from qa.paths import QaPaths
+    from qa.store import Store
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.parent.mkdir(parents=True, exist_ok=True)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    paths.CANDIDATES_DIR.mkdir(parents=True, exist_ok=True)
+    (paths.CANDIDATES_DIR / "x.json").write_text("[]", encoding="utf-8")
+    (paths.REPORTS_DIR / "daily").mkdir(parents=True, exist_ok=True)
+    (paths.REPORTS_DIR / "daily" / "2026-08-14.md").write_text("# x", encoding="utf-8")
+    pending = paths.COOKIE.parent / "pending_submits.json"
+    pending.write_text('{"pending": []}', encoding="utf-8")
+    s = Store(paths.DB)
+    s.save_alpha({"id": "a1", "expression": "rank(close)", "ast_hash": "h1",
+                  "status": "COMPLETE"})
+    s.save_lesson({"id": "l1", "trigger": "x", "lesson": "y"})
+
+    rc = cli_mod._cmd_reset(paths, yes=True)
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert not paths.DB.exists()          # qa.db 已删
+    assert not paths.CANDIDATES_DIR.exists() or not list(paths.CANDIDATES_DIR.glob("*"))
+    assert not list((paths.REPORTS_DIR / "daily").glob("*"))
+    assert not pending.exists()           # 待提交暂存已删
+    assert paths.COOKIE.exists()          # cookie 保留
+    assert "保留" in out

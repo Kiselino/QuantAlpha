@@ -1,7 +1,7 @@
 # QuantAlpha — Agent 工作流入口 + 项目知识库
 
 > 任何 AI agent（opencode / claude code / codex）打开本仓库后的**第一读取文件**。
-> 权威系统设计见 `quantalpha-design.md`（v1.2）。实现以设计文档为准。
+> 权威系统设计见 `quantalpha-design.md`（v1.3）。实现以设计文档为准。
 
 ## 项目是什么
 
@@ -17,9 +17,14 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 1. 运行 `qa status`（或读取 secrets/worldquant_cookies.txt 调 API）
    → 账号阶段检测（level/geniusLevel/consultant）+ cookie 有效性 + 配额/限流状态
    → 动态配置：并发数、可用区域、字段范围、表达式语言
-2. cookie 无效时：`qa login --username ... --password ...`（账号密码方式）
+2. 检查待提交暂存 `secrets/pending_submits.json`：
+   → 有内容 → 主动告知用户"有 N 个已达标 alpha 暂存待提交"
+     （列出每个的 local_id/描述/指标），询问是否提交（用户确认后逐个
+     `qa submit <local_id> --yes`，提交成功后从该文件删除对应条目）
+   → 无文件/为空 → 正常继续
+3. cookie 无效时：`qa login --username ... --password ...`（账号密码方式）
    或让用户提供 Copy as cURL（敏感用户可选用）
-3. 询问用户本次意图（生成候选？查看报告？提交确认？更新知识库？）
+4. 询问用户本次意图（生成候选？查看报告？提交确认？更新知识库？）
    不要擅自开始生成/提交
 ```
 
@@ -35,7 +40,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 | 5 | 门槛过滤 + 组合视角排序 + 免费相关门 | 自动 |
 | 6 | 候选清单报告（指标/解释/提交建议） | 自动 |
 | 7 | **用户逐条确认** → agent 代提交 → 回查 ACTIVE | **人工确认** |
-| 8 | 经验教训写入 playbook（脱敏）+ 证伪库 | 自动 |
+| 8 | 经验教训写入 SQLite（lessons/failures 自动；playbook.md 手动沉淀，自动追加第二批） | 自动/手动 |
 
 ## 命令清单
 
@@ -45,8 +50,24 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 | `qa status` | 阶段检测 + cookie 验证 + 配额（启动首查） | ✅ 已实现（第一批） |
 | `qa run [--candidates-file ...]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`** | ✅ 已实现（第一批） |
 | `qa report [--daily]` | 当日候选清单 / 每日累计汇总 | ✅ 已实现（第一批） |
-| `qa submit <alpha_id>` | 人工确认后提交（提交前展示全部检查 + 免费相关门，提交后回查 ACTIVE） | ✅ 已实现 |
+| `qa submit <alpha_id> [--yes]` | 人工确认后提交（提交前展示全部检查 + 免费相关门，提交后回查 ACTIVE） | ✅ 已实现 |
+| `qa reset [--yes]` | **清除积累的经验，回到初始状态**（见下方"经验清除范围"） | ✅ 已实现 |
 | `qa update-knowledge` | 更新知识库（算子/字段/教程；成顾问后 12 区域 40 万字段） | ⏳ 第三批 |
+
+### 经验清除范围（用户说"清除经验/重置"时，agent 执行 `qa reset`）
+
+**清除（经验积累）：**
+- `data/qa.db` — 全部记录（候选/模拟/提交/经验/证伪/日收益）
+- `data/audit/`、`data/candidates/`、`reports/daily/` — 审计/候选/每日汇总
+- `secrets/pending_submits.json` — 待提交暂存（⚠️ 含未提交 alpha 时清除前必须警告用户）
+- `knowledge/playbook.md` + `failures.md` — 沉淀段落恢复为模板
+
+**保留（非经验）：**
+- `secrets/` 下 cookie 与 account_info.json（登录凭证，重置后无需重新登录）
+- `knowledge/` 静态知识库（operators/rules/pitfalls/fields）
+- `qa/` 代码、`pyproject.toml`、`pyrightconfig.json`
+
+> `qa reset` 执行前必须展示将清除的清单 + 等待用户确认（与提交同级的合规要求）；`--yes` 仅限用户在对话中已显式确认后由 agent 使用。
 
 ## 合规红线（不可违背）
 
@@ -73,7 +94,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 QuantAlpha/
 ├── AGENTS.md                    # 本文件（工作流入口）
 ├── README.md                    # 人类说明：安装、认证配置（双选）、快速开始
-├── quantalpha-design.md         # ⭐ 权威设计 v1.2（模块职责/数据模型/错误处理/MVP）
+├── quantalpha-design.md         # ⭐ 权威设计 v1.3（模块职责/数据模型/错误处理/MVP）
 ├── qa/                          # Python 工具库（auth/stage/brain_client/validate/...）
 ├── knowledge/                   # ✅ 静态知识库：operators/rules/pitfalls/playbook/failures/fields
 ├── pyrightconfig.json           # LSP 配置（basedpyright）
@@ -85,8 +106,8 @@ QuantAlpha/
 
 ## COMMANDS
 
-- 实现后：`qa status` / `qa run` / `qa submit` / `qa report` / `qa update-knowledge`
-- 测试：`pytest qa/tests/`（设计 v1.2 §10）
+- 实现后：`qa login` / `qa status` / `qa run` / `qa submit` / `qa report` / `qa reset` / `qa update-knowledge`
+- 测试：`pytest qa/tests/`（设计 v1.3 §10）
 - 开发节奏：1.0 可跑通版本后首次 commit；之后每 2-3 功能更新再提交
 
 ## 最终提交范围（用户约定，提交时遵守）

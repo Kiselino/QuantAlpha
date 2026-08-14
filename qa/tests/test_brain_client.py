@@ -59,7 +59,7 @@ def test_retry_get_retries_empty_body(monkeypatch):
     monkeypatch.setattr(client.session, "get", fake_get)
     _, data, _ = client._retry_get("/alphas/A1/correlations/self")
     assert calls["n"] == 2
-    assert data["max"] == 0.5
+    assert isinstance(data, dict) and data["max"] == 0.5
 
 
 def test_simulate_returns_location(monkeypatch):

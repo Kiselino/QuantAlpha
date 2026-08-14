@@ -408,7 +408,7 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
 
     try:
         resp = client.submit(platform_alpha_id)
-        detail = client.get_alpha(platform_alpha_id)
+        detail = _wait_for_active(client, platform_alpha_id)
     except Exception as e:
         print(f"[submit] 提交失败: {e}")
         store.save_failure(
@@ -435,6 +435,21 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
         return 0
     print(f"[submit] ⚠️ 提交返回但状态为 {current_status}（未确认 ACTIVE，请到平台核实）")
     return 1
+
+
+def _wait_for_active(client: BrainClient, platform_alpha_id: str, timeout: float = 120.0) -> dict:
+    """提交后轮询平台状态直到 ACTIVE（状态更新有延迟，实测提交后需数秒）。"""
+    import time as _time
+
+    deadline = _time.time() + timeout
+    last = {}
+    while _time.time() < deadline:
+        detail = client.get_alpha(platform_alpha_id)
+        last = detail
+        if detail.get("status") == "ACTIVE":
+            return detail
+        _time.sleep(5.0)
+    return last
 
 
 def _cmd_report(paths: QaPaths, args) -> int:

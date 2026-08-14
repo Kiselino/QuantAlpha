@@ -25,7 +25,8 @@ def apply_thresholds(
 
     平台已给出各检查 PASS/FAIL（checks），直接采信；metrics 缺失视为基础设施失败。
     """
-    if not metrics or "sharpe" not in metrics:
+    sharpe_raw = metrics.get("sharpe")
+    if not metrics or sharpe_raw is None:
         return ScreeningVerdict(verdict="FAIL_INFRA", reason="缺少模拟指标")
 
     failed = [
@@ -37,9 +38,9 @@ def apply_thresholds(
         )
 
     # 本地硬门槛（平台 checks 未覆盖的）
-    sharpe = metrics.get("sharpe", 0.0)
-    fitness = metrics.get("fitness", 0.0)
-    turnover = metrics.get("turnover", 0.0)
+    sharpe = float(sharpe_raw)
+    fitness = float(metrics.get("fitness") or 0.0)
+    turnover = float(metrics.get("turnover") or 0.0)
     if sharpe < t.sharpe_d1:
         return ScreeningVerdict(
             verdict="FAIL", failed_checks=["SHARPE"],

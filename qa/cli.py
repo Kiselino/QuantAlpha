@@ -164,7 +164,7 @@ def cmd_run(
                 "checks": sim.checks,
             }
         )
-        print(f"    {verdict.verdict}: Sharpe={sim.metrics.get('sharpe'):}")
+        print(f"    {verdict.verdict}: Sharpe={sim.metrics.get('sharpe') or '—'}")
 
     ranked = rank_candidates(results)
     print()

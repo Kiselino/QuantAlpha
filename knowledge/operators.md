@@ -1,6 +1,6 @@
 # BRAIN 平台算子完整参考（67 个，含官方文档正文）
 
-> 来源: api.worldquantbrain.com/operators（会话 XX13716 认证拉取）· 2026-08-14
+> 来源: api.worldquantbrain.com/operators（平台账号会话认证拉取）· 2026-08-14
 > 用途: alpha 公式生成器的算法规格库 —— 所有算子的语法、参数、语义、示例、提示
 
 ---

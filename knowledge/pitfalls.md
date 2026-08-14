@@ -35,3 +35,46 @@
 | LOW_SUB_UNIVERSE_SHARPE | 去规模乘子；流动部分分开 decay |
 | CONCENTRATED_WEIGHT | 降 truncation；检查覆盖（ts_backfill） |
 | LOW_FITNESS | 通常由高换手导致——先降 turnover |
+
+## 平台报错快速映射（Help Center 错误信息大全精选）
+
+| 报错/提示 | 含义与修复 |
+|---|---|
+| `DAILY_SIMULATION_LIMIT_EXCEEDED` | 每日模拟限额，美东时间重置，明日再试 |
+| "Alpha better suited for Delay 1" | D1 Sharpe 高于 D0 → 建议提交 D1（成本更低） |
+| "表达式过复杂" | 算子调用超限（上限 30/深度 8），简化 |
+| "未知字段/变量" | 字段在该区域/延迟不覆盖，换字段 |
+| "保留字冲突" | 避免保留字作字段名 |
+| "必须 ≥10 个成分 alpha（SuperAlpha）" | Super 提交前先凑足成分 |
+| 均值回归警告 | 信号有均值回复特性，注意方向选择 |
+| "Overused"（数据集警告） | 该数据集类别过度使用，临时禁用（见 fields/README.md） |
+
+## 权威修复文章索引（Help Center 文章 ID，登录后可查）
+
+| 主题 | 文章 ID |
+|---|---|
+| 错误信息大全（~40 种报错对照） | `18423410021783` |
+| better Fitness | `20251386376471` |
+| better Correlation | `20251385275671` |
+| better Ladder | `6726865162903` |
+| better Return | `20251364149655` |
+| better Sharpe | `20251383456663` |
+| better Sub-universe Sharpe（含 NaN 公式） | `6568644868375` |
+| better Turnover | `20251419309719` |
+| Weight Coverage | `19248385997719` |
+| 术语表 | `4902349883927` |
+| HCAC 评分 | `26743191705879` |
+| Power Pool 主题 | `38927747787031` |
+
+## 特殊字段与机制
+
+- **Vector 字段（nws/scl 等）**：需 `vec_*` 算子转矩阵；原始 turnover 可达 130-200%，必须加 `ts_rank`/`ts_decay` 降频
+- **不流动 50% 测试**：交易成本后最不流动 50% 的 Sharpe ≥ **52.5%** 原始 Sharpe；修复：提高不流动部分权重、分开 decay、`group_neutralize()`/`vector_neut()` 对规模/流动性因子中性化
+- **权重测试细节**：单股 ≤10% book size（truncation 0.1 即 10% 上限）；长/短边 <10 只或总数 <20 只易失败；低覆盖率：`group_count(is_nan(a),market)>40?a:nan`、`ts_backfill(a,2)`（日数据）、`ts_backfill(a,60)`（季频基本面）
+- **算子族饱和**：每个算子族 3-5 个 ACTIVE 后 SELF_CORRELATION 拦截（社区经验）——跟踪已提交信号簇分布，**换簇不换参**
+
+## 已证伪概念（勿再投入）
+
+- 无 delay-2、无 "FastSim"、无 equal/volume weighting 开关（delay 只有 0/1）
+- "付费保留名额"政策不存在
+- 无官方公共 SDK（顾问专属）；无公开封号案例（不代表安全——ToS 禁止自动化）

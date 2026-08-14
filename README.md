@@ -41,8 +41,15 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 ```bash
 git clone <repo-url>
 cd QuantAlpha
-pip install -e .          # 或 uv sync
+
+# 方式 A（推荐）：uv（自动管理 Python 版本）
+uv sync
+
+# 方式 B：pip
+pip install -e .
 ```
+
+> 首次运行 `qa status` / `qa run` 会自动创建 `data/`、`reports/` 等私有目录（gitignored）。
 
 ### 2. 配置会话 Cookie
 

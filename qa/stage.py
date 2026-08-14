@@ -33,7 +33,9 @@ def read_cookie(path: Path) -> str:
     """读取会话 cookie（secrets/worldquant_cookies.txt）。"""
     if not path.exists():
         raise FileNotFoundError(
-            f"未找到 cookie 文件: {path}。请登录 BRAIN 后从 Network 面板复制 Cookie 头。"
+            f"未找到 cookie 文件: {path}。\n"
+            "首次使用请先创建 secrets/ 目录：登录 BRAIN 后从浏览器 Network 面板\n"
+            "复制 Cookie 头，保存为 secrets/worldquant_cookies.txt（详见 README）。"
         )
     return path.read_text(encoding="utf-8").strip()
 

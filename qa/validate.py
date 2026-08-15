@@ -125,6 +125,13 @@ def check_fields(
         # 后跟 '(' → 算子调用，跳过（算子存在性由 check_syntax 校验）
         if i + 1 < len(tokens) and tokens[i + 1] == "(":
             continue
+        # 命名参数（如 hump(x, hump=0.02)）：标识符后跟 '=' 且再后非 '='（区别于 == 比较）
+        if (
+            i + 1 < len(tokens)
+            and tokens[i + 1] == "="
+            and (i + 2 >= len(tokens) or tokens[i + 2] != "=")
+        ):
+            continue
         if tok not in fields and tok not in {"nan", "inf"}:
             errors.append(f"未知字段: {tok}")
             continue

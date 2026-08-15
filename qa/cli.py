@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 
 from qa import auth, knowledge
-from qa.brain_client import BrainClient, SimulationResult
+from qa.brain_client import BrainClient, SimulationResult, SubmissionRejected
 from qa.candidates import Candidate, load_candidates
 from qa.config import AppConfig
 from qa.knowledge import KnowledgeMissingError
@@ -82,6 +82,7 @@ def _load_operators() -> set[str]:
         "ts_rank", "ts_mean", "ts_delta", "ts_decay_linear", "ts_backfill",
         "ts_zscore", "ts_delay", "ts_sum", "ts_std_dev", "ts_corr",
         "ts_scale", "ts_quantile", "ts_av_diff", "ts_arg_max", "ts_arg_min",
+        "hump",
         # 横截面
         "rank", "zscore", "scale", "quantile", "normalize", "winsorize",
         # 向量
@@ -532,6 +533,20 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
     try:
         resp = client.submit(platform_alpha_id)
         detail = _wait_for_active(client, platform_alpha_id)
+    except SubmissionRejected as e:
+        print(f"[submit] 提交被平台拒绝（检查未过，非会话问题）:")
+        for c in e.checks:
+            print(f"    {c.get('name', '?'):<38} {c.get('result', '?'):<8} value={c.get('value', '—')}")
+        reason = ";".join(c.get("name", "") for c in e.checks if c.get("result") == "FAIL")
+        store.save_failure(
+            {"id": f"sub_{alpha_id}", "expression_hash": alpha_id,
+             "failure_reason": f"提交检查未过: {reason}"}
+        )
+        knowledge.append_experience(
+            paths, "failure", f"sub_fail_{alpha_id}", alpha.get("description") or "提交被拒",
+            f"- 触发: 提交检查未过（{reason}）\n- 表达式 hash: {alpha_id}\n- 结论: 该方向未达提交门槛，避免重复",
+        )
+        return 1
     except Exception as e:
         print(f"[submit] 提交失败: {e}")
         store.save_failure(

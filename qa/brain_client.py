@@ -39,6 +39,14 @@ class SimulationResult:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
+class SubmissionRejected(Exception):
+    """平台提交检查未过（HTTP 403 + is.checks 载荷），非会话问题。"""
+
+    def __init__(self, checks: list[dict[str, Any]]):
+        self.checks = checks
+        super().__init__("提交被平台拒绝（检查未过）")
+
+
 class BrainClient:
     """BRAIN API 封装。cookie 读自 secrets/worldquant_cookies.txt。"""
 
@@ -101,12 +109,14 @@ class BrainClient:
 
     # ---- 模拟 ----
     def _post_with_retry(
-        self, path: str, payload: dict[str, Any] | None = None
+        self, path: str, payload: dict[str, Any] | None = None, rejection_ok: bool = False
     ) -> requests.Response:
         """带 429 退避的 POST（THROTTLED 抛错 / 401-403 抛 PermissionError）。
 
         返回成功（非限流/非鉴权错误）响应对象；重试 3 次仍被限流抛 TimeoutError。
         调用方负责 4xx 语义处理（如 400 参数拒绝）与成功响应解析。
+        rejection_ok=True：提交等业务端点 403 携带检查载荷（is.checks）时返回响应
+        由调用方解析拒绝原因，而非误报会话过期。
         """
         for _ in range(3):
             resp = self.session.post(
@@ -119,6 +129,8 @@ class BrainClient:
                 time.sleep(min(_parse_retry_after(resp.headers.get("Retry-After")), 120.0))
                 continue
             if resp.status_code in (401, 403):
+                if rejection_ok and resp.status_code == 403 and '"is"' in resp.text[:2048]:
+                    return resp
                 raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
             return resp
         raise TimeoutError(f"POST {path} 重试 3 次后仍被限流")
@@ -203,8 +215,16 @@ class BrainClient:
         """POST /alphas/{id}/submit → 提交 alpha，返回平台响应。
 
         需先经 correlations_self 免费相关门确认（max<0.7）再提交。
+        平台以 403 + is.checks 载荷拒绝未过检查的提交 → 抛 SubmissionRejected。
         """
-        resp = self._post_with_retry(f"/alphas/{alpha_id}/submit")
+        resp = self._post_with_retry(f"/alphas/{alpha_id}/submit", rejection_ok=True)
+        if resp.status_code == 403:
+            try:
+                body = resp.json()
+                checks = (body.get("is") or {}).get("checks", [])
+            except ValueError:
+                checks = []
+            raise SubmissionRejected(checks)
         resp.raise_for_status()
         try:
             return resp.json()

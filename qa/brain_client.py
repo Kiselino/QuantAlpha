@@ -100,16 +100,17 @@ class BrainClient:
         raise TimeoutError(f"GET {path} 重试 {attempts} 次后仍失败")
 
     # ---- 模拟 ----
-    def simulate(self, code: str, settings: dict[str, Any]) -> str:
-        """POST /simulations → 返回 sim_id（来自 Location 头）。
+    def _post_with_retry(
+        self, path: str, payload: dict[str, Any] | None = None
+    ) -> requests.Response:
+        """带 429 退避的 POST（THROTTLED 抛错 / 401-403 抛 PermissionError）。
 
-        平台实测要求：regular 为字符串；settings 必含 unitHandling/visualization。
-        429 常规限流按 Retry-After 退避重试（并发模拟时易触发）；THROTTLED 抛错。
+        返回成功（非限流/非鉴权错误）响应对象；重试 3 次仍被限流抛 TimeoutError。
+        调用方负责 4xx 语义处理（如 400 参数拒绝）与成功响应解析。
         """
-        payload = {"type": "REGULAR", "settings": settings, "regular": code}
-        for attempt in range(3):
+        for _ in range(3):
             resp = self.session.post(
-                f"{self.base_url}/simulations", json=payload, timeout=self.timeout
+                f"{self.base_url}{path}", json=payload, timeout=self.timeout
             )
             if resp.status_code == 429:
                 body = resp.text
@@ -119,12 +120,22 @@ class BrainClient:
                 continue
             if resp.status_code in (401, 403):
                 raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
-            if resp.status_code == 400:
-                raise ValueError(f"模拟参数被平台拒绝: {resp.text[:300]}")
-            resp.raise_for_status()
-            location = resp.headers.get("Location", "")
-            return location.rsplit("/", 1)[-1]
-        raise TimeoutError(f"POST /simulations 重试 3 次后仍被限流")
+            return resp
+        raise TimeoutError(f"POST {path} 重试 3 次后仍被限流")
+
+    def simulate(self, code: str, settings: dict[str, Any]) -> str:
+        """POST /simulations → 返回 sim_id（来自 Location 头）。
+
+        平台实测要求：regular 为字符串；settings 必含 unitHandling/visualization。
+        """
+        resp = self._post_with_retry(
+            "/simulations", {"type": "REGULAR", "settings": settings, "regular": code}
+        )
+        if resp.status_code == 400:
+            raise ValueError(f"模拟参数被平台拒绝: {resp.text[:300]}")
+        resp.raise_for_status()
+        location = resp.headers.get("Location", "")
+        return location.rsplit("/", 1)[-1]
 
     def poll_simulation(self, sim_id: str, max_wait: float = 600.0) -> SimulationResult:
         """轮询模拟直到 COMPLETE/ERROR 或超时。
@@ -192,26 +203,13 @@ class BrainClient:
         """POST /alphas/{id}/submit → 提交 alpha，返回平台响应。
 
         需先经 correlations_self 免费相关门确认（max<0.7）再提交。
-        429 常规限流按 Retry-After 退避重试；401/403 抛 PermissionError。
         """
-        for attempt in range(3):
-            resp = self.session.post(
-                f"{self.base_url}/alphas/{alpha_id}/submit", timeout=self.timeout
-            )
-            if resp.status_code == 429:
-                body = resp.text
-                if "THROTTLED" in body:
-                    raise RuntimeError("平台相关性子系统繁忙（THROTTLED），请稍后重试。")
-                time.sleep(min(_parse_retry_after(resp.headers.get("Retry-After")), 120.0))
-                continue
-            if resp.status_code in (401, 403):
-                raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
-            resp.raise_for_status()
-            try:
-                return resp.json()
-            except ValueError:
-                return {"status": resp.status_code, "text": resp.text}
-        raise TimeoutError(f"POST /alphas/{alpha_id}/submit 重试 3 次后仍被限流")
+        resp = self._post_with_retry(f"/alphas/{alpha_id}/submit")
+        resp.raise_for_status()
+        try:
+            return resp.json()
+        except ValueError:
+            return {"status": resp.status_code, "text": resp.text}
 
     def get_alpha(self, alpha_id: str) -> dict[str, Any]:
         """GET /alphas/{id} → alpha 详情（提交后回查 status 是否 ACTIVE）。"""

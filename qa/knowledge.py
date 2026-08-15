@@ -54,67 +54,64 @@ def _page_items(payload: Any) -> list[dict]:
     return payload or []
 
 
-def fetch_dataset_ids(
-    client: Any, region: str, callback: Callable[[str], None] | None = None
-) -> list[str]:
-    """分页拉取区域数据集 id 列表。"""
-    ids: list[str] = []
+def _paged_results(
+    client: Any, path: str, base_params: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """分页拉取全部 items（limit=50 offset 翻页；{results:[]} 与裸数组均支持）。"""
+    items: list[dict[str, Any]] = []
     offset = 0
     limit = 50
     while True:
         payload = client.get_json(
+            path, params={**base_params, "limit": limit, "offset": offset}
+        )
+        page = _page_items(payload)
+        items.extend(it for it in page if isinstance(it, dict))
+        if len(page) < limit:
+            break
+        offset += limit
+    return items
+
+
+def fetch_dataset_ids(
+    client: Any, region: str, callback: Callable[[str], None] | None = None
+) -> list[str]:
+    """分页拉取区域数据集 id 列表。"""
+    return [
+        it["id"]
+        for it in _paged_results(
+            client,
             "/data-sets",
-            params={
+            {
                 "region": region,
                 "universe": "TOP3000",
                 "delay": 1,
                 "instrumentType": "EQUITY",
-                "limit": limit,
-                "offset": offset,
             },
         )
-        items = _page_items(payload)
-        ids.extend(
-            it["id"] for it in items if isinstance(it, dict) and it.get("id")
-        )
-        if len(items) < limit:
-            break
-        offset += limit
-    return ids
+        if it.get("id")
+    ]
 
 
 def fetch_dataset_fields(
     client: Any, dataset_id: str, region: str
 ) -> list[dict[str, Any]]:
     """分页拉取单数据集全部字段元数据（精简字段集）。"""
-    fields: list[dict[str, Any]] = []
-    offset = 0
-    limit = 50
-    while True:
-        payload = client.get_json(
+    return [
+        {k: it.get(k) for k in _FIELD_KEYS if k != "dataset"} | {"dataset": dataset_id}
+        for it in _paged_results(
+            client,
             "/data-fields",
-            params={
+            {
                 "dataset.id": dataset_id,  # 实测参数名是点号写法
                 "region": region,
                 "delay": 1,
                 "universe": "TOP3000",
                 "instrumentType": "EQUITY",  # 实测必带，缺失返回 400 Invalid query
-                "limit": limit,
-                "offset": offset,
             },
         )
-        items = _page_items(payload)
-        for it in items:
-            if not isinstance(it, dict) or not it.get("id"):
-                continue
-            fields.append(
-                {k: it.get(k) for k in _FIELD_KEYS if k != "dataset"}
-                | {"dataset": dataset_id}
-            )
-        if len(items) < limit:
-            break
-        offset += limit
-    return fields
+        if it.get("id")
+    ]
 
 
 def _user_count(f: dict[str, Any]) -> int | float:

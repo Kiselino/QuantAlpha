@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import random
 import sys
 import time
@@ -716,8 +717,6 @@ def _cmd_report(paths: QaPaths, args) -> int:
     if not daily_dir.exists():
         print("[report] 尚无每日汇总。先运行 qa run。")
         return 0
-    import glob
-
     files = sorted(glob.glob(str(daily_dir / "*.md")), reverse=True)
     if not files:
         print("[report] 尚无每日汇总。先运行 qa run。")

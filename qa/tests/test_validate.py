@@ -11,7 +11,16 @@ from qa.validate import (
 )
 
 OPERATORS = {"rank", "ts_rank", "ts_mean", "ts_delta", "group_rank", "vec_avg", "is_nan"}
-FIELDS = {"close", "open", "volume", "earnings_est", "cashflow_flag", "assets"}
+FIELDS = {"close", "open", "volume", "earnings_est", "cashflow_flag", "assets",
+          "nws_x", "subindustry", "top500", "sym"}
+# v1.4.1：字段类型检查（VECTOR/GROUP/UNIVERSE/SYMBOL）
+FIELD_TYPES = {
+    "close": "MATRIX",
+    "nws_x": "VECTOR",
+    "subindustry": "GROUP",
+    "top500": "UNIVERSE",
+    "sym": "SYMBOL",
+}
 
 
 def test_expression_hash_stable():
@@ -58,3 +67,32 @@ def test_validate_expression_bad():
     r = validate_expression("notanop(close)", OPERATORS, FIELDS)
     assert r.ok is False
     assert len(r.errors) >= 1
+
+
+def test_vector_field_rejected_in_scalar_context():
+    errs = check_fields("rank(nws_x)", FIELDS, FIELD_TYPES)
+    assert any("VECTOR" in e for e in errs)
+
+
+def test_vector_field_ok_inside_vec_operator():
+    assert check_fields("vec_avg(nws_x)", FIELDS, FIELD_TYPES) == []
+
+
+def test_group_field_ok_inside_group_operator():
+    assert check_fields("group_rank(rank(close), subindustry)", FIELDS, FIELD_TYPES) == []
+
+
+def test_group_field_rejected_in_scalar_context():
+    errs = check_fields("rank(subindustry)", FIELDS, FIELD_TYPES)
+    assert any("GROUP" in e for e in errs)
+
+
+def test_universe_and_symbol_fields_rejected():
+    errs = check_fields("rank(top500)", FIELDS, FIELD_TYPES)
+    assert any("UNIVERSE" in e for e in errs)
+    errs = check_fields("rank(sym)", FIELDS, FIELD_TYPES)
+    assert any("SYMBOL" in e for e in errs)
+
+
+def test_field_types_optional_backward_compatible():
+    assert check_fields("rank(nws_x)", FIELDS) == []  # 不传类型映射 → 只查存在性

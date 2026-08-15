@@ -19,6 +19,10 @@ def _seed_knowledge(paths) -> None:
          "type": "MATRIX", "coverage": 1.0, "userCount": 50},
         {"id": "subindustry", "description": "subindustry", "dataset": "grp",
          "type": "GROUP", "coverage": 1.0, "userCount": 200},
+        {"id": "nws_x", "description": "news vector", "dataset": "news12",
+         "type": "VECTOR", "coverage": 1.0, "userCount": 30},
+        {"id": "top500", "description": "universe member", "dataset": "univ1",
+         "type": "UNIVERSE", "coverage": 1.0, "userCount": 999},
     ]
     paths.KNOWLEDGE_FIELDS_JSON.write_text(
         json.dumps(fields, ensure_ascii=False), encoding="utf-8"
@@ -27,7 +31,7 @@ def _seed_knowledge(paths) -> None:
         json.dumps(fields, ensure_ascii=False), encoding="utf-8"
     )
     paths.KNOWLEDGE_META_JSON.write_text(
-        json.dumps({"field_count": len(fields), "dataset_count": 2,
+        json.dumps({"field_count": len(fields), "dataset_count": 4,
                     "regions": ["USA"], "generated_at": "2026-08-15T00:00:00+00:00"}),
         encoding="utf-8",
     )
@@ -194,6 +198,50 @@ def test_cmd_run_missing_knowledge_errors(tmp_qa, monkeypatch, capsys):
     assert "update-knowledge" in out
 
 
+def test_cmd_run_rejects_vector_field_via_type_check(tmp_qa, monkeypatch, capsys):
+    """v1.4.1：VECTOR 字段未用 vec_* 转换 → 预检拦截（省无效模拟配额）。"""
+    from qa.candidates import Candidate, write_candidates
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    write_candidates(
+        cand_path,
+        [
+            Candidate(description="合法标量", hypothesis="h",
+                      expression="rank(close)", dataset_ids=["pv1"]),
+            Candidate(description="VECTOR 误用", hypothesis="h",
+                      expression="rank(nws_x)", dataset_ids=["news12"]),
+        ],
+    )
+    monkeypatch.setattr(
+        cli_mod, "get_stage",
+        lambda p: StageInfo(level="TEST", is_consultant=False),
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}"
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "poll_simulation",
+        lambda self, sid, max_wait=600.0: cli_mod.SimulationResult(
+            sim_id=sid, status="COMPLETED", alpha_id="a1", checks=[],
+            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
+        ),
+    )
+
+    rc = cli_mod.cmd_run(paths, cli_mod.AppConfig(), str(cand_path), idea=None)
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert "VECTOR" in out          # 类型检查拦截提示
+    assert "待模拟" in out and out.count("待模拟") == 1  # 只模拟合法候选
+    assert "PASS" in out
+
+
 def test_cmd_run_auto_sediments_lessons_and_failures(tmp_qa, monkeypatch, capsys):
     """v1.4：run 后 PASS→lessons、FAIL→failures 自动写入 SQLite + experience/。"""
     from qa.candidates import Candidate, write_candidates
@@ -292,6 +340,72 @@ def test_cmd_suggest_requires_and_uses_knowledge(tmp_qa, monkeypatch, capsys):
     assert rc == 0
     assert "建议研究方向" in out
     assert any(f in out for f in ("close", "volume", "subindustry"))
+
+
+def test_signal_fields_filters_unusable_types():
+    """v1.4.1：suggest 排除 UNIVERSE/SYMBOL/VECTOR 字段（不可用于标量表达式）。"""
+    from qa import cli as cli_mod
+    from qa.paths import QaPaths
+    import tempfile
+    from pathlib import Path
+
+    paths = QaPaths(Path(tempfile.mkdtemp()))
+    _seed_knowledge(paths)
+    from qa import knowledge
+
+    top = knowledge.load_top_fields(paths)
+    signal = cli_mod._signal_fields(top)
+    ids = {f["id"] for f in signal}
+    assert "close" in ids
+    assert "top500" not in ids    # UNIVERSE 排除
+    assert "nws_x" not in ids     # VECTOR 排除
+    assert "subindustry" in ids   # GROUP 保留（group_by 可用）
+
+
+def test_cmd_run_respects_minute_rate_limit(tmp_qa, monkeypatch, capsys):
+    """v1.4.1：分钟限流剩余不足时批间等待，不硬撞 429。"""
+    from qa.candidates import Candidate, write_candidates
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.brain_client import RateLimits
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    write_candidates(
+        cand_path,
+        [Candidate(description=f"c{i}", hypothesis="h",
+                   expression="rank(close)", dataset_ids=["pv1"]) for i in range(4)],
+    )
+    monkeypatch.setattr(
+        cli_mod, "get_stage",
+        lambda p: StageInfo(level="TEST", is_consultant=False),
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}"
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "poll_simulation",
+        lambda self, sid, max_wait=600.0: cli_mod.SimulationResult(
+            sim_id=sid, status="COMPLETED", alpha_id="a1", checks=[],
+            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
+        ),
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "rate_limits",
+        lambda self: RateLimits(remaining_minute=1, limit_minute=30),
+    )
+    sleeps: list[float] = []
+    monkeypatch.setattr(cli_mod.time, "sleep", lambda s: sleeps.append(s))
+
+    rc = cli_mod.cmd_run(paths, cli_mod.AppConfig(), str(cand_path), idea=None)
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert sleeps, "剩余 1 时应等待限流窗口重置"
+    assert "限流" in out
 
 
 def test_cmd_status_prompts_knowledge_generation(tmp_qa, monkeypatch, capsys):

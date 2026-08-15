@@ -88,11 +88,34 @@ def check_syntax(expr: str, operators: set[str]) -> list[str]:
     return errors
 
 
-def check_fields(expr: str, fields: set[str]) -> list[str]:
+def _enclosing_operator(tokens: list[str], i: int) -> str | None:
+    """字段 token 位置 i → 最近包裹它的算子名（无则 None）。
+
+    从后往前扫描括号配对：遇到的第一个未闭合 "(" 即包裹当前 token 的调用。
+    """
+    depth = 0
+    for j in range(i, -1, -1):
+        if tokens[j] == ")":
+            depth += 1
+        elif tokens[j] == "(":
+            if depth == 0:
+                return tokens[j - 1] if j > 0 else None
+            depth -= 1
+    return None
+
+
+def check_fields(
+    expr: str,
+    fields: set[str],
+    field_types: dict[str, str] | None = None,
+) -> list[str]:
     """字段白名单：表达式中的标识符必须是字段（算子调用除外）。
 
     识别规则：标识符后紧跟 '(' 视为算子调用（算子校验由 check_syntax 负责）；
     其余标识符必须是已知字段。
+    field_types（v1.4.1）：按平台字段类型拦截非法用法——
+    VECTOR 必须位于 vec_* 算子内；GROUP 仅用于 group_* 的 group_by；
+    UNIVERSE/SYMBOL 不可用于任何表达式。
     """
     errors: list[str] = []
     tokens = _tokenize(expr)
@@ -104,6 +127,22 @@ def check_fields(expr: str, fields: set[str]) -> list[str]:
             continue
         if tok not in fields and tok not in {"nan", "inf"}:
             errors.append(f"未知字段: {tok}")
+            continue
+        ftype = field_types.get(tok) if field_types else None
+        if ftype == "UNIVERSE":
+            errors.append(f"UNIVERSE 类型字段不可用于表达式: {tok}")
+        elif ftype == "SYMBOL":
+            errors.append(f"SYMBOL 类型字段不可用于表达式: {tok}")
+        elif ftype == "VECTOR":
+            op = _enclosing_operator(tokens, i)
+            if not op or not op.startswith("vec_"):
+                errors.append(f"VECTOR 类型字段需 vec_* 算子转换: {tok}")
+        elif ftype == "GROUP":
+            op = _enclosing_operator(tokens, i)
+            if not op or not op.startswith("group_"):
+                errors.append(
+                    f"GROUP 类型字段仅用于 group_* 算子的 group_by 参数: {tok}"
+                )
     return errors
 
 
@@ -124,11 +163,14 @@ def measure_complexity(expr: str, operators: set[str]) -> tuple[int, int]:
 
 
 def validate_expression(
-    expr: str, operators: set[str], fields: set[str]
+    expr: str,
+    operators: set[str],
+    fields: set[str],
+    field_types: dict[str, str] | None = None,
 ) -> ValidationResult:
-    """综合预检：语法 + 字段 + 复杂度。"""
+    """综合预检：语法 + 字段（含类型）+ 复杂度。"""
     errors = check_syntax(expr, operators)
-    errors += check_fields(expr, fields)
+    errors += check_fields(expr, fields, field_types)
     op_count, depth = measure_complexity(expr, operators)
     if op_count > 30:
         errors.append(f"表达式过复杂：{op_count} 个算子（上限 30）")

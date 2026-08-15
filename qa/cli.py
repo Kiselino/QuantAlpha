@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import random
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -26,14 +27,45 @@ from qa.stage import get_stage, read_cookie
 from qa.store import Store
 from qa.validate import ValidationResult, validate_expression
 
-_THEMES = [
-    {"name": "价值修复", "template": "低估值维度（{field} 衡量价值），预期低估标的均值回归"},
-    {"name": "质量溢价", "template": "盈利质量维度（{field} 衡量质量），高质量公司持续占优"},
-    {"name": "增长动能", "template": "成长维度（{field} 衡量增速），高增长延续"},
-    {"name": "短期反转", "template": "短期超跌反弹（{field} 衡量近期涨跌），反向布局"},
-    {"name": "低波动溢价", "template": "低波动维度（{field} 衡量波动），低风险异象"},
-    {"name": "趋势动量", "template": "动量维度（{field} 衡量趋势强度），强者恒强"},
-]
+_THEMES_BY_CATEGORY: dict[str, list[dict[str, str]]] = {
+    "fundamental": [
+        {"name": "价值修复", "template": "低估值维度（{field} 衡量价值），预期低估标的均值回归"},
+        {"name": "质量溢价", "template": "盈利质量维度（{field} 衡量质量），高质量公司持续占优"},
+        {"name": "增长动能", "template": "成长维度（{field} 衡量增速），高增长延续"},
+    ],
+    "analyst": [
+        {"name": "预期修正", "template": "分析师预期上调（{field} 衡量修正），共识改善领先价格"},
+        {"name": "盈利惊喜", "template": "实际盈余相对预期（{field}），超预期标的动量延续"},
+    ],
+    "alternative": [
+        {"name": "情绪反转", "template": "情绪极端后反转（{field} 衡量情绪），均值回归"},
+        {"name": "新闻漂移", "template": "信息冲击后的价格漂移（{field} 衡量冲击），滞后反应"},
+    ],
+    "technical": [
+        {"name": "趋势动量", "template": "动量维度（{field} 衡量趋势强度），强者恒强"},
+        {"name": "短期反转", "template": "短期超跌反弹（{field} 衡量近期涨跌），反向布局"},
+        {"name": "低波动溢价", "template": "低波动维度（{field} 衡量波动），低风险异象"},
+    ],
+}
+
+# 数据集 id 前缀 → 主题类别（analyst4/earnings4 → analyst；fundamental* → fundamental；...）
+_TECHNICAL_PREFIXES = ("pv", "option", "model", "univ")
+
+
+def _signal_fields(top: list[dict]) -> list[dict]:
+    """过滤不可用于标量表达式的字段（UNIVERSE/SYMBOL/VECTOR；VECTOR 需 vec_* 转换）。"""
+    return [f for f in top if f.get("type") not in ("UNIVERSE", "SYMBOL", "VECTOR")]
+
+
+def _theme_for_dataset(ds: str) -> list[dict[str, str]]:
+    """数据集 id → 主题模板组（基本面/分析师/另类/技术 四类）。"""
+    if ds.startswith(("analyst", "earnings")):
+        return _THEMES_BY_CATEGORY["analyst"]
+    if ds.startswith("fundamental"):
+        return _THEMES_BY_CATEGORY["fundamental"]
+    if ds.startswith(("news", "socialmedia", "sentiment")):
+        return _THEMES_BY_CATEGORY["alternative"]
+    return _THEMES_BY_CATEGORY["technical"]
 
 
 def _load_operators() -> set[str]:
@@ -59,9 +91,9 @@ def _load_operators() -> set[str]:
     }
 
 
-def _load_fields(paths: QaPaths) -> set[str]:
-    """字段白名单：读本地账户知识库 experience/fields/fields.json（缺失抛错）。"""
-    return knowledge.load_field_ids(paths)
+def _load_fields(paths: QaPaths) -> tuple[set[str], dict[str, str]]:
+    """字段白名单 + 类型映射：读本地 experience/fields/fields.json（缺失抛错）。"""
+    return knowledge.load_fields(paths)
 
 
 def cmd_status(paths: QaPaths) -> int:
@@ -136,7 +168,7 @@ def cmd_run(
 
     try:
         operators = _load_operators()
-        fields = _load_fields(paths)
+        fields, field_types = _load_fields(paths)
     except KnowledgeMissingError as e:
         print(f"[run] 错误: {e}")
         return 1
@@ -145,7 +177,7 @@ def cmd_run(
 
     todo: list[tuple[Candidate, ValidationResult]] = []
     for cand in candidates:
-        vr = validate_expression(cand.expression, operators, fields)
+        vr = validate_expression(cand.expression, operators, fields, field_types)
         if not vr.ok:
             print(f"  ✗ 预检未过: {cand.expression}  {vr.errors[:2]}")
             store.save_failure(
@@ -187,91 +219,102 @@ def cmd_run(
 
     results = []
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        for cand, vr, sim, err in pool.map(_simulate, todo):
-            if err is not None:
-                print(f"    ✗ 模拟失败: {cand.expression}: {err}")
-                audit_ts = store.append_audit(
-                    "simulation_error", {"expr_hash": vr.expr_hash, "error": str(err)}
-                )
-                store.save_simulation(
-                    {"id": f"sim_{vr.expr_hash}", "alpha_id": vr.expr_hash,
-                     "status": "ERROR", "result": {"error": str(err)},
-                     "audit_path": audit_ts}
-                )
-                continue
-            assert sim is not None, "模拟失败但 err 为 None"
-            verdict = apply_thresholds(sim.metrics, sim.checks, cfg.thresholds)
-            results.append(
-                {
-                    "id": vr.expr_hash,
-                    "description": cand.description,
-                    "expression": cand.expression,
-                    "verdict": verdict.verdict,
-                    "reason": verdict.reason,
-                    "sharpe": sim.metrics.get("sharpe"),
-                    "fitness": sim.metrics.get("fitness"),
-                    "turnover": sim.metrics.get("turnover"),
-                    "score": _score(sim.metrics),
-                }
-            )
-            store.save_alpha(
-                {
-                    "id": vr.expr_hash,
-                    "expression": cand.expression,
-                    "description": cand.description,
-                    "hypothesis": cand.hypothesis,
-                    "dataset_ids": cand.dataset_ids,
-                    "ast_hash": vr.expr_hash,
-                    "metrics": sim.metrics,
-                    "status": "COMPLETE",
-                }
-            )
-            # 经验自动沉淀（v1.4）：PASS→lessons、FAIL→failures，写入 SQLite + experience/
-            if verdict.verdict == "PASS":
-                store.save_lesson(
+        for start in range(0, len(todo), max_workers):
+            chunk = todo[start : start + max_workers]
+            for cand, vr, sim, err in pool.map(_simulate, chunk):
+                if err is not None:
+                    print(f"    ✗ 模拟失败: {cand.expression}: {err}")
+                    audit_ts = store.append_audit(
+                        "simulation_error", {"expr_hash": vr.expr_hash, "error": str(err)}
+                    )
+                    store.save_simulation(
+                        {"id": f"sim_{vr.expr_hash}", "alpha_id": vr.expr_hash,
+                         "status": "ERROR", "result": {"error": str(err)},
+                         "audit_path": audit_ts}
+                    )
+                    continue
+                assert sim is not None, "模拟失败但 err 为 None"
+                verdict = apply_thresholds(sim.metrics, sim.checks, cfg.thresholds)
+                results.append(
                     {
-                        "id": f"lesson_{vr.expr_hash}",
-                        "trigger": "simulation_pass",
+                        "id": vr.expr_hash,
+                        "description": cand.description,
+                        "expression": cand.expression,
+                        "verdict": verdict.verdict,
+                        "reason": verdict.reason,
+                        "sharpe": sim.metrics.get("sharpe"),
+                        "fitness": sim.metrics.get("fitness"),
+                        "turnover": sim.metrics.get("turnover"),
+                        "score": _score(sim.metrics),
+                    }
+                )
+                store.save_alpha(
+                    {
+                        "id": vr.expr_hash,
+                        "expression": cand.expression,
+                        "description": cand.description,
                         "hypothesis": cand.hypothesis,
-                        "verdict": f"PASS sharpe={sim.metrics.get('sharpe')}",
-                        "lesson": f"模拟通过：{cand.description}。假设: {cand.hypothesis or '—'}",
-                        "raw_ref": vr.expr_hash,
+                        "dataset_ids": cand.dataset_ids,
+                        "ast_hash": vr.expr_hash,
+                        "metrics": sim.metrics,
+                        "status": "COMPLETE",
                     }
                 )
-                knowledge.append_experience(
-                    paths, "lesson", vr.expr_hash, cand.description or "模拟通过",
-                    f"- 触发: 模拟 PASS（Sharpe={sim.metrics.get('sharpe')}, "
-                    f"Fitness={sim.metrics.get('fitness')}）\n"
-                    f"- 假设: {cand.hypothesis or '—'}\n"
-                    f"- 结论: 该方向有效，可复用/组合",
-                )
-            elif verdict.verdict == "FAIL":
-                store.save_failure(
+                # 经验自动沉淀（v1.4）：PASS→lessons、FAIL→failures，写入 SQLite + experience/
+                if verdict.verdict == "PASS":
+                    store.save_lesson(
+                        {
+                            "id": f"lesson_{vr.expr_hash}",
+                            "trigger": "simulation_pass",
+                            "hypothesis": cand.hypothesis,
+                            "verdict": f"PASS sharpe={sim.metrics.get('sharpe')}",
+                            "lesson": f"模拟通过：{cand.description}。假设: {cand.hypothesis or '—'}",
+                            "raw_ref": vr.expr_hash,
+                        }
+                    )
+                    knowledge.append_experience(
+                        paths, "lesson", vr.expr_hash, cand.description or "模拟通过",
+                        f"- 触发: 模拟 PASS（Sharpe={sim.metrics.get('sharpe')}, "
+                        f"Fitness={sim.metrics.get('fitness')}）\n"
+                        f"- 假设: {cand.hypothesis or '—'}\n"
+                        f"- 结论: 该方向有效，可复用/组合",
+                    )
+                elif verdict.verdict == "FAIL":
+                    store.save_failure(
+                        {
+                            "id": f"f_{vr.expr_hash}",
+                            "expression_hash": vr.expr_hash,
+                            "failure_reason": f"模拟未过: {verdict.reason}",
+                        }
+                    )
+                    knowledge.append_experience(
+                        paths, "failure", vr.expr_hash, cand.description or "模拟失败",
+                        f"- 触发: 模拟 FAIL（{verdict.reason}）\n"
+                        f"- 表达式 hash: {vr.expr_hash}\n"
+                        f"- 结论: 该方向已证伪，避免重复",
+                    )
+                audit_ts = store.append_audit("simulation", {"expr_hash": vr.expr_hash, "status": sim.status})
+                store.save_simulation(
                     {
-                        "id": f"f_{vr.expr_hash}",
-                        "expression_hash": vr.expr_hash,
-                        "failure_reason": f"模拟未过: {verdict.reason}",
+                        "id": f"sim_{vr.expr_hash}",
+                        "alpha_id": vr.expr_hash,
+                        "request": {"settings": settings, "regular": cand.expression},
+                        "status": sim.status,
+                        "result": sim.raw,
+                        "checks": sim.checks,
+                        "audit_path": audit_ts,
                     }
                 )
-                knowledge.append_experience(
-                    paths, "failure", vr.expr_hash, cand.description or "模拟失败",
-                    f"- 触发: 模拟 FAIL（{verdict.reason}）\n"
-                    f"- 表达式 hash: {vr.expr_hash}\n"
-                    f"- 结论: 该方向已证伪，避免重复",
-                )
-            audit_ts = store.append_audit("simulation", {"expr_hash": vr.expr_hash, "status": sim.status})
-            store.save_simulation(
-                {
-                    "id": f"sim_{vr.expr_hash}",
-                    "alpha_id": vr.expr_hash,
-                    "request": {"settings": settings, "regular": cand.expression},
-                    "status": sim.status,
-                    "result": sim.raw,
-                    "checks": sim.checks,
-                    "audit_path": audit_ts,
-                }
-            )
-            print(f"    {verdict.verdict}: Sharpe={sim.metrics.get('sharpe') or '—'}")
+                print(f"    {verdict.verdict}: Sharpe={sim.metrics.get('sharpe') or '—'}")
+            if start + max_workers < len(todo):
+                try:
+                    rl = client.rate_limits()
+                except Exception:
+                    rl = None
+                if rl and rl.remaining_minute <= cfg.min_remaining_minute:
+                    wait = min(max(int(rl.reset_seconds or 60), 10), 60)
+                    print(f"[run] 分钟限流剩余 {rl.remaining_minute}，等待 {wait}s 后继续……")
+                    time.sleep(wait)
 
     ranked = rank_candidates(results)
     print()
@@ -641,22 +684,23 @@ def cmd_update_knowledge(
 
 
 def cmd_suggest(paths: QaPaths) -> int:
-    """随机建议研究方向（本地知识库随机数据集+字段+主题模板），供 agent 生成候选。"""
+    """随机建议研究方向（本地知识库随机数据集+字段+主题），供 agent 生成候选。"""
     try:
         top = knowledge.load_top_fields(paths)
     except KnowledgeMissingError as e:
         print(f"[suggest] 错误: {e}")
         print("[suggest] 提示: 先运行 `qa update-knowledge` 生成本地知识库。")
         return 1
-    if not top:
-        print("[suggest] 本地知识库为空，请先运行 `qa update-knowledge`。")
+    signal = _signal_fields(top)
+    if not signal:
+        print("[suggest] 本地知识库无可用信号字段，请先运行 `qa update-knowledge`。")
         return 1
     by_ds: dict[str, list[dict]] = {}
-    for f in top:
+    for f in signal:
         by_ds.setdefault(str(f.get("dataset", "")), []).append(f)
     ds = random.choice(sorted(by_ds))
     picks = random.sample(by_ds[ds], min(3, len(by_ds[ds])))
-    theme = random.choice(_THEMES)
+    theme = random.choice(_theme_for_dataset(ds))
     print(f"[suggest] 建议研究方向（随机）: {theme['name']}")
     print(f"  数据集: {ds}")
     print("  候选字段: " + ", ".join(

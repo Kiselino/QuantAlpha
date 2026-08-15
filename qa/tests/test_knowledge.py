@@ -95,6 +95,16 @@ def test_build_paginates_fields(seeded):
     assert 0 in offsets and 50 in offsets  # 60 字段触发第二页
 
 
+def test_fetch_fields_params_include_instrument_type(seeded):
+    """实测：/data-fields 必须带 instrumentType 参数，否则 400 Invalid query。"""
+    paths, client, meta = seeded
+    field_calls = [(p, pa) for p, pa in client.calls if p == "/data-fields"]
+    assert field_calls
+    for _, params in field_calls:
+        assert params.get("instrumentType") == "EQUITY"
+        assert params.get("dataset.id") in ("pv1", "fnd6")
+
+
 def test_build_writes_top_fields_per_dataset(seeded):
     paths, _, _ = seeded
     data = json.loads(paths.KNOWLEDGE_TOP_FIELDS_JSON.read_text(encoding="utf-8"))
@@ -147,6 +157,15 @@ def test_load_field_ids_missing_raises(tmp_path):
     paths = QaPaths(tmp_path)
     with pytest.raises(KnowledgeMissingError):
         knowledge.load_field_ids(paths)
+
+
+def test_load_fields_returns_ids_and_types(seeded):
+    """v1.4.1：字段白名单 + 类型映射（validate 类型检查的数据源）。"""
+    paths, _, _ = seeded
+    ids, types = knowledge.load_fields(paths)
+    assert "pv1_f000" in ids
+    assert types.get("pv1_f000") == "MATRIX"
+    assert set(types) == ids
 
 
 def test_knowledge_status_meta_or_none(seeded, tmp_path):

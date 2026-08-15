@@ -57,5 +57,6 @@ class AppConfig:
     batch_size: int = 10
     concurrency: int = 3
     sim_timeout_seconds: float = 600.0
+    min_remaining_minute: int = 3  # v1.4.1：分钟限流剩余低于此值时批间等待
     defaults: SimulationDefaults = field(default_factory=SimulationDefaults)
     thresholds: Thresholds = field(default_factory=Thresholds)

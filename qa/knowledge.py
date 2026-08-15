@@ -98,6 +98,7 @@ def fetch_dataset_fields(
                 "region": region,
                 "delay": 1,
                 "universe": "TOP3000",
+                "instrumentType": "EQUITY",  # 实测必带，缺失返回 400 Invalid query
                 "limit": limit,
                 "offset": offset,
             },
@@ -186,7 +187,13 @@ def build_local_knowledge(
 # ---- 读取 ----
 
 def load_field_ids(paths: QaPaths) -> set[str]:
-    """读取本地字段白名单（validate 用；缺失抛 KnowledgeMissingError）。"""
+    """读取本地字段白名单（缺失抛 KnowledgeMissingError）。"""
+    ids, _ = load_fields(paths)
+    return ids
+
+
+def load_fields(paths: QaPaths) -> tuple[set[str], dict[str, str]]:
+    """读取本地字段白名单 + 类型映射（validate 类型检查用；缺失抛错）。"""
     p = paths.KNOWLEDGE_FIELDS_JSON
     if not p.exists():
         raise KnowledgeMissingError(
@@ -194,7 +201,13 @@ def load_field_ids(paths: QaPaths) -> set[str]:
             "首次运行请先执行 `qa update-knowledge` 按账户抓取字段知识（约几分钟）。"
         )
     data = json.loads(p.read_text(encoding="utf-8"))
-    return {f["id"] for f in data if isinstance(f, dict) and f.get("id")}
+    ids: set[str] = set()
+    types: dict[str, str] = {}
+    for f in data:
+        if isinstance(f, dict) and f.get("id"):
+            ids.add(f["id"])
+            types[f["id"]] = str(f.get("type") or "MATRIX")
+    return ids, types
 
 
 def load_top_fields(paths: QaPaths) -> list[dict[str, Any]]:

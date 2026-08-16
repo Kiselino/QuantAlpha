@@ -141,16 +141,15 @@ def cmd_status(paths: QaPaths) -> int:
     print(f"  并发上限: {stage.max_concurrency}")
     print(f"  D0 可用: {'是' if stage.d0_available else '否'}")
 
-    # 知识库一致性：fields meta 的阶段快照 vs 当前阶段，不符提示刷新
+    # 知识库一致性：fields meta 的资格快照 vs 当前资格，不符提示刷新。
+    # 只比 is_consultant（决定字段/区域可用性的维度）——用户阶段内 BRONZE/SILVER/GOLD
+    # 只是分数段位，不改变字段可用性，等级变化无需刷新知识库。
     if checks["meta"]:
         meta = knowledge.knowledge_status(paths) or {}
         meta_stage = meta.get("stage") or {}
-        if (
-            meta_stage.get("level") != stage.level
-            or bool(meta_stage.get("is_consultant")) != stage.is_consultant
-        ):
+        if bool(meta_stage.get("is_consultant")) != stage.is_consultant:
             print(
-                "  知识库一致性: ⚠️ 与当前账号阶段不符 → 建议 `qa update-knowledge --force` 刷新"
+                "  知识库一致性: ⚠️ 与当前账号资格不符 → 建议 `qa update-knowledge --force` 刷新"
             )
 
     if paths.PENDING_SUBMITS.exists():

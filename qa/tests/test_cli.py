@@ -1568,7 +1568,7 @@ def test_cmd_status_shows_cached_stage_when_cookie_invalid(tmp_qa, monkeypatch, 
 
 
 def test_cmd_status_stage_mismatch_warns_refresh(tmp_qa, monkeypatch, capsys):
-    """status：fields meta 阶段快照与当前阶段不符 → 建议 --force 刷新。"""
+    """status：meta 资格快照与当前资格不符（顾问 vs 用户）→ 建议 --force 刷新。"""
     from qa.paths import QaPaths
     from qa.stage import StageInfo
     from qa.commands import status as status_mod
@@ -1576,7 +1576,7 @@ def test_cmd_status_stage_mismatch_warns_refresh(tmp_qa, monkeypatch, capsys):
     paths = QaPaths(tmp_qa)
     _seed_knowledge(paths)
     meta = json.loads(paths.KNOWLEDGE_META_JSON.read_text(encoding="utf-8"))
-    meta["stage"] = {"level": "BRONZE", "is_consultant": False}
+    meta["stage"] = {"level": "BRONZE", "is_consultant": True}  # 顾问阶段生成的快照
     paths.KNOWLEDGE_META_JSON.write_text(json.dumps(meta), encoding="utf-8")
     paths.COOKIE.write_text("t=abc", encoding="utf-8")
     monkeypatch.setattr(
@@ -1591,8 +1591,8 @@ def test_cmd_status_stage_mismatch_warns_refresh(tmp_qa, monkeypatch, capsys):
     assert "知识库一致性" in out
 
 
-def test_cmd_status_stage_consistent_no_warning(tmp_qa, monkeypatch, capsys):
-    """status：meta 阶段快照与当前一致 → 不提示刷新。"""
+def test_cmd_status_level_mismatch_no_warning(tmp_qa, monkeypatch, capsys):
+    """status：用户阶段内等级变化（BRONZE→SILVER）只是分数段位，不触发刷新提示。"""
     from qa.paths import QaPaths
     from qa.stage import StageInfo
     from qa.commands import status as status_mod
@@ -1606,7 +1606,7 @@ def test_cmd_status_stage_consistent_no_warning(tmp_qa, monkeypatch, capsys):
     monkeypatch.setattr(
         status_mod,
         "get_stage",
-        lambda p: StageInfo(level="BRONZE", is_consultant=False),
+        lambda p: StageInfo(level="SILVER", is_consultant=False),
     )
     assert status_mod.cmd_status(paths) == 0
     out = capsys.readouterr().out

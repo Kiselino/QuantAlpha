@@ -9,20 +9,69 @@ import pytest
 from qa import cli
 
 
+def _dump_cands(path, cands) -> None:
+    """测试辅助：把候选列表写成候选 JSON 文件（生产侧无写入 API）。"""
+    from qa.candidates import Candidate
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = [
+        {
+            "description": c.description,
+            "hypothesis": c.hypothesis,
+            "expression": c.expression,
+            "dataset_ids": list(c.dataset_ids),
+            "settings": c.settings,
+        }
+        for c in cands
+        if isinstance(c, Candidate)
+    ]
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
 def _seed_knowledge(paths) -> None:
     """写最小本地知识库（fields.json + top_fields.json + meta.json）。"""
     paths.KNOWLEDGE_FIELDS_DIR.mkdir(parents=True, exist_ok=True)
     fields = [
-        {"id": "close", "description": "close", "dataset": "pv1",
-         "type": "MATRIX", "coverage": 1.0, "userCount": 100},
-        {"id": "volume", "description": "volume", "dataset": "pv1",
-         "type": "MATRIX", "coverage": 1.0, "userCount": 50},
-        {"id": "subindustry", "description": "subindustry", "dataset": "grp",
-         "type": "GROUP", "coverage": 1.0, "userCount": 200},
-        {"id": "nws_x", "description": "news vector", "dataset": "news12",
-         "type": "VECTOR", "coverage": 1.0, "userCount": 30},
-        {"id": "top500", "description": "universe member", "dataset": "univ1",
-         "type": "UNIVERSE", "coverage": 1.0, "userCount": 999},
+        {
+            "id": "close",
+            "description": "close",
+            "dataset": "pv1",
+            "type": "MATRIX",
+            "coverage": 1.0,
+            "userCount": 100,
+        },
+        {
+            "id": "volume",
+            "description": "volume",
+            "dataset": "pv1",
+            "type": "MATRIX",
+            "coverage": 1.0,
+            "userCount": 50,
+        },
+        {
+            "id": "subindustry",
+            "description": "subindustry",
+            "dataset": "grp",
+            "type": "GROUP",
+            "coverage": 1.0,
+            "userCount": 200,
+        },
+        {
+            "id": "nws_x",
+            "description": "news vector",
+            "dataset": "news12",
+            "type": "VECTOR",
+            "coverage": 1.0,
+            "userCount": 30,
+        },
+        {
+            "id": "top500",
+            "description": "universe member",
+            "dataset": "univ1",
+            "type": "UNIVERSE",
+            "coverage": 1.0,
+            "userCount": 999,
+        },
     ]
     paths.KNOWLEDGE_FIELDS_JSON.write_text(
         json.dumps(fields, ensure_ascii=False), encoding="utf-8"
@@ -31,8 +80,14 @@ def _seed_knowledge(paths) -> None:
         json.dumps(fields, ensure_ascii=False), encoding="utf-8"
     )
     paths.KNOWLEDGE_META_JSON.write_text(
-        json.dumps({"field_count": len(fields), "dataset_count": 4,
-                    "regions": ["USA"], "generated_at": "2026-08-15T00:00:00+00:00"}),
+        json.dumps(
+            {
+                "field_count": len(fields),
+                "dataset_count": 4,
+                "regions": ["USA"],
+                "generated_at": "2026-08-15T00:00:00+00:00",
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -41,6 +96,384 @@ def test_main_unknown_command():
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["frobnicate"])
     assert excinfo.value.code == 2
+
+
+def test_settings_merge_candidate_overrides():
+    import qa.cli as cli_mod
+
+    cfg = cli_mod.AppConfig()
+    base = cli_mod._settings(cfg)
+    assert base["decay"] == 0
+    merged = cli_mod._settings(
+        cfg, {"decay": 12, "neutralization": "SECTOR", "truncation": 0.05}
+    )
+    assert merged["decay"] == 12
+    assert merged["neutralization"] == "SECTOR"
+    assert abs(merged["truncation"] - 0.05) < 1e-9
+    assert merged["region"] == "USA"  # 未覆盖的键保持全局默认
+    # 未知键被忽略（值域校验由 validate 负责）
+    assert cli_mod._settings(cfg, {"hump": 1}) == base
+
+
+def test_append_pending_idempotent(tmp_qa):
+    import qa.cli as cli_mod
+    from qa.paths import QaPaths
+
+    paths = QaPaths(tmp_qa)
+    cli_mod._append_pending(paths, {"id": "h1", "description": "d1"})
+    cli_mod._append_pending(
+        paths, {"id": "h1", "description": "d1"}
+    )  # 幂等：同 id 不重复
+    cli_mod._append_pending(paths, {"id": "h2", "description": "d2"})
+    data = json.loads(paths.PENDING_SUBMITS.read_text(encoding="utf-8"))
+    assert [e["id"] for e in data] == ["h1", "h2"]
+
+
+def test_run_settings_pending_corr_ranking(tmp_qa, monkeypatch, capsys):
+    """候选级 settings 合并 + PASS 后相关门排序 + pending 暂存写入。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.brain_client import SimulationResult
+    from qa.validate import expression_hash
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="技术动量",
+                hypothesis="h",
+                expression="rank(ts_delta(close, 5))",
+                dataset_ids=["pv1"],
+                settings={"decay": 12},
+            ),
+            Candidate(
+                description="量能",
+                hypothesis="h",
+                expression="rank(ts_mean(volume, 5))",
+                dataset_ids=["pv1"],
+            ),
+        ],
+    )
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    cfg = cli_mod.AppConfig()
+
+    from qa.stage import StageInfo
+
+    monkeypatch.setattr(
+        cli_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+
+    captured_settings = []
+
+    def fake_simulate(self, code, settings):
+        captured_settings.append(settings)
+        return f"sim_{expression_hash(code)}"
+
+    def fake_poll(self, sim_id, max_wait=600.0):
+        if sim_id == f"sim_{expression_hash('rank(ts_mean(volume, 5))')}":
+            return SimulationResult(
+                sim_id=sim_id,
+                status="COMPLETED",
+                alpha_id="a2",
+                checks=[{"name": "SHARPE", "result": "PASS", "value": 1.6}],
+                metrics={"sharpe": 1.6, "fitness": 1.2, "turnover": 0.2},
+            )
+        return SimulationResult(
+            sim_id=sim_id,
+            status="COMPLETED",
+            alpha_id="a1",
+            checks=[{"name": "SHARPE", "result": "PASS", "value": 1.5}],
+            metrics={"sharpe": 1.5, "fitness": 1.2, "turnover": 0.2},
+        )
+
+    monkeypatch.setattr(cli_mod.BrainClient, "simulate", fake_simulate)
+    monkeypatch.setattr(
+        cli_mod.BrainClient,
+        "rate_limits",
+        lambda self: cli_mod.RateLimits(remaining_minute=30, limit_minute=30),
+    )
+    monkeypatch.setattr(cli_mod.BrainClient, "poll_simulation", fake_poll)
+    monkeypatch.setattr(
+        cli_mod.BrainClient,
+        "correlations_self",
+        lambda self, aid: {"a1": 0.6, "a2": 0.1}[aid],
+    )
+
+    rc = cli_mod.cmd_run(paths, cfg, candidates_file=str(cand_path), idea=None)
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    # 候选级 settings 合并：第一个 decay=12，第二个全局默认 0
+    assert [s["decay"] for s in captured_settings] == [12, 0]
+    # 相关门排序：corr 低的"量能"(0.1) 排在"技术动量"(0.6) 前
+    assert out.index("量能") < out.index("技术动量")
+    # PASS 候选已暂存待提交
+    pending = json.loads(paths.PENDING_SUBMITS.read_text(encoding="utf-8"))
+    assert {e["id"] for e in pending} == {
+        expression_hash("rank(ts_delta(close, 5))"),
+        expression_hash("rank(ts_mean(volume, 5))"),
+    }
+    assert "待提交" in out
+
+
+def test_run_dedupe_same_field_set(tmp_qa, monkeypatch, capsys):
+    """同字段集候选去重：只模拟最简者（省配额）。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.brain_client import SimulationResult
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="动量5",
+                hypothesis="h",
+                expression="rank(ts_mean(close, 5))",
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="动量20",
+                hypothesis="h",
+                expression="rank(ts_mean(close, 20))",
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="量能",
+                hypothesis="h",
+                expression="rank(ts_mean(volume, 5))",
+                dataset_ids=["pv1"],
+            ),
+        ],
+    )
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    cfg = cli_mod.AppConfig()
+
+    from qa.stage import StageInfo
+
+    monkeypatch.setattr(
+        cli_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+    simulated: list[str] = []
+
+    def fake_simulate(self, code, settings):
+        simulated.append(code)
+        return f"sim_{len(simulated)}"
+
+    def fake_poll(self, sim_id, max_wait=600.0):
+        return SimulationResult(
+            sim_id=sim_id,
+            status="COMPLETED",
+            alpha_id="a1",
+            checks=[{"name": "SHARPE", "result": "PASS", "value": 1.5}],
+            metrics={"sharpe": 1.5, "fitness": 1.2, "turnover": 0.2},
+        )
+
+    monkeypatch.setattr(cli_mod.BrainClient, "simulate", fake_simulate)
+    monkeypatch.setattr(
+        cli_mod.BrainClient,
+        "rate_limits",
+        lambda self: cli_mod.RateLimits(remaining_minute=30, limit_minute=30),
+    )
+    monkeypatch.setattr(cli_mod.BrainClient, "poll_simulation", fake_poll)
+    monkeypatch.setattr(cli_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
+
+    rc = cli_mod.cmd_run(paths, cfg, candidates_file=str(cand_path), idea=None)
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert len(simulated) == 2  # {close} 簇只模拟 1 个 + {volume} 1 个
+    assert "同字段集" in out
+    assert "rank(ts_mean(close, 20))" not in simulated  # 更复杂的被去重
+
+
+def test_run_daily_budget_exhausted(tmp_qa, monkeypatch, capsys):
+    """每日模拟配额用尽时 run 拒绝执行。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.store import Store
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    store = Store(paths.DB)
+    store.save_simulation({"id": "s1", "alpha_id": "a1", "status": "COMPLETED"})
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="动量",
+                hypothesis="h",
+                expression="rank(close)",
+                dataset_ids=["pv1"],
+            )
+        ],
+    )
+    cfg = cli_mod.AppConfig(daily_sim_budget=1)
+
+    from qa.stage import StageInfo
+
+    monkeypatch.setattr(
+        cli_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+
+    rc = cli_mod.cmd_run(paths, cfg, candidates_file=str(cand_path), idea=None)
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "配额" in out
+
+
+def test_run_respects_platform_daily_remaining(tmp_qa, monkeypatch, capsys):
+    """平台每日配额头存在时，run 预算取 min(本地预算, 平台剩余)。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.brain_client import RateLimits
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="动量",
+                hypothesis="h",
+                expression="rank(close)",
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="量能",
+                hypothesis="h",
+                expression="rank(volume)",
+                dataset_ids=["pv1"],
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        cli_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+    simulated: list[str] = []
+
+    def fake_simulate(self, code, settings):
+        simulated.append(code)
+        return f"sim_{len(simulated)}"
+
+    def fake_poll(self, sim_id, max_wait=600.0):
+        return cli_mod.SimulationResult(
+            sim_id=sim_id,
+            status="COMPLETED",
+            alpha_id="a1",
+            checks=[],
+            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
+        )
+
+    monkeypatch.setattr(cli_mod.BrainClient, "simulate", fake_simulate)
+    monkeypatch.setattr(
+        cli_mod.BrainClient,
+        "rate_limits",
+        lambda self: cli_mod.RateLimits(remaining_minute=30, limit_minute=30),
+    )
+    monkeypatch.setattr(cli_mod.BrainClient, "poll_simulation", fake_poll)
+    monkeypatch.setattr(
+        cli_mod.BrainClient,
+        "rate_limits",
+        lambda self: RateLimits(
+            remaining_minute=30, limit_minute=30, daily_remaining=1, daily_limit=2000
+        ),
+    )
+
+    rc = cli_mod.cmd_run(paths, cli_mod.AppConfig(), str(cand_path), idea=None)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert len(simulated) == 1  # 平台只剩 1 次
+    assert "平台每日" in out
+
+
+def test_run_stops_when_platform_daily_exhausted(tmp_qa, monkeypatch, capsys):
+    """模拟响应指示平台每日配额耗尽时，run 提前停止不再开新批。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="a",
+                hypothesis="h",
+                expression="rank(close)",
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="b",
+                hypothesis="h",
+                expression="rank(volume)",
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="c",
+                hypothesis="h",
+                expression="group_rank(rank(close), subindustry)",
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="d",
+                hypothesis="h",
+                expression="vec_avg(nws_x)",
+                dataset_ids=["pv1"],
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        cli_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient,
+        "rate_limits",
+        lambda self: cli_mod.RateLimits(remaining_minute=30, limit_minute=30),
+    )
+    simulated: list[str] = []
+
+    def fake_simulate(self, code, settings):
+        simulated.append(code)
+        self.daily_remaining = 0  # 第二批开始前平台每日配额已耗尽
+        return f"sim_{len(simulated)}"
+
+    def fake_poll(self, sim_id, max_wait=600.0):
+        return cli_mod.SimulationResult(
+            sim_id=sim_id,
+            status="COMPLETED",
+            alpha_id="a1",
+            checks=[],
+            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
+        )
+
+    monkeypatch.setattr(cli_mod.BrainClient, "simulate", fake_simulate)
+    monkeypatch.setattr(cli_mod.BrainClient, "poll_simulation", fake_poll)
+    monkeypatch.setattr(cli_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
+
+    rc = cli_mod.cmd_run(paths, cli_mod.AppConfig(), str(cand_path), idea=None)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert len(simulated) == 3  # 第一批 3 个跑完，第二批被每日配额截断
+    assert "每日模拟配额" in out
 
 
 def test_main_status_missing_cookie(tmp_qa, monkeypatch, capsys):
@@ -59,7 +492,7 @@ def test_main_status_missing_cookie(tmp_qa, monkeypatch, capsys):
 
 def test_cmd_run_end_to_end(tmp_qa, monkeypatch, capsys):
     """qa run 端到端：读候选→预检→模拟(mock)→筛选→报告。"""
-    from qa.candidates import Candidate, write_candidates
+    from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.brain_client import SimulationResult
     from qa.screener import apply_thresholds
@@ -67,7 +500,7 @@ def test_cmd_run_end_to_end(tmp_qa, monkeypatch, capsys):
 
     paths = QaPaths(tmp_qa)
     cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
-    write_candidates(
+    _dump_cands(
         cand_path,
         [
             Candidate(
@@ -109,15 +542,22 @@ def test_cmd_run_end_to_end(tmp_qa, monkeypatch, capsys):
         )
 
     monkeypatch.setattr(cli_mod.BrainClient, "poll_simulation", fake_poll)
-    monkeypatch.setattr(cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}")
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}"
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient,
+        "rate_limits",
+        lambda self: cli_mod.RateLimits(remaining_minute=30, limit_minute=30),
+    )
 
     rc = cli_mod.cmd_run(paths, cfg, candidates_file=str(cand_path), idea=None)
     out = capsys.readouterr().out
 
     assert rc == 0
     assert "读入 2 个候选" in out
-    assert "预检未过" in out          # 幻觉字段被拦截
-    assert "PASS" in out              # 合法候选通过
+    assert "预检未过" in out  # 幻觉字段被拦截
+    assert "PASS" in out  # 合法候选通过
     assert "完成" in out
 
     # 每日汇总已写入（按当天日期命名）
@@ -129,7 +569,7 @@ def test_cmd_run_end_to_end(tmp_qa, monkeypatch, capsys):
 
 def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
     """qa submit 端到端：展示检查 → 交互确认 → 提交 → 回查 ACTIVE。"""
-    from qa.candidates import Candidate, write_candidates
+    from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.store import Store
     from qa.validate import expression_hash
@@ -141,28 +581,50 @@ def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
 
     cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
     expr = "group_rank(ts_rank(close, 60), subindustry)"
-    write_candidates(
+    _dump_cands(
         cand_path,
-        [Candidate(description="动量测试", hypothesis="h", expression=expr, dataset_ids=["pv1"])],
+        [
+            Candidate(
+                description="动量测试",
+                hypothesis="h",
+                expression=expr,
+                dataset_ids=["pv1"],
+            )
+        ],
     )
     h = expression_hash(expr)
     store.save_alpha(
-        {"id": h, "expression": expr, "description": "动量测试",
-         "hypothesis": "h", "dataset_ids": ["pv1"], "ast_hash": h,
-         "metrics": {"sharpe": 1.68, "fitness": 1.05, "turnover": 0.046},
-         "status": "COMPLETE"}
+        {
+            "id": h,
+            "expression": expr,
+            "description": "动量测试",
+            "hypothesis": "h",
+            "dataset_ids": ["pv1"],
+            "ast_hash": h,
+            "metrics": {"sharpe": 1.68, "fitness": 1.05, "turnover": 0.046},
+            "status": "COMPLETE",
+        }
     )
     store.save_simulation(
-        {"id": f"sim_{h}", "alpha_id": h,
-         "result": {"regular": expr, "alpha": "PLATFORM_A1"},
-         "status": "COMPLETE",
-         "checks": [{"name": "LOW_SHARPE", "result": "PASS", "value": 1.68}]}
+        {
+            "id": f"sim_{h}",
+            "alpha_id": h,
+            "result": {"regular": expr, "alpha": "PLATFORM_A1"},
+            "status": "COMPLETE",
+            "checks": [{"name": "LOW_SHARPE", "result": "PASS", "value": 1.68}],
+        }
     )
 
     monkeypatch.setattr(cli_mod, "get_stage", lambda p: None)  # 不触发阶段检测
-    monkeypatch.setattr(cli_mod.BrainClient, "correlations_self", lambda self, aid: 0.12)
-    monkeypatch.setattr(cli_mod.BrainClient, "submit", lambda self, aid: {"status": "SUBMITTED"})
-    monkeypatch.setattr(cli_mod.BrainClient, "get_alpha", lambda self, aid: {"status": "ACTIVE"})
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "correlations_self", lambda self, aid: 0.12
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "submit", lambda self, aid: {"status": "SUBMITTED"}
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "get_alpha", lambda self, aid: {"status": "ACTIVE"}
+    )
 
     rc = cli_mod._cmd_submit(paths, h, yes=True)
     out = capsys.readouterr().out
@@ -181,14 +643,14 @@ def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
 
 def test_cmd_run_missing_knowledge_errors(tmp_qa, monkeypatch, capsys):
     """v1.4：未生成本地知识库时 qa run 拒绝执行并提示 update-knowledge。"""
-    from qa.candidates import Candidate, write_candidates
+    from qa.candidates import Candidate
     from qa.paths import QaPaths
     import qa.cli as cli_mod
 
     paths = QaPaths(tmp_qa)
     paths.COOKIE.write_text("t=abc", encoding="utf-8")
     cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
-    write_candidates(cand_path, [Candidate(description="x", expression="rank(close)")])
+    _dump_cands(cand_path, [Candidate(description="x", expression="rank(close)")])
     monkeypatch.setattr(cli_mod, "get_stage", lambda p: None)
 
     rc = cli_mod.cmd_run(paths, cli_mod.AppConfig(), str(cand_path), idea=None)
@@ -200,7 +662,7 @@ def test_cmd_run_missing_knowledge_errors(tmp_qa, monkeypatch, capsys):
 
 def test_cmd_run_rejects_vector_field_via_type_check(tmp_qa, monkeypatch, capsys):
     """v1.4.1：VECTOR 字段未用 vec_* 转换 → 预检拦截（省无效模拟配额）。"""
-    from qa.candidates import Candidate, write_candidates
+    from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.stage import StageInfo
     import qa.cli as cli_mod
@@ -209,26 +671,44 @@ def test_cmd_run_rejects_vector_field_via_type_check(tmp_qa, monkeypatch, capsys
     paths.COOKIE.write_text("t=abc", encoding="utf-8")
     _seed_knowledge(paths)
     cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
-    write_candidates(
+    _dump_cands(
         cand_path,
         [
-            Candidate(description="合法标量", hypothesis="h",
-                      expression="rank(close)", dataset_ids=["pv1"]),
-            Candidate(description="VECTOR 误用", hypothesis="h",
-                      expression="rank(nws_x)", dataset_ids=["news12"]),
+            Candidate(
+                description="合法标量",
+                hypothesis="h",
+                expression="rank(close)",
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="VECTOR 误用",
+                hypothesis="h",
+                expression="rank(nws_x)",
+                dataset_ids=["news12"],
+            ),
         ],
     )
     monkeypatch.setattr(
-        cli_mod, "get_stage",
+        cli_mod,
+        "get_stage",
         lambda p: StageInfo(level="TEST", is_consultant=False),
     )
     monkeypatch.setattr(
         cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}"
     )
     monkeypatch.setattr(
-        cli_mod.BrainClient, "poll_simulation",
+        cli_mod.BrainClient,
+        "rate_limits",
+        lambda self: cli_mod.RateLimits(remaining_minute=30, limit_minute=30),
+    )
+    monkeypatch.setattr(
+        cli_mod.BrainClient,
+        "poll_simulation",
         lambda self, sid, max_wait=600.0: cli_mod.SimulationResult(
-            sim_id=sid, status="COMPLETED", alpha_id="a1", checks=[],
+            sim_id=sid,
+            status="COMPLETED",
+            alpha_id="a1",
+            checks=[],
             metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
         ),
     )
@@ -237,14 +717,14 @@ def test_cmd_run_rejects_vector_field_via_type_check(tmp_qa, monkeypatch, capsys
     out = capsys.readouterr().out
 
     assert rc == 0
-    assert "VECTOR" in out          # 类型检查拦截提示
+    assert "VECTOR" in out  # 类型检查拦截提示
     assert "待模拟" in out and out.count("待模拟") == 1  # 只模拟合法候选
     assert "PASS" in out
 
 
 def test_cmd_run_auto_sediments_lessons_and_failures(tmp_qa, monkeypatch, capsys):
     """v1.4：run 后 PASS→lessons、FAIL→failures 自动写入 SQLite + experience/。"""
-    from qa.candidates import Candidate, write_candidates
+    from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.stage import StageInfo
     from qa.brain_client import SimulationResult
@@ -255,13 +735,21 @@ def test_cmd_run_auto_sediments_lessons_and_failures(tmp_qa, monkeypatch, capsys
     paths.COOKIE.write_text("t=abc", encoding="utf-8")
     _seed_knowledge(paths)
     cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
-    write_candidates(
+    _dump_cands(
         cand_path,
         [
-            Candidate(description="有效动量", hypothesis="动量延续",
-                      expression="rank(ts_delta(close, 5))", dataset_ids=["pv1"]),
-            Candidate(description="低夏普失败", hypothesis="弱信号",
-                      expression="rank(close)", dataset_ids=["pv1"]),
+            Candidate(
+                description="有效动量",
+                hypothesis="动量延续",
+                expression="rank(ts_delta(close, 5))",
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="低夏普失败",
+                hypothesis="弱信号",
+                expression="rank(volume)",
+                dataset_ids=["pv1"],
+            ),
         ],
     )
     monkeypatch.setattr(
@@ -271,14 +759,24 @@ def test_cmd_run_auto_sediments_lessons_and_failures(tmp_qa, monkeypatch, capsys
     def fake_poll(self, sim_id, max_wait=600.0):
         sharpe = 1.5 if "ts_" in sim_id else 0.8
         return SimulationResult(
-            sim_id=sim_id, status="COMPLETED", alpha_id="a1",
-            checks=[{"name": "SHARPE", "result": "PASS" if sharpe > 1.0 else "FAIL",
-                     "value": sharpe}],
+            sim_id=sim_id,
+            status="COMPLETED",
+            alpha_id="a1",
+            checks=[
+                {
+                    "name": "SHARPE",
+                    "result": "PASS" if sharpe > 1.0 else "FAIL",
+                    "value": sharpe,
+                }
+            ],
             metrics={"sharpe": sharpe, "fitness": 1.1, "turnover": 0.2},
         )
 
     monkeypatch.setattr(cli_mod.BrainClient, "poll_simulation", fake_poll)
-    monkeypatch.setattr(cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}")
+    monkeypatch.setattr(
+        cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}"
+    )
+    monkeypatch.setattr(cli_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
 
     rc = cli_mod.cmd_run(paths, cli_mod.AppConfig(), str(cand_path), idea=None)
     assert rc == 0
@@ -292,6 +790,54 @@ def test_cmd_run_auto_sediments_lessons_and_failures(tmp_qa, monkeypatch, capsys
     assert "低夏普失败" in paths.FAILURES.read_text(encoding="utf-8")
 
 
+def test_update_knowledge_skips_fresh_without_force(tmp_qa, monkeypatch, capsys):
+    """24h 内已生成的知识库默认跳过抓取；--force 强制刷新。"""
+    from datetime import datetime, timedelta, timezone
+
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    import qa.cli as cli_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    monkeypatch.setattr(
+        cli_mod,
+        "get_stage",
+        lambda p: StageInfo(level="BRONZE", is_consultant=False, regions=["USA"]),
+    )
+    _seed_knowledge(paths)
+    now = datetime.now(timezone.utc)
+    paths.KNOWLEDGE_META_JSON.write_text(
+        json.dumps(
+            {
+                "field_count": 5,
+                "dataset_count": 2,
+                "regions": ["USA"],
+                "generated_at": now.isoformat(),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    called = []
+    monkeypatch.setattr(
+        cli_mod.knowledge,
+        "build_local_knowledge",
+        lambda *a, **k: called.append(True) or {"field_count": 0, "dataset_count": 0},
+    )
+
+    rc = cli_mod.cmd_update_knowledge(paths, None)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert not called
+    assert "跳过抓取" in out
+
+    rc = cli_mod.cmd_update_knowledge(paths, None, force=True)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert called
+
+
 def test_cmd_update_knowledge_end_to_end(tmp_qa, monkeypatch, capsys):
     """v1.4：qa update-knowledge 按账户区域抓字段 → 写 experience/（mock API）。"""
     from qa.paths import QaPaths
@@ -301,7 +847,8 @@ def test_cmd_update_knowledge_end_to_end(tmp_qa, monkeypatch, capsys):
     paths = QaPaths(tmp_qa)
     paths.COOKIE.write_text("t=abc", encoding="utf-8")
     monkeypatch.setattr(
-        cli_mod, "get_stage",
+        cli_mod,
+        "get_stage",
         lambda p: StageInfo(level="BRONZE", is_consultant=False, regions=["USA"]),
     )
 
@@ -309,9 +856,18 @@ def test_cmd_update_knowledge_end_to_end(tmp_qa, monkeypatch, capsys):
         if path == "/data-sets":
             return {"results": [{"id": "pv1"}], "count": 1}
         if path == "/data-fields":
-            return {"results": [{"id": "close", "description": "c",
-                                 "type": "MATRIX", "coverage": 1.0, "userCount": 10}],
-                    "count": 1}
+            return {
+                "results": [
+                    {
+                        "id": "close",
+                        "description": "c",
+                        "type": "MATRIX",
+                        "coverage": 1.0,
+                        "userCount": 10,
+                    }
+                ],
+                "count": 1,
+            }
         raise AssertionError(path)
 
     monkeypatch.setattr(cli_mod.BrainClient, "get_json", fake_get_json)
@@ -357,14 +913,14 @@ def test_signal_fields_filters_unusable_types():
     signal = cli_mod._signal_fields(top)
     ids = {f["id"] for f in signal}
     assert "close" in ids
-    assert "top500" not in ids    # UNIVERSE 排除
-    assert "nws_x" not in ids     # VECTOR 排除
-    assert "subindustry" in ids   # GROUP 保留（group_by 可用）
+    assert "top500" not in ids  # UNIVERSE 排除
+    assert "nws_x" not in ids  # VECTOR 排除
+    assert "subindustry" in ids  # GROUP 保留（group_by 可用）
 
 
 def test_cmd_run_respects_minute_rate_limit(tmp_qa, monkeypatch, capsys):
     """v1.4.1：分钟限流剩余不足时批间等待，不硬撞 429。"""
-    from qa.candidates import Candidate, write_candidates
+    from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.stage import StageInfo
     from qa.brain_client import RateLimits
@@ -374,29 +930,50 @@ def test_cmd_run_respects_minute_rate_limit(tmp_qa, monkeypatch, capsys):
     paths.COOKIE.write_text("t=abc", encoding="utf-8")
     _seed_knowledge(paths)
     cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
-    write_candidates(
+    _dump_cands(
         cand_path,
-        [Candidate(description=f"c{i}", hypothesis="h",
-                   expression="rank(close)", dataset_ids=["pv1"]) for i in range(4)],
+        [
+            Candidate(
+                description=f"c{i}",
+                hypothesis="h",
+                expression=expr,
+                dataset_ids=["pv1"],
+            )
+            for i, expr in enumerate(
+                [
+                    "rank(close)",
+                    "rank(volume)",
+                    "group_rank(rank(close), subindustry)",
+                    "vec_avg(nws_x)",
+                ]
+            )
+        ],
     )
     monkeypatch.setattr(
-        cli_mod, "get_stage",
+        cli_mod,
+        "get_stage",
         lambda p: StageInfo(level="TEST", is_consultant=False),
     )
     monkeypatch.setattr(
         cli_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}"
     )
     monkeypatch.setattr(
-        cli_mod.BrainClient, "poll_simulation",
+        cli_mod.BrainClient,
+        "poll_simulation",
         lambda self, sid, max_wait=600.0: cli_mod.SimulationResult(
-            sim_id=sid, status="COMPLETED", alpha_id="a1", checks=[],
+            sim_id=sid,
+            status="COMPLETED",
+            alpha_id="a1",
+            checks=[],
             metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
         ),
     )
     monkeypatch.setattr(
-        cli_mod.BrainClient, "rate_limits",
+        cli_mod.BrainClient,
+        "rate_limits",
         lambda self: RateLimits(remaining_minute=1, limit_minute=30),
     )
+    monkeypatch.setattr(cli_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
     sleeps: list[float] = []
     monkeypatch.setattr(cli_mod.time, "sleep", lambda s: sleeps.append(s))
 
@@ -417,7 +994,8 @@ def test_cmd_status_prompts_knowledge_generation(tmp_qa, monkeypatch, capsys):
     paths = QaPaths(tmp_qa)
     paths.COOKIE.write_text("t=abc", encoding="utf-8")
     monkeypatch.setattr(
-        cli_mod, "get_stage",
+        cli_mod,
+        "get_stage",
         lambda p: StageInfo(level="BRONZE", is_consultant=False),
     )
     assert cli_mod.cmd_status(paths) == 0
@@ -446,8 +1024,14 @@ def test_cmd_reset_clears_experience_keeps_credentials(tmp_qa, monkeypatch, caps
     pending = paths.COOKIE.parent / "pending_submits.json"
     pending.write_text('{"pending": []}', encoding="utf-8")
     s = Store(paths.DB)
-    s.save_alpha({"id": "a1", "expression": "rank(close)", "ast_hash": "h1",
-                  "status": "COMPLETE"})
+    s.save_alpha(
+        {
+            "id": "a1",
+            "expression": "rank(close)",
+            "ast_hash": "h1",
+            "status": "COMPLETE",
+        }
+    )
     s.save_lesson({"id": "l1", "trigger": "x", "lesson": "y"})
     # 本地知识库：fields 保留、playbook/failures 恢复模板
     _seed_knowledge(paths)
@@ -460,12 +1044,14 @@ def test_cmd_reset_clears_experience_keeps_credentials(tmp_qa, monkeypatch, caps
     out = capsys.readouterr().out
 
     assert rc == 0
-    assert not paths.DB.exists()          # qa.db 已删
+    assert not paths.DB.exists()  # qa.db 已删
     assert not paths.CANDIDATES_DIR.exists() or not list(paths.CANDIDATES_DIR.glob("*"))
     assert not list((paths.REPORTS_DIR / "daily").glob("*"))
-    assert not pending.exists()           # 待提交暂存已删
-    assert paths.COOKIE.exists()          # cookie 保留
-    assert "某经验" not in paths.PLAYBOOK.read_text(encoding="utf-8")  # playbook 恢复模板
+    assert not pending.exists()  # 待提交暂存已删
+    assert paths.COOKIE.exists()  # cookie 保留
+    assert "某经验" not in paths.PLAYBOOK.read_text(
+        encoding="utf-8"
+    )  # playbook 恢复模板
     assert "某证伪" not in paths.FAILURES.read_text(encoding="utf-8")
     assert paths.KNOWLEDGE_FIELDS_JSON.exists()  # 账户字段知识保留
     assert "保留" in out

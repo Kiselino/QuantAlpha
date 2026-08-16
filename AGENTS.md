@@ -41,10 +41,10 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 |---|---|---|
 | 0 | 启动：阶段检测 + cookie 验证 + 配额状态 + 本地知识库检查 | 自动 |
 | 1 | **生成前询问主题来源三选一**：① `qa suggest`/agent 随机抽取 ② agent 网络调研热门主题 ③ 用户指定方向 | 人工 |
-| 2 | **agent（你）读知识库（公开 `knowledge/` + 本地 `experience/`：字段/playbook/failures）→ 生成 10-20 个候选表达式 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM，生成是你的事） | 自动 |
-| 3 | validate 预检：语法 lint + 字段白名单（**读本地 experience/fields/**）+ 去重 + 复杂度 | 自动 |
-| 4 | 批量云端模拟（3 并发 / 分钟限流管理） | 自动 |
-| 5 | 门槛过滤 + 组合视角排序 + 免费相关门 | 自动 |
+| 2 | **agent（你）读知识库（公开 `knowledge/` + 本地 `experience/`：字段/playbook/failures）→ 生成 10-20 个候选表达式 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM，生成是你的事）。**候选格式：`[{description, hypothesis, expression, dataset_ids, settings?}]`——`settings` 可选（v1.5）：decay/neutralization/truncation 按数据集类型给经验值（基本面 decay 0 / 分析师 0-4 / 技术 10-30）** | 自动 |
+| 3 | validate 预检：语法 lint + 字段白名单（**读本地 experience/fields/**）+ 字段类型 + **settings 值域** + 去重 + 复杂度 + **同字段集簇去重（v1.5：同信号簇只模拟最简者）** | 自动 |
+| 4 | 批量云端模拟（3 并发 / 分钟限流管理 / **每日配额预算 + 平台每日头动态截断（v1.5）**） | 自动 |
+| 5 | 门槛过滤 + **PASS 免费相关门排序（v1.5：corr 低者优先）+ PASS 自动暂存待提交（v1.5）** | 自动 |
 | 6 | 候选清单报告（指标/解释/提交建议） | 自动 |
 | 7 | **用户逐条确认** → agent 代提交 → 回查 ACTIVE | **人工确认** |
 | 8 | 经验自动沉淀：模拟 PASS→lessons、FAIL→failures（SQLite + experience/playbook.md/failures.md 自动追加，v1.4 已接线） | 自动 |
@@ -55,11 +55,11 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 |---|---|---|
 | `qa login [--username ...] [--password ...]` | 账号密码登录 → 写 cookie（凭据不落盘；Persona 人机验证会提示） | ✅ 已实现 |
 | `qa status` | 阶段检测 + cookie 验证 + 配额 + 本地知识库状态（启动首查） | ✅ 已实现（第一批） |
-| `qa run [--candidates-file ...]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`** | ✅ 已实现（第一批） |
+| `qa run [--candidates-file ...]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`**；PASS 候选自动暂存待提交（v1.5） | ✅ 已实现（第一批） |
 | `qa report [--daily]` | 当日候选清单 / 每日累计汇总 | ✅ 已实现（第一批） |
 | `qa submit <alpha_id> [--yes]` | 人工确认后提交（提交前展示全部检查 + 免费相关门，提交后回查 ACTIVE） | ✅ 已实现 |
 | `qa reset [--yes]` | **清除积累的经验，回到初始状态**（见下方"经验清除范围"） | ✅ 已实现 |
-| `qa update-knowledge [--regions ...]` | **按账户抓取字段知识 → 写本地 experience/fields/**（首次运行必做；数据 gitignored 不上传；顾问可 --regions 限定区域） | ✅ 已实现（v1.4） |
+| `qa update-knowledge [--regions ...] [--force]` | **按账户抓取字段知识 → 写本地 experience/fields/**（首次运行必做；数据 gitignored 不上传；顾问可 --regions 限定区域；**v1.5：24h 内已生成默认跳过，--force 强制刷新**） | ✅ 已实现（v1.4） |
 | `qa suggest` | 随机建议研究方向（本地知识库随机数据集+字段+主题），供生成候选 | ✅ 已实现（v1.4） |
 
 ### 经验清除范围（用户说"清除经验/重置"时，agent 执行 `qa reset`）

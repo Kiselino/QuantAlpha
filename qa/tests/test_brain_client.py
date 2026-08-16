@@ -45,6 +45,44 @@ def test_rate_limits_parse(monkeypatch):
     assert rl.remaining_minute == 29
 
 
+def test_rate_limits_parse_daily_headers(monkeypatch):
+    """每日模拟配额头（x-ratelimit-limit/-remaining/-reset，无 -minute 后缀）。"""
+    client = BrainClient("t=abc")
+    resp_headers = {
+        "x-ratelimit-limit-minute": "30",
+        "x-ratelimit-remaining-minute": "27",
+        "x-ratelimit-limit": "5000",
+        "x-ratelimit-remaining": "4321",
+        "x-ratelimit-reset": "12345",
+    }
+
+    def fake_get(path, headers=None, timeout=None, params=None):
+        return _fake_response(200, {}, resp_headers)
+
+    monkeypatch.setattr(client.session, "get", fake_get)
+    rl = client.rate_limits()
+    assert rl.daily_limit == 5000
+    assert rl.daily_remaining == 4321
+    assert rl.daily_reset == 12345
+
+
+def test_rate_limits_daily_headers_missing_defaults(monkeypatch):
+    """每日配额头缺失时返回 None（不猜测，由本地预算兜底）。"""
+    client = BrainClient("t=abc")
+    resp_headers = {
+        "x-ratelimit-limit-minute": "30",
+        "x-ratelimit-remaining-minute": "27",
+    }
+
+    def fake_get(path, headers=None, timeout=None, params=None):
+        return _fake_response(200, {}, resp_headers)
+
+    monkeypatch.setattr(client.session, "get", fake_get)
+    rl = client.rate_limits()
+    assert rl.daily_limit is None
+    assert rl.daily_remaining is None
+
+
 def test_retry_get_retries_empty_body(monkeypatch):
     """空 body（平台瞬时异常）时重试而非抛 JSONDecodeError（实测偶发）。"""
     client = BrainClient("t=abc")
@@ -90,7 +128,9 @@ def test_poll_simulation_completed(monkeypatch):
             "turnover": 0.2,
             "returns": 0.05,
             "drawdown": 0.1,
-            "checks": [{"name": "SHARPE", "result": "PASS", "limit": 1.25, "value": 1.5}],
+            "checks": [
+                {"name": "SHARPE", "result": "PASS", "limit": 1.25, "value": 1.5}
+            ],
         },
     }
 
@@ -126,8 +166,32 @@ def test_correlations_self_max(monkeypatch):
     payload = {
         "schema": {"name": "selfCorrelation"},
         "records": [
-            ["a1", None, "EQUITY", "USA", "TOP3000", 0.132, 1.62, 0.071, 0.12, 1.22, 0.002],
-            ["a2", None, "EQUITY", "USA", "TOP3000", 0.064, 1.52, 0.09, 0.015, 1.31, 0.009],
+            [
+                "a1",
+                None,
+                "EQUITY",
+                "USA",
+                "TOP3000",
+                0.132,
+                1.62,
+                0.071,
+                0.12,
+                1.22,
+                0.002,
+            ],
+            [
+                "a2",
+                None,
+                "EQUITY",
+                "USA",
+                "TOP3000",
+                0.064,
+                1.52,
+                0.09,
+                0.015,
+                1.31,
+                0.009,
+            ],
         ],
         "min": 0.057,
         "max": 0.125,
@@ -139,6 +203,44 @@ def test_correlations_self_max(monkeypatch):
 
     monkeypatch.setattr(client.session, "get", fake_get)
     assert client.correlations_self("XYZ") == 0.125
+
+
+def test_correlations_self_missing_max_raises(monkeypatch):
+    """fail-closed：响应异常时抛错，不允许静默放行提交（禁止返回 0.0）。"""
+    client = BrainClient("t=abc")
+
+    def fake_get(path, headers=None, timeout=None, params=None):
+        return _fake_response(200, {"schema": "junk", "records": []})
+
+    monkeypatch.setattr(client.session, "get", fake_get)
+    with pytest.raises(RuntimeError, match="相关门"):
+        client.correlations_self("XYZ")
+
+
+def test_simulate_collects_daily_remaining_header(monkeypatch):
+    """POST /simulations 响应携带每日配额头（x-ratelimit-remaining，无 -minute 后缀）。"""
+    client = BrainClient("t=abc")
+
+    def fake_post(path, headers=None, json=None, timeout=None):
+        resp = _fake_response(201, None, {"Location": "http://x/simulations/S1"})
+        resp.headers["x-ratelimit-remaining"] = "4321"
+        return resp
+
+    monkeypatch.setattr(client.session, "post", fake_post)
+    sim_id = client.simulate("rank(close)", {"region": "USA"})
+    assert sim_id == "S1"
+    assert client.daily_remaining == 4321
+
+
+def test_simulate_daily_remaining_missing_is_none(monkeypatch):
+    client = BrainClient("t=abc")
+
+    def fake_post(path, headers=None, json=None, timeout=None):
+        return _fake_response(201, None, {"Location": "http://x/simulations/S1"})
+
+    monkeypatch.setattr(client.session, "post", fake_post)
+    client.simulate("rank(close)", {"region": "USA"})
+    assert client.daily_remaining is None
 
 
 def test_submit_returns_json(monkeypatch):

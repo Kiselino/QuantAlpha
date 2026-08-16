@@ -1,11 +1,15 @@
-"""screener 单测：门槛判定（PASS/MARGINAL/FAIL/FAIL_INFRA）+ 相关性 + 排序。"""
+"""screener 单测：门槛判定（PASS/MARGINAL/FAIL/FAIL_INFRA）+ 同字段集去重 + 排序。"""
 
 from __future__ import annotations
 
 import pytest
 
 from qa.config import Thresholds
-from qa.screener import ScreeningVerdict, apply_thresholds, compute_correlation, rank_candidates
+from qa.screener import (
+    ScreeningVerdict,
+    apply_thresholds,
+    dedupe_by_fields,
+)
 
 
 def test_pass_all():
@@ -54,23 +58,27 @@ def test_fail_infra_when_no_metrics():
     assert v.verdict == "FAIL_INFRA"
 
 
-def test_compute_correlation_perfect():
-    a = [1.0, 2.0, 3.0, 4.0]
-    b = [2.0, 4.0, 6.0, 8.0]
-    assert compute_correlation(a, b) == pytest.approx(1.0)
+OPS = {"rank", "ts_mean", "ts_delta", "group_rank"}
 
 
-def test_compute_correlation_independent():
-    a = [1.0, 2.0, 3.0, 4.0]
-    b = [4.0, 3.0, 2.0, 1.0]
-    assert compute_correlation(a, b) == pytest.approx(-1.0)
+def test_dedupe_same_field_set_keeps_simplest():
+    exprs = ["rank(ts_mean(close, 5))", "rank(ts_mean(close, 20))", "rank(volume)"]
+    keep, skipped = dedupe_by_fields(exprs, OPS)
+    assert keep == [0, 2]  # 同字段集 {close} → 保留第一个（更简单）；volume 独立保留
+    assert len(skipped) == 1
+    assert skipped[0][0] == 1
+    assert "同字段集" in skipped[0][1]
 
 
-def test_rank_candidates():
-    scored = [
-        {"id": "a", "score": 1.0},
-        {"id": "b", "score": 3.0},
-        {"id": "c", "score": 2.0},
-    ]
-    ranked = rank_candidates(scored)
-    assert [x["id"] for x in ranked] == ["b", "c", "a"]
+def test_dedupe_distinct_field_sets_all_kept():
+    exprs = ["rank(ts_mean(close, 5))", "rank(ts_mean(volume, 5))"]
+    keep, skipped = dedupe_by_fields(exprs, OPS)
+    assert keep == [0, 1]
+    assert skipped == []
+
+
+def test_dedupe_keeps_simplest_within_cluster():
+    exprs = ["rank(ts_delta(close, 5))", "rank(ts_mean(ts_mean(close, 5), 5))"]
+    keep, skipped = dedupe_by_fields(exprs, OPS)
+    assert keep == [0]  # 两个都用 {close}，保留算子更少的
+    assert skipped[0][0] == 1

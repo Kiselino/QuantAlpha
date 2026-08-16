@@ -1,4 +1,4 @@
-"""candidates 单测：候选 JSON 读写往返 + 容错（跳过非法条目）。"""
+"""candidates 单测：候选 JSON 读入 + 容错（跳过非法条目）。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import TypedDict
 
 import pytest
 
-from qa.candidates import Candidate, load_candidates, write_candidates
+from qa.candidates import Candidate, load_candidates
 from qa.paths import QaPaths
 
 
@@ -34,10 +34,14 @@ SAMPLE: list[SampleCand] = [
 ]
 
 
-def test_write_and_load_roundtrip(tmp_qa):
+def _write_cands(path, cands: list[SampleCand]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(cands, ensure_ascii=False), encoding="utf-8")
+
+
+def test_load_candidates_from_json(tmp_qa):
     path = QaPaths(tmp_qa).CANDIDATES_DIR / "2026-08-14.json"
-    cands = [Candidate(**s) for s in SAMPLE]
-    write_candidates(path, cands)
+    _write_cands(path, SAMPLE)
     loaded = load_candidates(path)
     assert len(loaded) == 2
     assert loaded[0].expression == "rank(ts_delta(close, 5))"
@@ -60,3 +64,24 @@ def test_load_drops_invalid_entries(tmp_qa):
     loaded = load_candidates(path)
     assert len(loaded) == 1
     assert loaded[0].expression == "rank(close)"
+
+
+def test_load_keeps_candidate_settings(tmp_qa):
+    path = QaPaths(tmp_qa).CANDIDATES_DIR / "2026-08-14.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "expression": "rank(ts_delta(close, 5))",
+                    "settings": {"decay": 12, "neutralization": "SECTOR"},
+                },
+                {"expression": "rank(close)", "settings": "junk"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    loaded = load_candidates(path)
+    assert len(loaded) == 2
+    assert loaded[0].settings == {"decay": 12, "neutralization": "SECTOR"}
+    assert loaded[1].settings == {}

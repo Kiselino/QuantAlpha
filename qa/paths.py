@@ -21,8 +21,8 @@ class QaPaths:
         return self.root / "secrets" / "worldquant_cookies.txt"
 
     @property
-    def ACCOUNT_INFO(self) -> Path:  # noqa: N802
-        return self.root / "secrets" / "account_info.json"
+    def PENDING_SUBMITS(self) -> Path:  # noqa: N802
+        return self.root / "secrets" / "pending_submits.json"
 
     @property
     def DB(self) -> Path:  # noqa: N802

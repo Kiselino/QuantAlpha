@@ -5,14 +5,34 @@ from __future__ import annotations
 from qa.validate import (
     check_fields,
     check_syntax,
+    expression_fields,
     expression_hash,
     measure_complexity,
     validate_expression,
+    validate_settings,
 )
 
-OPERATORS = {"rank", "ts_rank", "ts_mean", "ts_delta", "group_rank", "vec_avg", "is_nan"}
-FIELDS = {"close", "open", "volume", "earnings_est", "cashflow_flag", "assets",
-          "nws_x", "subindustry", "top500", "sym"}
+OPERATORS = {
+    "rank",
+    "ts_rank",
+    "ts_mean",
+    "ts_delta",
+    "group_rank",
+    "vec_avg",
+    "is_nan",
+}
+FIELDS = {
+    "close",
+    "open",
+    "volume",
+    "earnings_est",
+    "cashflow_flag",
+    "assets",
+    "nws_x",
+    "subindustry",
+    "top500",
+    "sym",
+}
 # v1.4.1：字段类型检查（VECTOR/GROUP/UNIVERSE/SYMBOL）
 FIELD_TYPES = {
     "close": "MATRIX",
@@ -26,6 +46,15 @@ FIELD_TYPES = {
 def test_expression_hash_stable():
     assert expression_hash("rank(close)") == expression_hash("rank(close)")
     assert expression_hash("rank(close)") != expression_hash("rank(open)")
+
+
+def test_expression_fields_extracts_fields_only():
+    assert expression_fields("rank(ts_delta(close, 5))", OPERATORS) == {"close"}
+    assert expression_fields("group_rank(rank(close), subindustry)", OPERATORS) == {
+        "close",
+        "subindustry",
+    }
+    assert expression_fields("hump(volume, hump=0.02)", OPERATORS) == {"volume"}
 
 
 def test_check_syntax_valid():
@@ -79,7 +108,9 @@ def test_vector_field_ok_inside_vec_operator():
 
 
 def test_group_field_ok_inside_group_operator():
-    assert check_fields("group_rank(rank(close), subindustry)", FIELDS, FIELD_TYPES) == []
+    assert (
+        check_fields("group_rank(rank(close), subindustry)", FIELDS, FIELD_TYPES) == []
+    )
 
 
 def test_group_field_rejected_in_scalar_context():
@@ -96,3 +127,32 @@ def test_universe_and_symbol_fields_rejected():
 
 def test_field_types_optional_backward_compatible():
     assert check_fields("rank(nws_x)", FIELDS) == []  # 不传类型映射 → 只查存在性
+
+
+def test_validate_settings_ok_empty_and_full():
+    assert validate_settings({}) == []
+    assert (
+        validate_settings({"decay": 12, "neutralization": "SECTOR", "truncation": 0.05})
+        == []
+    )
+
+
+def test_validate_settings_bad_decay():
+    assert any("decay" in e for e in validate_settings({"decay": -1}))
+    assert any("decay" in e for e in validate_settings({"decay": 3.5}))
+    assert any("decay" in e for e in validate_settings({"decay": "10"}))
+
+
+def test_validate_settings_bad_truncation():
+    assert any("truncation" in e for e in validate_settings({"truncation": 1.5}))
+    assert any("truncation" in e for e in validate_settings({"truncation": -0.1}))
+
+
+def test_validate_settings_bad_neutralization():
+    assert any(
+        "neutralization" in e for e in validate_settings({"neutralization": "XYZ"})
+    )
+
+
+def test_validate_settings_unknown_key():
+    assert any("未知" in e for e in validate_settings({"hump": 0.02}))

@@ -47,6 +47,7 @@ class KnowledgeMissingError(FileNotFoundError):
 
 # ---- 构建 ----
 
+
 def _page_items(payload: Any) -> list[dict]:
     """防御解析分页响应：{results:[...]} 与裸数组两种形态。"""
     if isinstance(payload, dict):
@@ -183,11 +184,6 @@ def build_local_knowledge(
 
 # ---- 读取 ----
 
-def load_field_ids(paths: QaPaths) -> set[str]:
-    """读取本地字段白名单（缺失抛 KnowledgeMissingError）。"""
-    ids, _ = load_fields(paths)
-    return ids
-
 
 def load_fields(paths: QaPaths) -> tuple[set[str], dict[str, str]]:
     """读取本地字段白名单 + 类型映射（validate 类型检查用；缺失抛错）。"""
@@ -231,6 +227,7 @@ def knowledge_status(paths: QaPaths) -> dict[str, Any] | None:
 
 
 # ---- 经验沉淀（experience/playbook.md + failures.md）----
+
 
 def ensure_experience_templates(paths: QaPaths) -> None:
     """确保 playbook/failures 模板存在（首次构建/沉淀时自动创建）。"""

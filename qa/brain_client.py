@@ -16,11 +16,19 @@ BASE_URL = "https://api.worldquantbrain.com"
 
 @dataclass
 class RateLimits:
-    """分钟级限流状态（来自响应头；实测 30 请求/分钟）。"""
+    """限流状态（来自响应头）。
+
+    minute：分钟级（实测 30 请求/分钟，x-ratelimit-*-minute）。
+    daily：每日模拟配额（x-ratelimit-limit/-remaining/-reset，无 -minute 后缀；
+    社区工具实测存在，数值随账户阶段变化；缺失时 None，由本地预算兜底）。
+    """
 
     remaining_minute: int = 30
     limit_minute: int = 30
     reset_seconds: int = 0
+    daily_limit: int | None = None
+    daily_remaining: int | None = None
+    daily_reset: int | None = None
 
 
 @dataclass
@@ -32,7 +40,7 @@ class SimulationResult:
     """
 
     sim_id: str
-    status: str                     # PENDING / COMPLETE / ERROR / FAILED
+    status: str  # PENDING / COMPLETE / ERROR / FAILED
     alpha_id: str | None = None
     checks: list[dict[str, Any]] = field(default_factory=list)
     metrics: dict[str, float | None] = field(default_factory=dict)
@@ -62,12 +70,14 @@ class BrainClient:
         self.timeout = timeout
         self.poll_interval = poll_interval
         self.session = requests.Session()
-        self.session.headers.update(
-            {"Cookie": cookie, "Accept": "application/json"}
-        )
+        self.session.headers.update({"Cookie": cookie, "Accept": "application/json"})
+        # 最近一次模拟响应的平台每日剩余配额（x-ratelimit-remaining，无 -minute 后缀）
+        self.daily_remaining: int | None = None
 
     # ---- 基础请求 ----
-    def get_json(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any] | list[Any]:
+    def get_json(
+        self, path: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | list[Any]:
         """GET 并返回 JSON 载荷（带 429 退避/空响应防御）。供知识库抓取等批量读操作。"""
         _, data, _ = self._retry_get(path, params=params)
         return data
@@ -85,18 +95,10 @@ class BrainClient:
                 f"{self.base_url}{path}", params=params, timeout=self.timeout
             )
             if resp.status_code == 429:
-                body = resp.text
-                if "THROTTLED" in body:
-                    raise RuntimeError(
-                        "平台相关性子系统繁忙（THROTTLED），请稍后重试。"
-                    )
-                retry = _parse_retry_after(resp.headers.get("Retry-After"))
-                time.sleep(min(retry, 120.0))
+                _sleep_on_429(resp)
                 continue
             if resp.status_code in (401, 403):
-                raise PermissionError(
-                    "BRAIN 会话无效或已过期，请更新 cookie 文件。"
-                )
+                raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
             resp.raise_for_status()
             if not resp.content:
                 time.sleep(self.poll_interval)
@@ -109,7 +111,10 @@ class BrainClient:
 
     # ---- 模拟 ----
     def _post_with_retry(
-        self, path: str, payload: dict[str, Any] | None = None, rejection_ok: bool = False
+        self,
+        path: str,
+        payload: dict[str, Any] | None = None,
+        rejection_ok: bool = False,
     ) -> requests.Response:
         """带 429 退避的 POST（THROTTLED 抛错 / 401-403 抛 PermissionError）。
 
@@ -123,13 +128,14 @@ class BrainClient:
                 f"{self.base_url}{path}", json=payload, timeout=self.timeout
             )
             if resp.status_code == 429:
-                body = resp.text
-                if "THROTTLED" in body:
-                    raise RuntimeError("平台相关性子系统繁忙（THROTTLED），请稍后重试。")
-                time.sleep(min(_parse_retry_after(resp.headers.get("Retry-After")), 120.0))
+                _sleep_on_429(resp)
                 continue
             if resp.status_code in (401, 403):
-                if rejection_ok and resp.status_code == 403 and '"is"' in resp.text[:2048]:
+                if (
+                    rejection_ok
+                    and resp.status_code == 403
+                    and '"is"' in resp.text[:2048]
+                ):
                     return resp
                 raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
             return resp
@@ -139,10 +145,12 @@ class BrainClient:
         """POST /simulations → 返回 sim_id（来自 Location 头）。
 
         平台实测要求：regular 为字符串；settings 必含 unitHandling/visualization。
+        同时收集每日配额头（x-ratelimit-remaining，无 -minute 后缀）供批处理动态截断。
         """
         resp = self._post_with_retry(
             "/simulations", {"type": "REGULAR", "settings": settings, "regular": code}
         )
+        self.daily_remaining = _int_or_none(resp.headers.get("x-ratelimit-remaining"))
         if resp.status_code == 400:
             raise ValueError(f"模拟参数被平台拒绝: {resp.text[:300]}")
         resp.raise_for_status()
@@ -157,7 +165,9 @@ class BrainClient:
         deadline = time.time() + max_wait
         while time.time() < deadline:
             _, data, _ = self._retry_get(f"/simulations/{sim_id}")
-            if not isinstance(data, dict):  # 防御：平台异常响应（非对象）按 PENDING 继续轮询
+            if not isinstance(
+                data, dict
+            ):  # 防御：平台异常响应（非对象）按 PENDING 继续轮询
                 time.sleep(self.poll_interval)
                 continue
             status = data.get("status", "PENDING")
@@ -191,12 +201,15 @@ class BrainClient:
 
     # ---- 限流 ----
     def rate_limits(self) -> RateLimits:
-        """读取限流头（实测：x-ratelimit-*-minute，30/分）。"""
+        """读取限流头（分钟级实测：x-ratelimit-*-minute 30/分；每日配额无后缀头）。"""
         _, _, headers = self._retry_get("/users/self")
         return RateLimits(
             remaining_minute=_int_or(headers.get("x-ratelimit-remaining-minute"), 30),
             limit_minute=_int_or(headers.get("x-ratelimit-limit-minute"), 30),
             reset_seconds=_int_or(headers.get("ratelimit-reset"), 0),
+            daily_limit=_int_or_none(headers.get("x-ratelimit-limit")),
+            daily_remaining=_int_or_none(headers.get("x-ratelimit-remaining")),
+            daily_reset=_int_or_none(headers.get("x-ratelimit-reset")),
         )
 
     # ---- 相关性（提交前免费门）----
@@ -204,11 +217,14 @@ class BrainClient:
         """GET /alphas/{id}/correlations/self → 返回 max correlation。
 
         实测返回 {schema, records, min, max}；max<0.7 才应提交。
+        fail-closed：响应缺少 max 时抛错，不允许静默返回 0.0 放行提交。
         """
         _, data, _ = self._retry_get(f"/alphas/{alpha_id}/correlations/self")
         if isinstance(data, dict) and data.get("max") is not None:
             return float(data["max"])
-        return 0.0
+        raise RuntimeError(
+            f"相关门响应异常（缺少 max correlation），中止提交流程: {str(data)[:200]}"
+        )
 
     # ---- 提交 ----
     def submit(self, alpha_id: str) -> dict[str, Any]:
@@ -237,6 +253,16 @@ class BrainClient:
         return data if isinstance(data, dict) else {}
 
 
+def _sleep_on_429(resp: requests.Response) -> None:
+    """429 限流处理（GET/POST 共用）：THROTTLED 抛错，常规限流按 Retry-After 退避。
+
+    实测区分：平台相关性子系统卡死时响应体含 THROTTLED → 非普通限流，暂停批处理。
+    """
+    if "THROTTLED" in resp.text:
+        raise RuntimeError("平台相关性子系统繁忙（THROTTLED），请稍后重试。")
+    time.sleep(min(_parse_retry_after(resp.headers.get("Retry-After")), 120.0))
+
+
 def _parse_retry_after(value: str | None) -> float:
     """Retry-After 可能是浮点秒数字符串（实测）或 HTTP 日期。"""
     if not value:
@@ -252,3 +278,10 @@ def _int_or(value, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _int_or_none(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None

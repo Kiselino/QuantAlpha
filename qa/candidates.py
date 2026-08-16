@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,8 @@ class Candidate:
     hypothesis: str = ""
     expression: str = ""
     dataset_ids: list[str] = field(default_factory=list)
+    # 可选的模拟参数覆盖（decay/neutralization/truncation；未给则用全局默认）
+    settings: dict[str, Any] = field(default_factory=dict)
 
 
 def load_candidates(path: Path) -> list[Candidate]:
@@ -33,29 +36,14 @@ def load_candidates(path: Path) -> list[Candidate]:
         expr = str(it.get("expression", "")).strip()
         if not expr:
             continue
+        raw_settings = it.get("settings")
         cands.append(
             Candidate(
                 description=str(it.get("description", "")),
                 hypothesis=str(it.get("hypothesis", "")),
                 expression=expr,
                 dataset_ids=[str(x) for x in it.get("dataset_ids", [])],
+                settings=raw_settings if isinstance(raw_settings, dict) else {},
             )
         )
     return cands
-
-
-def write_candidates(path: Path, candidates: list[Candidate]) -> None:
-    """把候选列表写入 JSON 文件（供 agent 调用落盘）。"""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data = [
-        {
-            "description": c.description,
-            "hypothesis": c.hypothesis,
-            "expression": c.expression,
-            "dataset_ids": list(c.dataset_ids),
-        }
-        for c in candidates
-    ]
-    path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )

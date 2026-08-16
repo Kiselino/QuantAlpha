@@ -134,29 +134,31 @@ def test_build_handles_plain_list_response(tmp_path):
         paths, client, ["USA"], pace=0.0, callback=None
     )
     assert meta["field_count"] == 1
-    assert knowledge.load_field_ids(paths) == {"close"}
+    ids, _ = knowledge.load_fields(paths)
+    assert ids == {"close"}
 
 
 def test_build_skips_invalid_field_entries(tmp_path):
     paths = QaPaths(tmp_path)
     client = FakeClient(["pv1"], {"pv1": [_field("ok", "pv1", 1), {"junk": True}]})
     knowledge.build_local_knowledge(paths, client, ["USA"], pace=0.0, callback=None)
-    assert knowledge.load_field_ids(paths) == {"ok"}
+    ids, _ = knowledge.load_fields(paths)
+    assert ids == {"ok"}
 
 
 # ---- 读取 ----
 
-def test_load_field_ids_returns_set(seeded):
+def test_load_fields_returns_set(seeded):
     paths, _, _ = seeded
-    ids = knowledge.load_field_ids(paths)
+    ids, _ = knowledge.load_fields(paths)
     assert isinstance(ids, set)
     assert "pv1_f000" in ids
 
 
-def test_load_field_ids_missing_raises(tmp_path):
+def test_load_fields_missing_raises(tmp_path):
     paths = QaPaths(tmp_path)
     with pytest.raises(KnowledgeMissingError):
-        knowledge.load_field_ids(paths)
+        knowledge.load_fields(paths)
 
 
 def test_load_fields_returns_ids_and_types(seeded):

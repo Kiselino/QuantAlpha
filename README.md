@@ -4,7 +4,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
-> 当前状态：v1.4 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
+> 当前状态：v1.5 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
 > 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---

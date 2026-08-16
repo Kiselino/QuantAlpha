@@ -11,7 +11,6 @@ from qa.paths import QaPaths
 def test_paths_under_root(tmp_qa: Path):
     p = QaPaths(tmp_qa)
     assert p.COOKIE == tmp_qa / "secrets" / "worldquant_cookies.txt"
-    assert p.ACCOUNT_INFO == tmp_qa / "secrets" / "account_info.json"
     assert p.DB == tmp_qa / "data" / "qa.db"
     assert p.AUDIT_DIR == tmp_qa / "data" / "audit"
     assert p.REPORTS_DIR == tmp_qa / "reports"

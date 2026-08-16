@@ -1,8 +1,7 @@
 """SQLite 持久化 + JSONL 审计。
 
 表：alphas（候选/已提交 alpha 全生命周期）、simulations（每次模拟请求/结果）、
-    submissions（提交记录与 ACTIVE 回查）、daily_returns（日收益序列，供相关性计算）、
-    lessons（脱敏经验教训）、failures（证伪库）。
+    submissions（提交记录与 ACTIVE 回查）、lessons（脱敏经验教训）、failures（证伪库）。
 所有写操作幂等（INSERT OR REPLACE），支持中断后重跑跳过已完成项。
 """
 
@@ -47,12 +46,6 @@ CREATE TABLE IF NOT EXISTS submissions (
     current_status TEXT,
     confirmed_active INTEGER DEFAULT 0
 );
-CREATE TABLE IF NOT EXISTS daily_returns (
-    alpha_id TEXT,
-    date TEXT,
-    pnl REAL,
-    PRIMARY KEY (alpha_id, date)
-);
 CREATE TABLE IF NOT EXISTS lessons (
     id TEXT PRIMARY KEY,
     trigger TEXT,
@@ -75,6 +68,16 @@ CREATE INDEX IF NOT EXISTS idx_lessons_trigger ON lessons(trigger);
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _jload(value: str | None, default: Any) -> Any:
+    """JSON 字段防御解析：缺失/损坏返回默认值。"""
+    if not value:
+        return default
+    try:
+        return json.loads(value)
+    except ValueError:
+        return default
 
 
 class Store:
@@ -124,7 +127,8 @@ class Store:
         """列出 alpha 记录（可按状态过滤；创建时间倒序）。"""
         if status:
             rows = self._conn.execute(
-                "SELECT * FROM alphas WHERE status = ? ORDER BY created_at DESC", (status,)
+                "SELECT * FROM alphas WHERE status = ? ORDER BY created_at DESC",
+                (status,),
             ).fetchall()
         else:
             rows = self._conn.execute(
@@ -133,8 +137,8 @@ class Store:
         out = []
         for r in rows:
             d = dict(r)
-            d["dataset_ids"] = json.loads(d.get("dataset_ids") or "[]")
-            d["metrics"] = json.loads(d.get("metrics_json") or "{}")
+            d["dataset_ids"] = _jload(d.get("dataset_ids"), [])
+            d["metrics"] = _jload(d.get("metrics_json"), {})
             out.append(d)
         return out
 
@@ -152,13 +156,25 @@ class Store:
                 json.dumps(sim.get("result", {})),
                 json.dumps(sim.get("checks", [])),
                 sim.get("status", "PENDING"),
-                sim.get("started_at"),
+                sim.get("started_at", _now()),
                 sim.get("finished_at"),
                 sim.get("audit_path"),
             ),
         )
         self._conn.commit()
         return self._conn.total_changes
+
+    def daily_sim_count(self, date: str | None = None) -> int:
+        """统计某天的模拟次数（含 ERROR，平台侧都消耗配额）。
+
+        date 为 'YYYY-MM-DD'；默认今天。供每日配额预算检查。
+        """
+        d = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM simulations WHERE started_at LIKE ?",
+            (f"{d}%",),
+        ).fetchone()
+        return int(row["n"]) if row else 0
 
     def list_simulations(self, alpha_id: str | None = None) -> list[dict[str, Any]]:
         """列出模拟记录（可按 alpha_id 过滤；开始时间倒序）。"""
@@ -174,9 +190,9 @@ class Store:
         out = []
         for r in rows:
             d = dict(r)
-            d["request"] = json.loads(d.get("request_json") or "{}")
-            d["result"] = json.loads(d.get("result_json") or "{}")
-            d["checks"] = json.loads(d.get("checks_json") or "[]")
+            d["request"] = _jload(d.get("request_json"), {})
+            d["result"] = _jload(d.get("result_json"), {})
+            d["checks"] = _jload(d.get("checks_json"), [])
             out.append(d)
         return out
 
@@ -235,13 +251,6 @@ class Store:
         self._conn.commit()
         return self._conn.total_changes
 
-    def list_failures(self) -> list[dict[str, Any]]:
-        """列出全部证伪记录（按时间倒序）。"""
-        rows = self._conn.execute(
-            "SELECT * FROM failures ORDER BY created_at DESC"
-        ).fetchall()
-        return [dict(r) for r in rows]
-
     # ---- audit ----
     def append_audit(self, kind: str, payload: dict[str, Any]) -> str:
         """追加一行 JSONL 审计日志（不可变；模拟/提交等关键动作全记录）。
@@ -251,9 +260,7 @@ class Store:
         ts = _now()
         with open(self.audit_path, "a", encoding="utf-8") as f:
             f.write(
-                json.dumps(
-                    {"ts": ts, "kind": kind, **payload}, ensure_ascii=False
-                )
+                json.dumps({"ts": ts, "kind": kind, **payload}, ensure_ascii=False)
                 + "\n"
             )
         return ts

@@ -104,6 +104,33 @@ def _enclosing_operator(tokens: list[str], i: int) -> str | None:
     return None
 
 
+def _field_like(tokens: list[str], i: int) -> bool:
+    """token i 是否为字段标识符（非算子调用/非命名参数/非常量）。"""
+    tok = tokens[i]
+    if not (_IDENT.match(tok) and not _CONST.match(tok)):
+        return False
+    # 后跟 '(' → 算子调用（算子存在性由 check_syntax 校验）
+    if i + 1 < len(tokens) and tokens[i + 1] == "(":
+        return False
+    # 命名参数（如 hump(x, hump=0.02)）：标识符后跟 '=' 且再后非 '='（区别于 == 比较）
+    if (
+        i + 1 < len(tokens)
+        and tokens[i + 1] == "="
+        and (i + 2 >= len(tokens) or tokens[i + 2] != "=")
+    ):
+        return False
+    return True
+
+
+def expression_fields(expr: str, operators: set[str]) -> set[str]:
+    """提取表达式中的字段标识符集合（算子调用/命名参数/常量除外）。
+
+    供 screener 同字段集去重（同信号簇只模拟一个，省模拟配额）。
+    """
+    tokens = _tokenize(expr)
+    return {tok for i, tok in enumerate(tokens) if _field_like(tokens, i)}
+
+
 def check_fields(
     expr: str,
     fields: set[str],
@@ -120,17 +147,7 @@ def check_fields(
     errors: list[str] = []
     tokens = _tokenize(expr)
     for i, tok in enumerate(tokens):
-        if not (_IDENT.match(tok) and not _CONST.match(tok)):
-            continue
-        # 后跟 '(' → 算子调用，跳过（算子存在性由 check_syntax 校验）
-        if i + 1 < len(tokens) and tokens[i + 1] == "(":
-            continue
-        # 命名参数（如 hump(x, hump=0.02)）：标识符后跟 '=' 且再后非 '='（区别于 == 比较）
-        if (
-            i + 1 < len(tokens)
-            and tokens[i + 1] == "="
-            and (i + 2 >= len(tokens) or tokens[i + 2] != "=")
-        ):
+        if not _field_like(tokens, i):
             continue
         if tok not in fields and tok not in {"nan", "inf"}:
             errors.append(f"未知字段: {tok}")
@@ -167,6 +184,39 @@ def measure_complexity(expr: str, operators: set[str]) -> tuple[int, int]:
         elif tok == ")":
             depth = max(0, depth - 1)
     return count, max_depth
+
+
+def validate_settings(settings: dict[str, object]) -> list[str]:
+    """候选级模拟参数值域校验（防 agent 幻觉参数白耗模拟配额）。
+
+    允许键：decay（int 0-63）、neutralization（平台枚举）、truncation（0-1）。
+    未知键报错。空 dict 合法（用全局默认）。
+    """
+    errors: list[str] = []
+    allowed = {"decay", "neutralization", "truncation"}
+    for key in settings:
+        if key not in allowed:
+            errors.append(f"未知模拟参数: {key}")
+            continue
+        value = settings[key]
+        if key == "decay":
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or not (0 <= value <= 63)
+            ):
+                errors.append(f"decay 必须是 0-63 的整数: {value!r}")
+        elif key == "neutralization":
+            if value not in ("NONE", "INDUSTRY", "SECTOR", "SUBINDUSTRY", "MARKET"):
+                errors.append(f"neutralization 非法: {value!r}")
+        elif key == "truncation":
+            if (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or not (0 <= value <= 1)
+            ):
+                errors.append(f"truncation 必须是 0-1 的数字: {value!r}")
+    return errors
 
 
 def validate_expression(

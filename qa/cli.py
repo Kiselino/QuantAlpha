@@ -9,43 +9,79 @@ from __future__ import annotations
 
 import argparse
 import glob
+import json
 import random
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from qa import auth, knowledge
-from qa.brain_client import BrainClient, SimulationResult, SubmissionRejected
+from qa.brain_client import (
+    BrainClient,
+    RateLimits,
+    SimulationResult,
+    SubmissionRejected,
+)
 from qa.candidates import Candidate, load_candidates
 from qa.config import AppConfig
 from qa.knowledge import KnowledgeMissingError
 from qa.paths import QaPaths
 from qa.report import format_candidates, write_daily_summary
-from qa.screener import apply_thresholds, rank_candidates
+from qa.screener import apply_thresholds, dedupe_by_fields
 from qa.stage import get_stage, read_cookie
 from qa.store import Store
-from qa.validate import ValidationResult, validate_expression
+from qa.validate import (
+    ValidationResult,
+    expression_fields,
+    validate_expression,
+    validate_settings,
+)
 
 _THEMES_BY_CATEGORY: dict[str, list[dict[str, str]]] = {
     "fundamental": [
-        {"name": "价值修复", "template": "低估值维度（{field} 衡量价值），预期低估标的均值回归"},
-        {"name": "质量溢价", "template": "盈利质量维度（{field} 衡量质量），高质量公司持续占优"},
+        {
+            "name": "价值修复",
+            "template": "低估值维度（{field} 衡量价值），预期低估标的均值回归",
+        },
+        {
+            "name": "质量溢价",
+            "template": "盈利质量维度（{field} 衡量质量），高质量公司持续占优",
+        },
         {"name": "增长动能", "template": "成长维度（{field} 衡量增速），高增长延续"},
     ],
     "analyst": [
-        {"name": "预期修正", "template": "分析师预期上调（{field} 衡量修正），共识改善领先价格"},
-        {"name": "盈利惊喜", "template": "实际盈余相对预期（{field}），超预期标的动量延续"},
+        {
+            "name": "预期修正",
+            "template": "分析师预期上调（{field} 衡量修正），共识改善领先价格",
+        },
+        {
+            "name": "盈利惊喜",
+            "template": "实际盈余相对预期（{field}），超预期标的动量延续",
+        },
     ],
     "alternative": [
-        {"name": "情绪反转", "template": "情绪极端后反转（{field} 衡量情绪），均值回归"},
-        {"name": "新闻漂移", "template": "信息冲击后的价格漂移（{field} 衡量冲击），滞后反应"},
+        {
+            "name": "情绪反转",
+            "template": "情绪极端后反转（{field} 衡量情绪），均值回归",
+        },
+        {
+            "name": "新闻漂移",
+            "template": "信息冲击后的价格漂移（{field} 衡量冲击），滞后反应",
+        },
     ],
     "technical": [
         {"name": "趋势动量", "template": "动量维度（{field} 衡量趋势强度），强者恒强"},
-        {"name": "短期反转", "template": "短期超跌反弹（{field} 衡量近期涨跌），反向布局"},
-        {"name": "低波动溢价", "template": "低波动维度（{field} 衡量波动），低风险异象"},
+        {
+            "name": "短期反转",
+            "template": "短期超跌反弹（{field} 衡量近期涨跌），反向布局",
+        },
+        {
+            "name": "低波动溢价",
+            "template": "低波动维度（{field} 衡量波动），低风险异象",
+        },
     ],
 }
 
@@ -73,23 +109,64 @@ def _load_operators() -> set[str]:
     """算子白名单：内置核心集（67 算子的常用子集，与公开 knowledge/operators.md 一致）。"""
     return {
         # 算术
-        "abs", "log", "min", "max", "add", "subtract", "multiply", "divide",
-        "sqrt", "power", "sign", "inverse",
+        "abs",
+        "log",
+        "min",
+        "max",
+        "add",
+        "subtract",
+        "multiply",
+        "divide",
+        "sqrt",
+        "power",
+        "sign",
+        "inverse",
         # 逻辑
-        "if_else", "is_nan", "not", "and", "or",
-        "greater", "less", "greater_equal", "less_equal", "equal", "not_equal",
+        "if_else",
+        "is_nan",
+        "not",
+        "and",
+        "or",
+        "greater",
+        "less",
+        "greater_equal",
+        "less_equal",
+        "equal",
+        "not_equal",
         # 时间序列（与 knowledge/operators.md 一致）
-        "ts_rank", "ts_mean", "ts_delta", "ts_decay_linear", "ts_backfill",
-        "ts_zscore", "ts_delay", "ts_sum", "ts_std_dev", "ts_corr",
-        "ts_scale", "ts_quantile", "ts_av_diff", "ts_arg_max", "ts_arg_min",
+        "ts_rank",
+        "ts_mean",
+        "ts_delta",
+        "ts_decay_linear",
+        "ts_backfill",
+        "ts_zscore",
+        "ts_delay",
+        "ts_sum",
+        "ts_std_dev",
+        "ts_corr",
+        "ts_scale",
+        "ts_quantile",
+        "ts_av_diff",
+        "ts_arg_max",
+        "ts_arg_min",
         "hump",
         # 横截面
-        "rank", "zscore", "scale", "quantile", "normalize", "winsorize",
+        "rank",
+        "zscore",
+        "scale",
+        "quantile",
+        "normalize",
+        "winsorize",
         # 向量
-        "vec_avg", "vec_sum",
+        "vec_avg",
+        "vec_sum",
         # 分组
-        "group_rank", "group_neutralize", "group_mean", "group_scale",
-        "group_zscore", "group_backfill",
+        "group_rank",
+        "group_neutralize",
+        "group_mean",
+        "group_scale",
+        "group_zscore",
+        "group_backfill",
     }
 
 
@@ -119,13 +196,17 @@ def cmd_status(paths: QaPaths) -> int:
     print(f"D0 可用: {'是' if stage.d0_available else '否'}")
     meta = knowledge.knowledge_status(paths)
     if meta is None:
-        print("本地知识库: 未生成 → 请运行 `qa update-knowledge` "
-              "按账户抓取字段知识（首次运行必做，数据仅存本地不上传）")
+        print(
+            "本地知识库: 未生成 → 请运行 `qa update-knowledge` "
+            "按账户抓取字段知识（首次运行必做，数据仅存本地不上传）"
+        )
     else:
-        print(f"本地知识库: {meta.get('field_count', '?')} 字段 / "
-              f"{meta.get('dataset_count', '?')} 数据集 / "
-              f"区域 {', '.join(meta.get('regions', []))} "
-              f"（生成于 {str(meta.get('generated_at', ''))[:10]}）")
+        print(
+            f"本地知识库: {meta.get('field_count', '?')} 字段 / "
+            f"{meta.get('dataset_count', '?')} 数据集 / "
+            f"区域 {', '.join(meta.get('regions', []))} "
+            f"（生成于 {str(meta.get('generated_at', ''))[:10]}）"
+        )
     return 0
 
 
@@ -159,14 +240,18 @@ def cmd_run(
         candidates = load_candidates(cand_path)
     except FileNotFoundError as e:
         print(f"[run] 错误: {e}")
-        print("[run] 提示：请先由 agent 根据 knowledge/ 生成候选并写入 "
-              "data/candidates/YYYY-MM-DD.json（或使用 --candidates-file 指定文件）。")
+        print(
+            "[run] 提示：请先由 agent 根据 knowledge/ 生成候选并写入 "
+            "data/candidates/YYYY-MM-DD.json（或使用 --candidates-file 指定文件）。"
+        )
         return 1
     if not candidates:
         print(f"[run] 候选文件为空或无有效条目: {cand_path}")
         return 1
-    print(f"[run] 读入 {len(candidates)} 个候选（{cand_path.name}）"
-          + (f"，研究想法: {idea}" if idea else ""))
+    print(
+        f"[run] 读入 {len(candidates)} 个候选（{cand_path.name}）"
+        + (f"，研究想法: {idea}" if idea else "")
+    )
 
     try:
         operators = _load_operators()
@@ -177,7 +262,24 @@ def cmd_run(
     store = Store(paths.DB)
     client = BrainClient(cookie)
 
-    todo: list[tuple[Candidate, ValidationResult]] = []
+    # 每日模拟配额预算：本地计数兜底 + 平台每日配额头（x-ratelimit-remaining）优先
+    used = store.daily_sim_count()
+    remaining = cfg.daily_sim_budget - used
+    try:
+        rl = client.rate_limits()
+        if rl.daily_remaining is not None:
+            print(f"[run] 平台每日模拟剩余: {rl.daily_remaining}（本地已用 {used}）")
+            remaining = min(remaining, rl.daily_remaining)
+    except Exception:
+        pass  # 平台配额头不可用时用本地预算
+    print(
+        f"[run] 今日模拟配额预算: 已用 {used} / {cfg.daily_sim_budget}，剩余可模拟 {remaining}"
+    )
+    if remaining <= 0:
+        print("[run] 今日模拟配额已用尽，明天再试（EST 日界）。")
+        return 1
+
+    validated: list[tuple[Candidate, ValidationResult]] = []
     for cand in candidates:
         vr = validate_expression(cand.expression, operators, fields, field_types)
         if not vr.ok:
@@ -190,20 +292,41 @@ def cmd_run(
                 }
             )
             continue
+        s_errors = validate_settings(cand.settings)
+        if s_errors:
+            print(f"  ✗ 预检未过: {cand.expression}  {s_errors[:2]}")
+            store.save_failure(
+                {
+                    "id": f"f_{vr.expr_hash}",
+                    "expression_hash": vr.expr_hash,
+                    "failure_reason": "; ".join(s_errors),
+                }
+            )
+            continue
         if store.alpha_hash_exists(vr.expr_hash):
             print(f"  - 去重跳过（已存在）: {cand.expression}")
             continue
-        todo.append((cand, vr))
+        validated.append((cand, vr))
         print(f"  → 待模拟: {cand.expression}")
 
+    # 同字段集簇去重：同信号簇只模拟最简者（省配额）
+    keep, skipped = dedupe_by_fields([c.expression for c, _ in validated], operators)
+    todo = [validated[i] for i in keep]
+    for idx, reason in skipped:
+        cand, _ = validated[idx]
+        print(f"  - {reason}: {cand.expression}")
+
+    if len(todo) > remaining:
+        print(f"[run] 配额剩余 {remaining}，只模拟前 {remaining} 个候选。")
+        todo = todo[:remaining]
+
     if not todo:
-        print("[run] 没有需要模拟的候选（全部预检未过或已存在）。")
+        print("[run] 没有需要模拟的候选（全部预检未过/去重/配额受限）。")
         write_daily_summary([], paths.REPORTS_DIR)
         return 0
 
     # 并发模拟（网络并发；写库回主线程串行，避免 sqlite 跨线程）
     max_workers = min(stage.max_concurrency or cfg.concurrency, len(todo))
-    settings = _settings(cfg)
     print(f"[run] 开始批量模拟：{len(todo)} 个候选，并发 {max_workers}")
 
     def _simulate(
@@ -212,7 +335,7 @@ def cmd_run(
         cand, vr = pair
         try:
             sim = client.poll_simulation(
-                client.simulate(cand.expression, settings),
+                client.simulate(cand.expression, _settings(cfg, cand.settings)),
                 max_wait=cfg.sim_timeout_seconds,
             )
             return cand, vr, sim, None
@@ -227,12 +350,17 @@ def cmd_run(
                 if err is not None:
                     print(f"    ✗ 模拟失败: {cand.expression}: {err}")
                     audit_ts = store.append_audit(
-                        "simulation_error", {"expr_hash": vr.expr_hash, "error": str(err)}
+                        "simulation_error",
+                        {"expr_hash": vr.expr_hash, "error": str(err)},
                     )
                     store.save_simulation(
-                        {"id": f"sim_{vr.expr_hash}", "alpha_id": vr.expr_hash,
-                         "status": "ERROR", "result": {"error": str(err)},
-                         "audit_path": audit_ts}
+                        {
+                            "id": f"sim_{vr.expr_hash}",
+                            "alpha_id": vr.expr_hash,
+                            "status": "ERROR",
+                            "result": {"error": str(err)},
+                            "audit_path": audit_ts,
+                        }
                     )
                     continue
                 assert sim is not None, "模拟失败但 err 为 None"
@@ -248,6 +376,7 @@ def cmd_run(
                         "fitness": sim.metrics.get("fitness"),
                         "turnover": sim.metrics.get("turnover"),
                         "score": _score(sim.metrics),
+                        "platform_alpha_id": sim.alpha_id,
                     }
                 )
                 store.save_alpha(
@@ -264,7 +393,9 @@ def cmd_run(
                 )
                 # 经验自动沉淀（v1.4）：PASS→lessons、FAIL→failures，写入 SQLite + experience/
                 if verdict.verdict == "PASS":
-                    store.save_lesson(
+                    _sediment_lesson(
+                        paths,
+                        store,
                         {
                             "id": f"lesson_{vr.expr_hash}",
                             "trigger": "simulation_pass",
@@ -272,68 +403,172 @@ def cmd_run(
                             "verdict": f"PASS sharpe={sim.metrics.get('sharpe')}",
                             "lesson": f"模拟通过：{cand.description}。假设: {cand.hypothesis or '—'}",
                             "raw_ref": vr.expr_hash,
-                        }
-                    )
-                    knowledge.append_experience(
-                        paths, "lesson", vr.expr_hash, cand.description or "模拟通过",
+                        },
+                        cand.description or "模拟通过",
                         f"- 触发: 模拟 PASS（Sharpe={sim.metrics.get('sharpe')}, "
                         f"Fitness={sim.metrics.get('fitness')}）\n"
                         f"- 假设: {cand.hypothesis or '—'}\n"
                         f"- 结论: 该方向有效，可复用/组合",
                     )
                 elif verdict.verdict == "FAIL":
-                    store.save_failure(
+                    _sediment_failure(
+                        paths,
+                        store,
                         {
                             "id": f"f_{vr.expr_hash}",
                             "expression_hash": vr.expr_hash,
                             "failure_reason": f"模拟未过: {verdict.reason}",
-                        }
-                    )
-                    knowledge.append_experience(
-                        paths, "failure", vr.expr_hash, cand.description or "模拟失败",
+                        },
+                        cand.description or "模拟失败",
                         f"- 触发: 模拟 FAIL（{verdict.reason}）\n"
                         f"- 表达式 hash: {vr.expr_hash}\n"
                         f"- 结论: 该方向已证伪，避免重复",
                     )
-                audit_ts = store.append_audit("simulation", {"expr_hash": vr.expr_hash, "status": sim.status})
+                audit_ts = store.append_audit(
+                    "simulation", {"expr_hash": vr.expr_hash, "status": sim.status}
+                )
                 store.save_simulation(
                     {
                         "id": f"sim_{vr.expr_hash}",
                         "alpha_id": vr.expr_hash,
-                        "request": {"settings": settings, "regular": cand.expression},
+                        "request": {
+                            "settings": _settings(cfg, cand.settings),
+                            "regular": cand.expression,
+                        },
                         "status": sim.status,
                         "result": sim.raw,
                         "checks": sim.checks,
                         "audit_path": audit_ts,
                     }
                 )
-                print(f"    {verdict.verdict}: Sharpe={sim.metrics.get('sharpe') or '—'}")
+                print(
+                    f"    {verdict.verdict}: Sharpe={sim.metrics.get('sharpe') or '—'}"
+                )
             if start + max_workers < len(todo):
+                # 平台每日配额（来自模拟响应头）耗尽 → 提前停止，不硬撞 429
+                if client.daily_remaining is not None and client.daily_remaining <= 0:
+                    print(
+                        "[run] 平台每日模拟配额已耗尽，停止后续批次（明天 EST 日界重置）。"
+                    )
+                    break
                 try:
                     rl = client.rate_limits()
                 except Exception:
                     rl = None
                 if rl and rl.remaining_minute <= cfg.min_remaining_minute:
-                    wait = min(max(int(rl.reset_seconds or 60), 10), 60)
-                    print(f"[run] 分钟限流剩余 {rl.remaining_minute}，等待 {wait}s 后继续……")
+                    # 优先用平台 reset 头；缺失时按窗口消耗比例估算
+                    if rl.reset_seconds and rl.reset_seconds > 0:
+                        wait = min(max(int(rl.reset_seconds), 10), 60)
+                    else:
+                        ratio = 1 - rl.remaining_minute / max(rl.limit_minute, 1)
+                        wait = min(max(int(ratio * 60), 10), 60)
+                    print(
+                        f"[run] 分钟限流剩余 {rl.remaining_minute}，等待 {wait}s 后继续……"
+                    )
                     time.sleep(wait)
 
-    ranked = rank_candidates(results)
+    # 组合视角（P3）：PASS 候选调免费相关门，按 max_corr 升序优先（低相关先提交）
+    for r in results:
+        if r["verdict"] == "PASS" and r.get("platform_alpha_id"):
+            try:
+                r["corr"] = client.correlations_self(r["platform_alpha_id"])
+            except Exception as e:
+                print(f"    相关门查询失败（保持原排序）: {r['expression']}: {e}")
+
+    ranked = sorted(
+        results,
+        key=lambda r: (
+            r.get("corr") if r.get("corr") is not None else float("inf"),
+            -r.get("score", 0.0),
+        ),
+    )
+
+    n_pending = 0
+    for r in ranked:
+        if r["verdict"] == "PASS":
+            _append_pending(
+                paths,
+                {
+                    "id": r["id"],
+                    "description": r["description"],
+                    "expression": r["expression"],
+                    "metrics": {
+                        "sharpe": r["sharpe"],
+                        "fitness": r["fitness"],
+                        "turnover": r["turnover"],
+                    },
+                },
+            )
+            n_pending += 1
+    if n_pending:
+        print(
+            f"[run] 已暂存 {n_pending} 个达标 alpha 到待提交（secrets/pending_submits.json），"
+            "新会话 agent 会提示确认提交。"
+        )
+
+    # 批次多样性统计（反馈 agent：同主题变体过多会浪费配额）
+    n_sets = len(
+        {frozenset(expression_fields(r["expression"], operators)) for r in results}
+    )
+    print(f"[run] 批次字段多样性: {n_sets} 个不同字段集 / {len(results)} 个候选")
     print()
     print(format_candidates(ranked))
     write_daily_summary(ranked, paths.REPORTS_DIR)
-    print(f"[run] 完成。通过 {sum(1 for r in ranked if r['verdict']=='PASS')} / {len(ranked)} 个候选。"
-          f"报告已写入 reports/daily/")
+    print(
+        f"[run] 完成。通过 {sum(1 for r in ranked if r['verdict'] == 'PASS')} / {len(ranked)} 个候选。"
+        f"报告已写入 reports/daily/"
+    )
     return 0
 
 
-def _settings(cfg: AppConfig) -> dict[str, str | int | float | bool]:
+def _sediment_lesson(
+    paths: QaPaths, store: Store, entry: dict[str, Any], title: str, body: str
+) -> None:
+    """经验沉淀：SQLite lessons + experience/playbook.md（幂等，按 entry id 去重）。"""
+    store.save_lesson(entry)
+    knowledge.append_experience(paths, "lesson", entry.get("id", ""), title, body)
+
+
+def _sediment_failure(
+    paths: QaPaths, store: Store, entry: dict[str, Any], title: str, body: str
+) -> None:
+    """证伪沉淀：SQLite failures + experience/failures.md（幂等，按 entry id 去重）。"""
+    store.save_failure(entry)
+    knowledge.append_experience(paths, "failure", entry.get("id", ""), title, body)
+
+
+def _append_pending(paths: QaPaths, entry: dict[str, Any]) -> None:
+    """把达标 alpha 追加到待提交暂存 secrets/pending_submits.json（幂等）。
+
+    跨会话接力：run 的 PASS 候选写入后，新会话 agent 启动时主动提示用户提交。
+    """
+    p = paths.PENDING_SUBMITS
+    data: list[dict] = []
+    if p.exists():
+        try:
+            loaded = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                data = loaded
+        except ValueError:
+            data = []
+    if any(e.get("id") == entry.get("id") for e in data if isinstance(e, dict)):
+        return
+    data.append(entry)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _settings(
+    cfg: AppConfig, candidate_settings: dict[str, object] | None = None
+) -> dict[str, str | int | float | bool]:
     """把 SimulationDefaults 转成 BRAIN 模拟 API 的 settings 载荷。
 
     平台实测要求：unitHandling 与 visualization 必填（见 brain_client.simulate）。
+    candidate_settings：候选级覆盖（decay/neutralization/truncation，
+    由 validate_settings 校验过；未知键忽略，防幻觉参数）。
     """
     d = cfg.defaults
-    return {
+    settings = {
         "instrumentType": d.instrument_type,
         "region": d.region,
         "universe": d.universe,
@@ -350,6 +585,10 @@ def _settings(cfg: AppConfig) -> dict[str, str | int | float | bool]:
         "startDate": d.start_date,
         "endDate": d.end_date,
     }
+    for key in ("decay", "neutralization", "truncation"):
+        if candidate_settings and key in candidate_settings:
+            settings[key] = candidate_settings[key]  # type: ignore[assignment]
+    return settings
 
 
 def _score(metrics: dict[str, float | None]) -> float:
@@ -373,12 +612,18 @@ def main(argv: list[str] | None = None) -> int:
         "login", help="账号密码登录，写入会话 cookie（替代浏览器复制 cURL）"
     )
     p_login.add_argument("--username", type=str, default=None, help="BRAIN 账号邮箱")
-    p_login.add_argument("--password", type=str, default=None, help="BRAIN 账号密码（也可交互输入）")
+    p_login.add_argument(
+        "--password", type=str, default=None, help="BRAIN 账号密码（也可交互输入）"
+    )
     p_login.set_defaults(func=lambda a: _cmd_login(paths, a.username, a.password))
 
     p_run = sub.add_parser("run", help="完整闭环（读入候选→预检→模拟→筛选→报告）")
-    p_run.add_argument("--candidates-file", type=str, default=None,
-                       help="候选 JSON 文件路径（默认读当日 data/candidates/YYYY-MM-DD.json）")
+    p_run.add_argument(
+        "--candidates-file",
+        type=str,
+        default=None,
+        help="候选 JSON 文件路径（默认读当日 data/candidates/YYYY-MM-DD.json）",
+    )
     p_run.add_argument("--idea", type=str, default=None, help="研究方向/点子（提示用）")
     p_run.set_defaults(func=lambda a: cmd_run(paths, cfg, a.candidates_file, a.idea))
 
@@ -391,10 +636,19 @@ def main(argv: list[str] | None = None) -> int:
         help="按账户抓取字段知识 → 写本地 experience/fields/（首次运行必做，数据不上传）",
     )
     p_knowledge.add_argument(
-        "--regions", type=str, default=None,
+        "--regions",
+        type=str,
+        default=None,
         help="区域列表（逗号分隔，默认按账户阶段：用户=USA，顾问=12 区域）",
     )
-    p_knowledge.set_defaults(func=lambda a: cmd_update_knowledge(paths, a.regions))
+    p_knowledge.add_argument(
+        "--force",
+        action="store_true",
+        help="强制重新抓取（默认 24 小时内已生成则跳过）",
+    )
+    p_knowledge.set_defaults(
+        func=lambda a: cmd_update_knowledge(paths, a.regions, force=a.force)
+    )
 
     p_suggest = sub.add_parser(
         "suggest", help="随机建议一个研究方向（本地知识库数据集+字段+主题）"
@@ -405,15 +659,21 @@ def main(argv: list[str] | None = None) -> int:
         "submit", help="人工确认后提交 alpha（提交前展示检查 + 回查 ACTIVE）"
     )
     p_submit.add_argument("alpha_id", type=str, help="本地 alpha id（alphas 表主键）")
-    p_submit.add_argument("--yes", action="store_true",
-                          help="跳过交互确认（仅限用户在对话中已显式确认后，由 agent 代提交）")
+    p_submit.add_argument(
+        "--yes",
+        action="store_true",
+        help="跳过交互确认（仅限用户在对话中已显式确认后，由 agent 代提交）",
+    )
     p_submit.set_defaults(func=lambda a: _cmd_submit(paths, a.alpha_id, a.yes))
 
     p_reset = sub.add_parser(
         "reset", help="清除积累的经验，回到初始状态（保留登录凭证与知识库）"
     )
-    p_reset.add_argument("--yes", action="store_true",
-                         help="跳过交互确认（仅限用户在对话中已显式确认后，由 agent 执行）")
+    p_reset.add_argument(
+        "--yes",
+        action="store_true",
+        help="跳过交互确认（仅限用户在对话中已显式确认后，由 agent 执行）",
+    )
     p_reset.set_defaults(func=lambda a: _cmd_reset(paths, a.yes))
 
     args = parser.parse_args(argv)
@@ -492,13 +752,17 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
     print(f"[submit] 候选: {alpha.get('description', '未命名')}")
     print(f"  表达式: {alpha.get('expression', '')}")
     metrics = alpha.get("metrics", {})
-    print(f"  指标: Sharpe={metrics.get('sharpe', '—')}  "
-          f"Fitness={metrics.get('fitness', '—')}  Turnover={metrics.get('turnover', '—')}")
+    print(
+        f"  指标: Sharpe={metrics.get('sharpe', '—')}  "
+        f"Fitness={metrics.get('fitness', '—')}  Turnover={metrics.get('turnover', '—')}"
+    )
     checks = sims[0].get("checks", [])
     if checks:
         print("  平台检查:")
         for c in checks:
-            print(f"    {c.get('name', '?'):<38} {c.get('result', '?'):<8} value={c.get('value', '—')}")
+            print(
+                f"    {c.get('name', '?'):<38} {c.get('result', '?'):<8} value={c.get('value', '—')}"
+            )
 
     client = BrainClient(cookie)
     try:
@@ -506,15 +770,20 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
     except Exception as e:
         print(f"[submit] 免费相关门查询失败: {e}")
         return 1
-    print(f"  提交前相关门: max_correlation = {corr:.3f}  {'✅ <0.7' if corr < 0.7 else '❌ ≥0.7 不可提交'}")
+    print(
+        f"  提交前相关门: max_correlation = {corr:.3f}  {'✅ <0.7' if corr < 0.7 else '❌ ≥0.7 不可提交'}"
+    )
     if corr >= 0.7:
         print("[submit] 与已提交 alpha 相关性过高，放弃提交。")
-        store.save_failure(
-            {"id": f"corr_{alpha_id}", "expression_hash": alpha_id,
-             "failure_reason": f"提交前相关门未过: max_corr={corr:.2f}≥0.7（与现有组合饱和）"}
-        )
-        knowledge.append_experience(
-            paths, "failure", f"corr_{alpha_id}", alpha.get("description") or "相关门饱和",
+        _sediment_failure(
+            paths,
+            store,
+            {
+                "id": f"corr_{alpha_id}",
+                "expression_hash": alpha_id,
+                "failure_reason": f"提交前相关门未过: max_corr={corr:.2f}≥0.7（与现有组合饱和）",
+            },
+            alpha.get("description") or "相关门饱和",
             f"- 触发: 提交前相关门 FAIL（max_corr={corr:.2f}≥0.7）\n"
             f"- 表达式 hash: {alpha_id}\n"
             f"- 结论: 该方向与现有组合饱和，需换思路或降相关",
@@ -536,25 +805,35 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
     except SubmissionRejected as e:
         print(f"[submit] 提交被平台拒绝（检查未过，非会话问题）:")
         for c in e.checks:
-            print(f"    {c.get('name', '?'):<38} {c.get('result', '?'):<8} value={c.get('value', '—')}")
-        reason = ";".join(c.get("name", "") for c in e.checks if c.get("result") == "FAIL")
-        store.save_failure(
-            {"id": f"sub_{alpha_id}", "expression_hash": alpha_id,
-             "failure_reason": f"提交检查未过: {reason}"}
+            print(
+                f"    {c.get('name', '?'):<38} {c.get('result', '?'):<8} value={c.get('value', '—')}"
+            )
+        reason = ";".join(
+            c.get("name", "") for c in e.checks if c.get("result") == "FAIL"
         )
-        knowledge.append_experience(
-            paths, "failure", f"sub_fail_{alpha_id}", alpha.get("description") or "提交被拒",
+        _sediment_failure(
+            paths,
+            store,
+            {
+                "id": f"sub_{alpha_id}",
+                "expression_hash": alpha_id,
+                "failure_reason": f"提交检查未过: {reason}",
+            },
+            alpha.get("description") or "提交被拒",
             f"- 触发: 提交检查未过（{reason}）\n- 表达式 hash: {alpha_id}\n- 结论: 该方向未达提交门槛，避免重复",
         )
         return 1
     except Exception as e:
         print(f"[submit] 提交失败: {e}")
-        store.save_failure(
-            {"id": f"sub_{alpha_id}", "expression_hash": alpha_id,
-             "failure_reason": f"提交失败: {e}"}
-        )
-        knowledge.append_experience(
-            paths, "failure", f"sub_fail_{alpha_id}", alpha.get("description") or "提交失败",
+        _sediment_failure(
+            paths,
+            store,
+            {
+                "id": f"sub_{alpha_id}",
+                "expression_hash": alpha_id,
+                "failure_reason": f"提交失败: {e}",
+            },
+            alpha.get("description") or "提交失败",
             f"- 触发: 提交失败（{e}）\n- 表达式 hash: {alpha_id}\n- 结论: 平台拒绝，见错误信息",
         )
         return 1
@@ -562,37 +841,56 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
     current_status = detail.get("status", "?")
     confirmed_active = current_status == "ACTIVE"
     store.save_submission(
-        {"id": f"sub_{alpha_id}", "alpha_id": alpha_id,
-         "user_confirmed": True, "platform_response": resp,
-         "current_status": current_status, "confirmed_active": confirmed_active}
+        {
+            "id": f"sub_{alpha_id}",
+            "alpha_id": alpha_id,
+            "user_confirmed": True,
+            "platform_response": resp,
+            "current_status": current_status,
+            "confirmed_active": confirmed_active,
+        }
     )
-    store.save_alpha({**alpha, "status": "SUBMITTED" if confirmed_active else "REJECTED"})
+    store.save_alpha(
+        {**alpha, "status": "SUBMITTED" if confirmed_active else "REJECTED"}
+    )
     store.append_audit(
         "submit",
-        {"alpha_id": alpha_id, "platform_alpha_id": platform_alpha_id,
-         "status": current_status},
+        {
+            "alpha_id": alpha_id,
+            "platform_alpha_id": platform_alpha_id,
+            "status": current_status,
+        },
     )
     if confirmed_active:
-        print(f"[submit] ✅ 提交成功并回查 ACTIVE！platform alpha_id={platform_alpha_id}")
-        store.save_lesson(
-            {"id": f"lesson_{alpha_id}", "trigger": "submit_success",
-             "hypothesis": alpha.get("hypothesis", ""),
-             "verdict": f"ACTIVE sharpe={alpha.get('metrics', {}).get('sharpe')}",
-             "lesson": f"提交成功（ACTIVE）：{alpha.get('description', '')}。该方向可行。",
-             "raw_ref": alpha_id}
+        print(
+            f"[submit] ✅ 提交成功并回查 ACTIVE！platform alpha_id={platform_alpha_id}"
         )
-        knowledge.append_experience(
-            paths, "lesson", f"sub_ok_{alpha_id}", alpha.get("description") or "提交成功",
+        _sediment_lesson(
+            paths,
+            store,
+            {
+                "id": f"lesson_{alpha_id}",
+                "trigger": "submit_success",
+                "hypothesis": alpha.get("hypothesis", ""),
+                "verdict": f"ACTIVE sharpe={alpha.get('metrics', {}).get('sharpe')}",
+                "lesson": f"提交成功（ACTIVE）：{alpha.get('description', '')}。该方向可行。",
+                "raw_ref": alpha_id,
+            },
+            alpha.get("description") or "提交成功",
             f"- 触发: 提交 ACTIVE（相关门 max_corr={corr:.3f}）\n"
             f"- 假设: {alpha.get('hypothesis') or '—'}\n"
             f"- 结论: 该方向通过平台全部检查并激活，可考虑同簇扩展",
         )
         return 0
-    print(f"[submit] ⚠️ 提交返回但状态为 {current_status}（未确认 ACTIVE，请到平台核实）")
+    print(
+        f"[submit] ⚠️ 提交返回但状态为 {current_status}（未确认 ACTIVE，请到平台核实）"
+    )
     return 1
 
 
-def _wait_for_active(client: BrainClient, platform_alpha_id: str, timeout: float = 120.0) -> dict:
+def _wait_for_active(
+    client: BrainClient, platform_alpha_id: str, timeout: float = 120.0
+) -> dict:
     """提交后轮询平台状态直到 ACTIVE（状态更新有延迟，实测提交后需数秒）。"""
     import time as _time
 
@@ -620,7 +918,7 @@ def _cmd_reset(paths: QaPaths, yes: bool = False) -> int:
         "候选文件 data/candidates/": paths.CANDIDATES_DIR,
         "每日汇总 reports/daily/": paths.REPORTS_DIR / "daily",
     }
-    pending = paths.COOKIE.parent / "pending_submits.json"
+    pending = paths.PENDING_SUBMITS
     if pending.exists():
         targets["待提交暂存 pending_submits.json"] = pending
 
@@ -629,9 +927,13 @@ def _cmd_reset(paths: QaPaths, yes: bool = False) -> int:
         print(f"  - {label} ({p})")
     if pending.exists():
         print("  ⚠️ 待提交暂存含未提交 alpha，清除后需重新模拟生成")
-    print("[reset] 同时恢复：experience/playbook.md、failures.md 为模板（本地经验沉淀）")
-    print("[reset] 保留：secrets/ 登录凭证、knowledge/ 公开知识库、"
-          "experience/fields/ 账户字段知识、qa/ 代码")
+    print(
+        "[reset] 同时恢复：experience/playbook.md、failures.md 为模板（本地经验沉淀）"
+    )
+    print(
+        "[reset] 保留：secrets/ 登录凭证、knowledge/ 公开知识库、"
+        "experience/fields/ 账户字段知识、qa/ 代码"
+    )
 
     if yes:
         confirmed = True
@@ -663,8 +965,26 @@ def cmd_update_knowledge(
     paths: QaPaths,
     regions_arg: str | None,
     pace: float = knowledge.BASE_PACE_SECONDS,
+    force: bool = False,
 ) -> int:
-    """按账户阶段抓取字段知识 → 写 experience/fields/（本地，gitignored 不上传）。"""
+    """按账户阶段抓取字段知识 → 写 experience/fields/（本地，gitignored 不上传）。
+
+    force=False 且 24h 内已生成时跳过抓取（省配额与时间；顾问 12 区域重抓很贵）。
+    """
+    meta = knowledge.knowledge_status(paths)
+    if meta and not force:
+        generated = meta.get("generated_at")
+        if generated:
+            try:
+                generated_dt = datetime.fromisoformat(generated)
+                if datetime.now(timezone.utc) - generated_dt < timedelta(hours=24):
+                    print(
+                        f"[update-knowledge] 本地知识库 {generated[:16]} 已生成（24 小时内），"
+                        "跳过抓取（--force 强制刷新）。"
+                    )
+                    return 0
+            except ValueError:
+                pass
     try:
         stage = get_stage(paths)
     except Exception as e:
@@ -684,8 +1004,10 @@ def cmd_update_knowledge(
         print(f"[update-knowledge] 错误: {e}")
         return 1
     client = BrainClient(cookie)
-    print(f"[update-knowledge] 按账户阶段（{'顾问' if stage.is_consultant else '用户'}）"
-          f"抓取区域 {', '.join(regions)} 字段（限流节流，约 2 秒/请求）……")
+    print(
+        f"[update-knowledge] 按账户阶段（{'顾问' if stage.is_consultant else '用户'}）"
+        f"抓取区域 {', '.join(regions)} 字段（限流节流，约 2 秒/请求）……"
+    )
     try:
         meta = knowledge.build_local_knowledge(
             paths, client, regions, stage_info=stage, pace=pace
@@ -693,8 +1015,10 @@ def cmd_update_knowledge(
     except (PermissionError, TimeoutError, RuntimeError) as e:
         print(f"[update-knowledge] 抓取失败: {e}")
         return 1
-    print(f"[update-knowledge] ✅ 完成: {meta['field_count']} 字段 / "
-          f"{meta['dataset_count']} 数据集 → {paths.KNOWLEDGE_FIELDS_DIR}")
+    print(
+        f"[update-knowledge] ✅ 完成: {meta['field_count']} 字段 / "
+        f"{meta['dataset_count']} 数据集 → {paths.KNOWLEDGE_FIELDS_DIR}"
+    )
     print("[update-knowledge] 数据位于 gitignored 的 experience/，不会上传公开仓库。")
     return 0
 
@@ -719,9 +1043,12 @@ def cmd_suggest(paths: QaPaths) -> int:
     theme = random.choice(_theme_for_dataset(ds))
     print(f"[suggest] 建议研究方向（随机）: {theme['name']}")
     print(f"  数据集: {ds}")
-    print("  候选字段: " + ", ".join(
-        f"{f.get('id')}（{str(f.get('description', ''))[:24]}）" for f in picks
-    ))
+    print(
+        "  候选字段: "
+        + ", ".join(
+            f"{f.get('id')}（{str(f.get('description', ''))[:24]}）" for f in picks
+        )
+    )
     print(f"  逻辑模板: {theme['template'].format(field=picks[0].get('id'))}")
     print("  → agent 依据以上方向 + 本地字段生成 10-20 个候选写入 data/candidates/")
     return 0

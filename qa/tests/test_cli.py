@@ -614,6 +614,11 @@ def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
             "checks": [{"name": "LOW_SHARPE", "result": "PASS", "value": 1.68}],
         }
     )
+    # 预置待提交暂存，模拟 qa run 跨会话接力后的状态
+    cli_mod._append_pending(paths, {"id": h, "description": "动量测试"})
+    assert json.loads(paths.PENDING_SUBMITS.read_text(encoding="utf-8")) == [
+        {"id": h, "description": "动量测试"}
+    ]
 
     monkeypatch.setattr(cli_mod, "get_stage", lambda p: None)  # 不触发阶段检测
     monkeypatch.setattr(
@@ -633,6 +638,11 @@ def test_cmd_submit_end_to_end(tmp_qa, monkeypatch, capsys):
     assert "平台检查" in out
     assert "相关门" in out
     assert "ACTIVE" in out
+
+    # 提交成功后待提交暂存中的条目已被删除（保留空列表文件）
+    pending = json.loads(paths.PENDING_SUBMITS.read_text(encoding="utf-8"))
+    assert pending == []
+    assert paths.PENDING_SUBMITS.exists()
 
     subs = store._conn.execute("SELECT * FROM submissions").fetchall()
     assert len(subs) == 1

@@ -558,6 +558,24 @@ def _append_pending(paths: QaPaths, entry: dict[str, Any]) -> None:
     p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _remove_pending(paths: QaPaths, entry_id: str) -> None:
+    """按 id 从待提交暂存删除条目（幂等：文件缺失/解析失败/条目不存在静默返回）。
+
+    qa submit 平台接受提交后调用，避免下次启动误报"有 N 个待提交"。
+    """
+    p = paths.PENDING_SUBMITS
+    if not p.exists():
+        return
+    try:
+        loaded = json.loads(p.read_text(encoding="utf-8"))
+    except ValueError:
+        return
+    if not isinstance(loaded, list):
+        return
+    data = [e for e in loaded if not (isinstance(e, dict) and e.get("id") == entry_id)]
+    p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _settings(
     cfg: AppConfig, candidate_settings: dict[str, object] | None = None
 ) -> dict[str, str | int | float | bool]:
@@ -837,6 +855,10 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
             f"- 触发: 提交失败（{e}）\n- 表达式 hash: {alpha_id}\n- 结论: 平台拒绝，见错误信息",
         )
         return 1
+
+    # 平台已接受提交（未抛 SubmissionRejected/异常）→ 从待提交暂存删除，
+    # 无论回查状态是否 ACTIVE；被拒/异常时保留暂存供用户重试。
+    _remove_pending(paths, alpha_id)
 
     current_status = detail.get("status", "?")
     confirmed_active = current_status == "ACTIVE"

@@ -80,3 +80,47 @@ def test_fetch_self_uses_cookie(monkeypatch):
     assert data["level"] == "BRONZE"
     assert "Cookie" in captured["headers"]
     assert captured["headers"]["Cookie"] == "t=abc"
+
+
+def test_fetch_self_raises_permission_error_on_401(monkeypatch):
+    """401 → PermissionError（与 brain_client 会话失效约定统一，供 status 分支）。"""
+
+    class FakeResp:
+        status_code = 401
+
+        def json(self):
+            return {}
+
+        def raise_for_status(self):
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+    import requests
+
+    def fake_get(url, headers, timeout):
+        return FakeResp()
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    with pytest.raises(PermissionError, match="会话"):
+        fetch_self("t=expired")
+
+
+def test_fetch_self_raises_permission_error_on_403(monkeypatch):
+    """403 同样视为会话失效（部分账号阶段接口返回 403 而非 401）。"""
+
+    class FakeResp:
+        status_code = 403
+
+        def json(self):
+            return {}
+
+        def raise_for_status(self):
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+    import requests
+
+    def fake_get(url, headers, timeout):
+        return FakeResp()
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    with pytest.raises(PermissionError, match="会话"):
+        fetch_self("t=expired")

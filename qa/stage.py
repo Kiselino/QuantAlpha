@@ -19,17 +19,34 @@ BASE_URL = "https://api.worldquantbrain.com"
 
 # 非顾问 vs 顾问的变量映射（设计 §3.0）
 _CONSULTANT_REGIONS = [
-    "USA", "EUR", "ASI", "CHN", "GLB", "IND", "JPN",
-    "KOR", "TWN", "AUS", "CAN", "BRA",
+    "USA",
+    "EUR",
+    "ASI",
+    "CHN",
+    "GLB",
+    "IND",
+    "JPN",
+    "KOR",
+    "TWN",
+    "AUS",
+    "CAN",
+    "BRA",
 ]
 
 
 @dataclass(frozen=True)
 class StageInfo:
-    """账号阶段检测结果。"""
+    """账号阶段检测结果。
 
-    level: str                       # BRONZE / SILVER / GOLD
-    is_consultant: bool
+    level 与 is_consultant 正交，勿混淆：
+    - level：分数段位（BRONZE/SILVER/GOLD），非顾问资格；GOLD 用户 ≠ 顾问
+      （顾问 = 10000 分 + Gold + 完整流程，见 rules.md）。
+    - is_consultant：顾问资格（geniusLevel/consultant 字段非空），
+      解锁 12 区域 / PYTHON+ML / D0 等；顾问后 level 是否继续更新未确认。
+    """
+
+    level: str  # 分数段位 BRONZE / SILVER / GOLD
+    is_consultant: bool  # 顾问资格（与 level 正交）
     genius_level: str | None = None
     regions: list[str] = field(default_factory=lambda: ["USA"])
     max_concurrency: int = 3
@@ -53,12 +70,18 @@ def read_cookie(path: Path) -> str:
 
 
 def fetch_self(cookie: str, base_url: str = BASE_URL) -> dict[str, Any]:
-    """GET /users/self —— 阶段检测的数据来源。"""
+    """GET /users/self —— 阶段检测的数据来源。
+
+    401/403 视为会话失效抛 PermissionError（与 brain_client 约定统一），
+    而非落 `except Exception` 报"无法连接 BRAIN"误导排障。
+    """
     resp = requests.get(
         f"{base_url}/users/self",
         headers={"Cookie": cookie, "Accept": "application/json"},
         timeout=30,
     )
+    if resp.status_code in (401, 403):
+        raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
     resp.raise_for_status()
     return resp.json()
 

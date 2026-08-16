@@ -224,8 +224,19 @@ def validate_expression(
     operators: set[str],
     fields: set[str],
     field_types: dict[str, str] | None = None,
+    language: str = "FASTEXPR",
 ) -> ValidationResult:
-    """综合预检：语法 + 字段（含类型）+ 复杂度。"""
+    """综合预检：语言 + 语法 + 字段（含类型）+ 复杂度。
+
+    language（v1.6）：非 FASTEXPR 直接拒绝（fail-closed）——本地 tokenizer
+    只懂 FASTEXPR，未知语言（PYTHON/ML）不产生误导性语法噪音，等顾问阶段扩展。
+    """
+    if language != "FASTEXPR":
+        return ValidationResult(
+            ok=False,
+            errors=[f"语言 {language} 暂不支持本地预检，当前阶段仅支持 FASTEXPR"],
+            expr_hash=expression_hash(expr),
+        )
     errors = check_syntax(expr, operators)
     errors += check_fields(expr, fields, field_types)
     op_count, depth = measure_complexity(expr, operators)

@@ -1,7 +1,7 @@
 # QuantAlpha — Agent 工作流入口 + 项目知识库
 
 > 任何 AI agent（opencode / claude code / codex）打开本仓库后的**第一读取文件**。
-> 权威系统设计见 `quantalpha-design.md`（v1.4）。实现以设计文档为准。
+> 权威系统设计见 `quantalpha-design.md`（v1.6）。实现以设计文档为准。
 
 ## 项目是什么
 
@@ -16,6 +16,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 ```
 1. 运行 `qa status`（或读取 secrets/worldquant_cookies.txt 调 API）
    → 账号阶段检测（level/geniusLevel/consultant）+ cookie 有效性 + 配额/限流状态
+   → **v1.6：status 输出六项检查——新用户判定/知识库就绪/cookie 有效/账号阶段/配额/待提交暂存**
    → 动态配置：并发数、可用区域、字段范围、表达式语言
    → 同时检查本地知识库 `experience/fields/`（v1.4 起字段数据本地化）：
      缺失 → 主动提示用户"首次运行需先 `qa update-knowledge` 生成账户专属字段知识库"
@@ -26,9 +27,13 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
    → 无文件/为空 → 正常继续
 3. cookie 无效时：`qa login --username ... --password ...`（账号密码方式）
    或让用户提供 Copy as cURL（敏感用户可选用）
-4. 询问用户本次意图（生成候选？查看报告？提交确认？更新知识库？）
+4. **调研访问规则**：BRAIN 平台匿名访问是登录墙（返回 JS 空壳页面）。agent 做官网/API 调研
+   （算子文档、字段、模拟示例等）前，先确认 cookie 有效（`qa status` 验证 / 失效则 `qa login`
+   刷新），再携带 cookie（`secrets/worldquant_cookies.txt`）访问；遇到官网墙异常时优先怀疑
+   cookie 过期——更新登录状态后重试，不要盲目换信息来源
+5. 询问用户本次意图（生成候选？查看报告？提交确认？更新知识库？）
    不要擅自开始生成/提交
-5. 若本次要生成候选：**先询问主题来源，三选一**——
+6. 若本次要生成候选：**先询问主题来源，三选一**——
    ① 随机抽取（agent 跑 `qa suggest` 或自行随机）
    ② 网络热门（agent 用 web 搜索 BRAIN 社区/论坛/教程的热门研究方向）
    ③ 用户指定（用户直接给方向/点子）
@@ -41,9 +46,9 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 |---|---|---|
 | 0 | 启动：阶段检测 + cookie 验证 + 配额状态 + 本地知识库检查 | 自动 |
 | 1 | **生成前询问主题来源三选一**：① `qa suggest`/agent 随机抽取 ② agent 网络调研热门主题 ③ 用户指定方向 | 人工 |
-| 2 | **agent（你）读知识库（公开 `knowledge/` + 本地 `experience/`：字段/playbook/failures）→ 生成 10-20 个候选表达式 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM，生成是你的事）。**候选格式：`[{description, hypothesis, expression, dataset_ids, settings?}]`——`settings` 可选（v1.5）：decay/neutralization/truncation 按数据集类型给经验值（基本面 decay 0 / 分析师 0-4 / 技术 10-30）** | 自动 |
-| 3 | validate 预检：语法 lint + 字段白名单（**读本地 experience/fields/**）+ 字段类型 + **settings 值域** + 去重 + 复杂度 + **同字段集簇去重（v1.5：同信号簇只模拟最简者）** | 自动 |
-| 4 | 批量云端模拟（3 并发 / 分钟限流管理 / **每日配额预算 + 平台每日头动态截断（v1.5）**） | 自动 |
+| 2 | **agent（你）读 `knowledge/generation-guide.md`（生成指南）→ 按指南六环节执行（固化输入 → 加载知识 → 字段/表达式 → 设置三层决策 → 输出候选 → 质量自检）→ 生成 10-20 个候选 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM，生成是你的事）。**候选格式：`[{description, hypothesis, expression, dataset_ids, settings?, language?}]`——settings 可选（v1.5）：decay/neutralization/truncation 按数据集类型给经验值（基本面 decay 0 / 分析师 0-4 / 技术 10-30）；language 默认 FASTEXPR（v1.6）；设计逻辑三件套写进 hypothesis；完整流程见 generation-guide.md** | 自动 |
+| 3 | validate 预检：语法 lint + 字段白名单（**读本地 experience/fields/**）+ 字段类型 + **settings 值域 + language** + 去重 + 复杂度 + **同字段集簇去重（v1.5：同信号簇只模拟最简者）** | 自动 |
+| 4 | 批量云端模拟（默认 3 并发 / `--concurrency` 可调 / 分钟限流管理 / 平台每日头动态截断（本地预算 v1.6 已删）/ **中断恢复续查（v1.6）**） | 自动 |
 | 5 | 门槛过滤 + **PASS 免费相关门排序（v1.5：corr 低者优先）+ PASS 自动暂存待提交（v1.5）** | 自动 |
 | 6 | 候选清单报告（指标/解释/提交建议） | 自动 |
 | 7 | **用户逐条确认** → agent 代提交 → 回查 ACTIVE | **人工确认** |
@@ -54,9 +59,9 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 | 命令 | 功能 | 状态 |
 |---|---|---|
 | `qa login [--username ...] [--password ...]` | 账号密码登录 → 写 cookie（凭据不落盘；Persona 人机验证会提示） | ✅ 已实现 |
-| `qa status` | 阶段检测 + cookie 验证 + 配额 + 本地知识库状态（启动首查） | ✅ 已实现（第一批） |
-| `qa run [--candidates-file ...]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`**；PASS 候选自动暂存待提交（v1.5） | ✅ 已实现（第一批） |
-| `qa report [--daily]` | 当日候选清单 / 每日累计汇总 | ✅ 已实现（第一批） |
+| `qa status` | 阶段检测 + cookie 验证 + 配额 + 本地知识库状态（启动首查；**v1.6 输出六项检查：新用户判定/知识库就绪/cookie 有效/账号阶段/配额/待提交暂存**） | ✅ 已实现（第一批） |
+| `qa run [--candidates-file ...] [--concurrency N]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`**；PASS 候选自动暂存待提交（v1.5）；**`--concurrency` 并发数可调（默认 3，v1.6）；中断恢复续查（v1.6）** | ✅ 已实现（第一批） |
+| `qa report [--daily] [--pending]` | 当日候选清单 / 每日累计汇总；**`--pending` 批量预览待提交清单（含指标，提交仍逐个人工确认，v1.6）** | ✅ 已实现（第一批） |
 | `qa submit <alpha_id> [--yes]` | 人工确认后提交（提交前展示全部检查 + 免费相关门，提交后回查 ACTIVE） | ✅ 已实现 |
 | `qa reset [--yes]` | **清除积累的经验，回到初始状态**（见下方"经验清除范围"） | ✅ 已实现 |
 | `qa update-knowledge [--regions ...] [--force]` | **按账户抓取字段知识 → 写本地 experience/fields/**（首次运行必做；数据 gitignored 不上传；顾问可 --regions 限定区域；**v1.5：24h 内已生成默认跳过，--force 强制刷新**） | ✅ 已实现（v1.4） |
@@ -92,6 +97,8 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 - **ATOM：** 单数据集 alpha 放宽（只看 2Y Sharpe D1>1）→ 优先单数据集表达
 - **计分：** 非顾问阶段每天生成 1-2 个成功的 alpha 即可；顾问阶段提交 3+ 个当天奖励封顶；相对分（看当天其他用户）；美东 3AM 结算；小宇宙+D1 分更高
 - **生成架构：** 项目内不调用 LLM API——候选生成由 agent（你）完成：读公开 `knowledge/` + 本地 `experience/`（字段/playbook/failures）后写 `data/candidates/YYYY-MM-DD.json`，项目只做预检/模拟/筛选/报告
+- **生成流程：** 见 `knowledge/generation-guide.md`（六环节操作指南；顾问阶段差异以 qa status 输出为准；生成候选前必读）
+- **用户覆盖原则：** 知识库与经验是参考而非束缚——用户明确要求忽略某条经验时以用户为准（字段类型/算子上限/设置值域等平台硬约束除外，validate 强制无法绕过）
 - **测试只在平台：** 本地零回测，所有性能测试 = 平台 API 模拟
 - **组合视角：** alpha 非独立，平台按整体评判 → 生成/筛选考虑与现有组合相关性
 - **字段优先级：** 基本面 40% > 混合 12.7% > 纯技术 5.3%；黄金组合 `group_rank(ts_rank(x,N),subindustry)`
@@ -104,7 +111,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 QuantAlpha/
 ├── AGENTS.md                    # 本文件（工作流入口）
 ├── README.md                    # 人类说明：安装、认证配置（双选）、快速开始
-├── quantalpha-design.md         # ⭐ 权威设计 v1.4（模块职责/数据模型/错误处理/MVP）
+├── quantalpha-design.md         # ⭐ 权威设计 v1.6（模块职责/数据模型/错误处理/MVP）
 ├── qa/                          # Python 工具库（auth/stage/brain_client/validate/knowledge/...）
 ├── knowledge/                   # ✅ 公开静态知识库：operators/rules/pitfalls/fields 策略说明
 ├── pyrightconfig.json           # LSP 配置（basedpyright）
@@ -112,13 +119,12 @@ QuantAlpha/
 ├── data/                        # 🔒 gitignored：qa.db + audit/ + candidates/
 ├── reports/                     # 🔒 gitignored：个人成果
 ├── secrets/                     # 🔒 gitignored：cookie、account_info.json
-└── .omo/                        # 🔒 gitignored：session 存档（调研资产未随仓库分发）
 ```
 
 ## COMMANDS
 
 - 实现后：`qa login` / `qa status` / `qa run` / `qa submit` / `qa report` / `qa reset` / `qa update-knowledge` / `qa suggest`
-- 测试：`pytest qa/tests/`（设计 v1.4 §10）
+- 测试：`pytest qa/tests/`（设计 v1.6 §10）
 - 开发节奏：1.0 可跑通版本后首次 commit；之后每 2-3 功能更新再提交
 
 ## 最终提交范围（用户约定，提交时遵守）
@@ -128,7 +134,7 @@ QuantAlpha/
 2. 让 agent 理解设计思想与全流程的文件：`AGENTS.md`、`README.md`、`quantalpha-design.md`、`knowledge/`
 
 **不提交（中间态/skill 产物/私有数据）：**
-- `.omo/`（secrets + 调研资产）、`data/`、`reports/`（私有数据，gitignored）
+- `data/`、`reports/`（私有数据，gitignored）
 - 其他草稿/临时文件（含历史 `design/` 目录残留）
 
 ## 个人信息约定（用户要求，提交时遵守）

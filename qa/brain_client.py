@@ -20,7 +20,8 @@ class RateLimits:
 
     minute：分钟级（实测 30 请求/分钟，x-ratelimit-*-minute）。
     daily：每日模拟配额（x-ratelimit-limit/-remaining/-reset，无 -minute 后缀；
-    社区工具实测存在，数值随账户阶段变化；缺失时 None，由本地预算兜底）。
+    社区工具实测存在，数值随账户阶段变化；缺失时 None，不拦截——靠平台
+    错误码/429 兜底，v1.6 起无本地预算）。
     """
 
     remaining_minute: int = 30
@@ -71,8 +72,6 @@ class BrainClient:
         self.poll_interval = poll_interval
         self.session = requests.Session()
         self.session.headers.update({"Cookie": cookie, "Accept": "application/json"})
-        # 最近一次模拟响应的平台每日剩余配额（x-ratelimit-remaining，无 -minute 后缀）
-        self.daily_remaining: int | None = None
 
     # ---- 基础请求 ----
     def get_json(
@@ -145,12 +144,12 @@ class BrainClient:
         """POST /simulations → 返回 sim_id（来自 Location 头）。
 
         平台实测要求：regular 为字符串；settings 必含 unitHandling/visualization。
-        同时收集每日配额头（x-ratelimit-remaining，无 -minute 后缀）供批处理动态截断。
+        每日配额头由调用方统一通过 rate_limits() 读取（v1.6：不在此写共享状态，
+        避免并发写竞态）。
         """
         resp = self._post_with_retry(
             "/simulations", {"type": "REGULAR", "settings": settings, "regular": code}
         )
-        self.daily_remaining = _int_or_none(resp.headers.get("x-ratelimit-remaining"))
         if resp.status_code == 400:
             raise ValueError(f"模拟参数被平台拒绝: {resp.text[:300]}")
         resp.raise_for_status()

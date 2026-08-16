@@ -25,6 +25,10 @@ class QaPaths:
         return self.root / "secrets" / "pending_submits.json"
 
     @property
+    def ACCOUNT_INFO(self) -> Path:  # noqa: N802
+        return self.root / "secrets" / "account_info.json"
+
+    @property
     def DB(self) -> Path:  # noqa: N802
         return self.root / "data" / "qa.db"
 

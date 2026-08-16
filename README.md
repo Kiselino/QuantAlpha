@@ -55,7 +55,7 @@ pip install -e .
 
 BRAIN API 使用会话 JWT 认证（`t=...` cookie，约 4 小时有效，过期后需重新登录）。两种方式任选：
 
-**方式 A：账号密码登录（推荐，可自动续期）** —— 直接把账号交给 agent 或自行运行：
+**方式 A：账号密码登录（推荐）** —— 直接把账号交给 agent 或自行运行：
 
 ```bash
 qa login --username your@email.com --password your_password
@@ -75,7 +75,7 @@ qa login
 4. 右键该请求 → Copy → **Copy as cURL** → 把整段命令粘贴给 agent（对话里说"更新 cookie"）
 5. agent 解析出 Cookie 后写入 `secrets/worldquant_cookies.txt`，随后运行 `qa status` 验证
 
-> cookie 过期后（提示 401/403）用任一方式重新认证即可。长时间批量模拟建议方式 A（可自动重新登录）。
+> 会话约 4 小时，过期后（提示 401/403）用任一方式重新认证即可。长时间批量模拟建议方式 A。
 
 ### 3. 首次运行：生成本地知识库（必做）
 
@@ -142,7 +142,6 @@ QuantAlpha/
 ├── data/                  # 🔒 私有：qa.db + audit + candidates（gitignored）
 ├── reports/               # 🔒 私有：个人成果（gitignored）
 ├── secrets/               # 🔒 私有：cookie、account_info.json（gitignored）
-└── .omo/                  # 🔒 私有：session 存档（gitignored）
 ```
 
 ## 文档

@@ -98,6 +98,61 @@ def test_validate_expression_bad():
     assert len(r.errors) >= 1
 
 
+# ---- v1.6 阶段 3：language 字段校验（fail-closed）----
+
+
+def test_validate_expression_language_default_fastexpr():
+    assert validate_expression("rank(close)", OPERATORS, FIELDS).ok is True
+
+
+def test_validate_expression_rejects_python():
+    r = validate_expression("rank(close)", OPERATORS, FIELDS, language="PYTHON")
+    assert r.ok is False
+    assert any("暂不支持本地预检" in e for e in r.errors)
+    assert any("FASTEXPR" in e for e in r.errors)
+
+
+def test_validate_expression_rejects_ml():
+    r = validate_expression("rank(close)", OPERATORS, FIELDS, language="ML")
+    assert r.ok is False
+    assert any("暂不支持本地预检" in e for e in r.errors)
+
+
+# ---- v1.6 阶段 3：算子白名单补全（67 全集，含官方确认的 14 个新算子）----
+
+NEW_OPERATOR_EXAMPLES = [
+    "signed_power(close, 0.5)",
+    "reverse(close)",
+    "densify(subindustry)",
+    "kth_element(close, 20, 1)",
+    "ts_step(1)",
+    "days_from_last_change(close)",
+    "ts_count_nans(close, 5)",
+    "ts_covariance(close, open, 5)",
+    "ts_product(close, 5)",
+    "ts_regression(close, ts_step(1), 60)",
+    "last_diff_value(close, 63)",
+    "vector_neut(open, close)",
+    "trade_when(volume >= ts_mean(volume, 5), rank(-returns), -1)",
+    'bucket(rank(close), range="0,1,0.1")',
+]
+
+
+def test_operator_whitelist_full_set():
+    from qa.commands.run import _load_operators
+
+    assert len(_load_operators()) == 67
+
+
+def test_new_operators_parseable_by_whitelist():
+    from qa.commands.run import _load_operators
+
+    ops = _load_operators()
+    for expr in NEW_OPERATOR_EXAMPLES:
+        errs = check_syntax(expr, ops)
+        assert errs == [], f"{expr}: {errs}"
+
+
 def test_vector_field_rejected_in_scalar_context():
     errs = check_fields("rank(nws_x)", FIELDS, FIELD_TYPES)
     assert any("VECTOR" in e for e in errs)

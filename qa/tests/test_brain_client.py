@@ -67,7 +67,7 @@ def test_rate_limits_parse_daily_headers(monkeypatch):
 
 
 def test_rate_limits_daily_headers_missing_defaults(monkeypatch):
-    """每日配额头缺失时返回 None（不猜测，由本地预算兜底）。"""
+    """每日配额头缺失时返回 None（不猜测，不拦截——靠平台错误码兜底）。"""
     client = BrainClient("t=abc")
     resp_headers = {
         "x-ratelimit-limit-minute": "30",
@@ -215,32 +215,6 @@ def test_correlations_self_missing_max_raises(monkeypatch):
     monkeypatch.setattr(client.session, "get", fake_get)
     with pytest.raises(RuntimeError, match="相关门"):
         client.correlations_self("XYZ")
-
-
-def test_simulate_collects_daily_remaining_header(monkeypatch):
-    """POST /simulations 响应携带每日配额头（x-ratelimit-remaining，无 -minute 后缀）。"""
-    client = BrainClient("t=abc")
-
-    def fake_post(path, headers=None, json=None, timeout=None):
-        resp = _fake_response(201, None, {"Location": "http://x/simulations/S1"})
-        resp.headers["x-ratelimit-remaining"] = "4321"
-        return resp
-
-    monkeypatch.setattr(client.session, "post", fake_post)
-    sim_id = client.simulate("rank(close)", {"region": "USA"})
-    assert sim_id == "S1"
-    assert client.daily_remaining == 4321
-
-
-def test_simulate_daily_remaining_missing_is_none(monkeypatch):
-    client = BrainClient("t=abc")
-
-    def fake_post(path, headers=None, json=None, timeout=None):
-        return _fake_response(201, None, {"Location": "http://x/simulations/S1"})
-
-    monkeypatch.setattr(client.session, "post", fake_post)
-    client.simulate("rank(close)", {"region": "USA"})
-    assert client.daily_remaining is None
 
 
 def test_submit_returns_json(monkeypatch):

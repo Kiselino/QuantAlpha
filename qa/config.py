@@ -57,6 +57,5 @@ class AppConfig:
     concurrency: int = 3
     sim_timeout_seconds: float = 600.0
     min_remaining_minute: int = 3  # v1.4.1：分钟限流剩余低于此值时批间等待
-    daily_sim_budget: int = 2000  # 本地模拟配额预算兜底（平台每日上限未公开，社区实测 ~800/晚、上界 ~5000；run 优先读取平台 x-ratelimit-remaining 动态截断）
     defaults: SimulationDefaults = field(default_factory=SimulationDefaults)
     thresholds: Thresholds = field(default_factory=Thresholds)

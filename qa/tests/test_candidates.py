@@ -58,12 +58,50 @@ def test_load_drops_invalid_entries(tmp_qa):
     path = QaPaths(tmp_qa).CANDIDATES_DIR / "2026-08-14.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps([{"expression": "rank(close)"}, {"expression": ""}, "junk"]),
+        json.dumps([{"expression": ""}, "junk"]),
+        encoding="utf-8",
+    )
+    loaded = load_candidates(path)
+    assert len(loaded) == 0
+
+
+def test_load_drops_missing_hypothesis(tmp_qa):
+    """阶段 3 学习机制：无设计逻辑（hypothesis 为空）的候选跳过。"""
+    path = QaPaths(tmp_qa).CANDIDATES_DIR / "2026-08-14.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            [
+                {"description": "无假设", "expression": "rank(close)"},
+                {
+                    "description": "有假设",
+                    "hypothesis": "h",
+                    "expression": "rank(volume)",
+                },
+            ]
+        ),
         encoding="utf-8",
     )
     loaded = load_candidates(path)
     assert len(loaded) == 1
-    assert loaded[0].expression == "rank(close)"
+    assert loaded[0].expression == "rank(volume)"
+
+
+def test_load_defaults_language_to_fastexpr(tmp_qa):
+    path = QaPaths(tmp_qa).CANDIDATES_DIR / "2026-08-14.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            [
+                {"hypothesis": "h", "expression": "rank(close)"},
+                {"hypothesis": "h", "expression": "rank(volume)", "language": "PYTHON"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    loaded = load_candidates(path)
+    assert loaded[0].language == "FASTEXPR"
+    assert loaded[1].language == "PYTHON"
 
 
 def test_load_keeps_candidate_settings(tmp_qa):
@@ -73,10 +111,11 @@ def test_load_keeps_candidate_settings(tmp_qa):
         json.dumps(
             [
                 {
+                    "hypothesis": "h",
                     "expression": "rank(ts_delta(close, 5))",
                     "settings": {"decay": 12, "neutralization": "SECTOR"},
                 },
-                {"expression": "rank(close)", "settings": "junk"},
+                {"hypothesis": "h", "expression": "rank(close)", "settings": "junk"},
             ]
         ),
         encoding="utf-8",

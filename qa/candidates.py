@@ -20,6 +20,8 @@ class Candidate:
     dataset_ids: list[str] = field(default_factory=list)
     # 可选的模拟参数覆盖（decay/neutralization/truncation；未给则用全局默认）
     settings: dict[str, Any] = field(default_factory=dict)
+    # 候选表达式语言（默认 FASTEXPR；PYTHON/ML 由 validate fail-closed 拒绝）
+    language: str = "FASTEXPR"
 
 
 def load_candidates(path: Path) -> list[Candidate]:
@@ -36,14 +38,20 @@ def load_candidates(path: Path) -> list[Candidate]:
         expr = str(it.get("expression", "")).strip()
         if not expr:
             continue
+        hypothesis = str(it.get("hypothesis", "")).strip()
+        if not hypothesis:
+            # 设计逻辑是学习机制核心（阶段 3）：缺失的候选不进入模拟，防机械生成
+            print(f"[candidates] 跳过无设计逻辑（hypothesis 为空）的候选: {expr}")
+            continue
         raw_settings = it.get("settings")
         cands.append(
             Candidate(
                 description=str(it.get("description", "")),
-                hypothesis=str(it.get("hypothesis", "")),
+                hypothesis=hypothesis,
                 expression=expr,
                 dataset_ids=[str(x) for x in it.get("dataset_ids", [])],
                 settings=raw_settings if isinstance(raw_settings, dict) else {},
+                language=str(it.get("language", "FASTEXPR")),
             )
         )
     return cands

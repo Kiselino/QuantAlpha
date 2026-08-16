@@ -2,13 +2,16 @@
 
 表：alphas（候选/已提交 alpha 全生命周期）、simulations（每次模拟请求/结果）、
     submissions（提交记录与 ACTIVE 回查）、lessons（脱敏经验教训）、failures（证伪库）。
-所有写操作幂等（INSERT OR REPLACE），支持中断后重跑跳过已完成项。
+写操作幂等：alphas 等用 INSERT OR REPLACE；simulations 用 ON CONFLICT DO UPDATE
+（保留 started_at，支持 PENDING → 终态多次更新）。支持中断后重跑跳过已完成项。
 """
 
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -144,11 +147,22 @@ class Store:
 
     # ---- simulations ----
     def save_simulation(self, sim: dict[str, Any]) -> int:
-        """保存/更新一次模拟记录（幂等，按 id 覆盖）。"""
+        """保存/更新一次模拟记录（幂等，按 id 覆盖）。
+
+        id 为平台 sim_id（v1.6 中断恢复）；旧记录 id=sim_{expr_hash} 保留兼容
+        （无平台 sim_id，不会被续查命中，重跑会重新模拟）。
+        同一条模拟从 PENDING → 终态（COMPLETE/ERROR/TIMEOUT）多次调用：
+        ON CONFLICT DO UPDATE 不覆盖 started_at，保留首次写入的发起时间。
+        """
         self._conn.execute(
-            "INSERT OR REPLACE INTO simulations "
+            "INSERT INTO simulations "
             "(id, alpha_id, request_json, result_json, checks_json, status, started_at, finished_at, audit_path) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
+            "VALUES (?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(id) DO UPDATE SET "
+            "alpha_id=excluded.alpha_id, request_json=excluded.request_json, "
+            "result_json=excluded.result_json, checks_json=excluded.checks_json, "
+            "status=excluded.status, finished_at=excluded.finished_at, "
+            "audit_path=excluded.audit_path",
             (
                 sim.get("id"),
                 sim.get("alpha_id"),
@@ -164,17 +178,24 @@ class Store:
         self._conn.commit()
         return self._conn.total_changes
 
-    def daily_sim_count(self, date: str | None = None) -> int:
-        """统计某天的模拟次数（含 ERROR，平台侧都消耗配额）。
+    def find_pending_sim_id(self, expr_hash: str) -> str | None:
+        """查可续查的模拟记录（PENDING/TIMEOUT），返回平台 sim_id（simulations.id）。
 
-        date 为 'YYYY-MM-DD'；默认今天。供每日配额预算检查。
+        v1.6 中断恢复：重跑时先查此方法，有平台 sim_id → 不重新 simulate，
+        直接 poll 续查；无记录/无 sim_id → 重新模拟。
         """
-        d = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
         row = self._conn.execute(
-            "SELECT COUNT(*) AS n FROM simulations WHERE started_at LIKE ?",
-            (f"{d}%",),
+            "SELECT id FROM simulations WHERE alpha_id = ? "
+            "AND status IN ('PENDING', 'TIMEOUT') AND id != '' "
+            "ORDER BY started_at DESC LIMIT 1",
+            (expr_hash,),
         ).fetchone()
-        return int(row["n"]) if row else 0
+        return row["id"] if row else None
+
+    def delete_simulation(self, sim_id: str) -> None:
+        """删除一条模拟记录（续查 404 平台已清理的过期 PENDING，回退重新模拟）。"""
+        self._conn.execute("DELETE FROM simulations WHERE id = ?", (sim_id,))
+        self._conn.commit()
 
     def list_simulations(self, alpha_id: str | None = None) -> list[dict[str, Any]]:
         """列出模拟记录（可按 alpha_id 过滤；开始时间倒序）。"""
@@ -250,6 +271,50 @@ class Store:
         )
         self._conn.commit()
         return self._conn.total_changes
+
+    def failure_stats(
+        self, limit: int = 20, category: str | None = None
+    ) -> list[dict[str, Any]]:
+        """按失败名归因统计（failures 表），供 qa report「失败归因」小节。
+
+        category 按 failures.id 前缀区分失败类别（阶段 6 归因分离——修复路径不同：
+        模拟失败→优化表达式，提交被拒→避开饱和簇）：
+          "sim" → 模拟类（id 非 corr_/sub_ 前缀：预检未过/模拟未过）；
+          "sub" → 提交类（id 为 corr_/sub_ 前缀：相关门被拒/提交被拒/提交失败）；
+          None → 全部（不按类别过滤）。
+
+        单条 failure_reason 可含多个失败名（如平台检查列表
+        ['LOW_SHARPE','HIGH_TURNOVER'] 或 ';' 连接），逐名展开计数；
+        提取不到拉丁字母标识符的按原样计数（如"提交失败: 404"）。
+        返回 [{reason, count}] 按 count 降序（同数按名字典序），limit 截断。
+        """
+        rows = self._conn.execute("SELECT id, failure_reason FROM failures").fetchall()
+        counter: Counter[str] = Counter()
+        for r in rows:
+            rid = r["id"] or ""
+            if category == "sim" and (
+                rid.startswith("corr_") or rid.startswith("sub_")
+            ):
+                continue
+            if category == "sub" and not (
+                rid.startswith("corr_") or rid.startswith("sub_")
+            ):
+                continue
+            reason = (r["failure_reason"] or "").strip()
+            if not reason:
+                continue
+            names = [
+                m.group(0).upper()
+                for m in re.finditer(r"[A-Za-z][A-Za-z_0-9]*", reason)
+            ]
+            counter.update(names if names else [reason])
+        stats = [
+            {"reason": name, "count": n}
+            for name, n in sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))
+        ]
+        if limit:
+            stats = stats[:limit]
+        return stats
 
     # ---- audit ----
     def append_audit(self, kind: str, payload: dict[str, Any]) -> str:

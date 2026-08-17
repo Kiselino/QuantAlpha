@@ -301,162 +301,11 @@ def test_run_dedupe_same_field_set(tmp_qa, monkeypatch, capsys):
     assert "rank(ts_mean(close, 20))" not in simulated  # 更复杂的被去重
 
 
-def test_run_respects_platform_daily_remaining(tmp_qa, monkeypatch, capsys):
-    """平台每日配额头存在时，run 预算取平台剩余（v1.6：纯平台头，无本地预算）。
-
-    断言走入口首查 remaining=1 分支：todo 截断为 1 个，模拟只发起 1 次
-    （非批间截断——批间截断场景由 test_run_stops_when_platform_daily_exhausted 覆盖）。
-    """
-    from qa.candidates import Candidate
-    from qa.paths import QaPaths
-    from qa.stage import StageInfo
-    from qa.brain_client import RateLimits
-    from qa.commands import run as run_mod
-
-    paths = QaPaths(tmp_qa)
-    paths.COOKIE.write_text("t=abc", encoding="utf-8")
-    _seed_knowledge(paths)
-    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
-    _dump_cands(
-        cand_path,
-        [
-            Candidate(
-                description="动量",
-                hypothesis="h",
-                expression="rank(close)",
-                dataset_ids=["pv1"],
-            ),
-            Candidate(
-                description="量能",
-                hypothesis="h",
-                expression="rank(volume)",
-                dataset_ids=["pv1"],
-            ),
-        ],
-    )
-    monkeypatch.setattr(
-        run_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
-    )
-    simulated: list[str] = []
-
-    def fake_simulate(self, code, settings):
-        simulated.append(code)
-        return f"sim_{len(simulated)}"
-
-    def fake_poll(self, sim_id, max_wait=600.0):
-        return run_mod.SimulationResult(
-            sim_id=sim_id,
-            status="COMPLETED",
-            alpha_id="a1",
-            checks=[],
-            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
-        )
-
-    monkeypatch.setattr(run_mod.BrainClient, "simulate", fake_simulate)
-    monkeypatch.setattr(run_mod.BrainClient, "poll_simulation", fake_poll)
-    monkeypatch.setattr(
-        run_mod.BrainClient,
-        "rate_limits",
-        lambda self: RateLimits(
-            remaining_minute=30, limit_minute=30, daily_remaining=1, daily_limit=2000
-        ),
-    )
-
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
-    out = capsys.readouterr().out
-    assert rc == 0
-    assert len(simulated) == 1  # 平台只剩 1 次
-    assert "平台每日" in out
+# ---- 阶段 4 模拟环节：--concurrency / 中断恢复 / 无配额检查 ----
 
 
-def test_run_stops_when_platform_daily_exhausted(tmp_qa, monkeypatch, capsys):
-    """主线程 rate_limits 读到的平台每日配额耗尽时，run 提前停止不再开新批。"""
-    from qa.candidates import Candidate
-    from qa.paths import QaPaths
-    from qa.stage import StageInfo
-    from qa.brain_client import RateLimits
-    from qa.commands import run as run_mod
-
-    paths = QaPaths(tmp_qa)
-    paths.COOKIE.write_text("t=abc", encoding="utf-8")
-    _seed_knowledge(paths)
-    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
-    _dump_cands(
-        cand_path,
-        [
-            Candidate(
-                description="a",
-                hypothesis="h",
-                expression="rank(close)",
-                dataset_ids=["pv1"],
-            ),
-            Candidate(
-                description="b",
-                hypothesis="h",
-                expression="rank(volume)",
-                dataset_ids=["pv1"],
-            ),
-            Candidate(
-                description="c",
-                hypothesis="h",
-                expression="group_rank(rank(close), subindustry)",
-                dataset_ids=["pv1"],
-            ),
-            Candidate(
-                description="d",
-                hypothesis="h",
-                expression="vec_avg(nws_x)",
-                dataset_ids=["pv1"],
-            ),
-        ],
-    )
-    monkeypatch.setattr(
-        run_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
-    )
-    # 入口首查正常；批间截断统一主线程读 rate_limits（v1.6 修并发竞态）——
-    # 第二批前平台每日配额已耗尽（daily_remaining=0）
-    rl_calls = {"n": 0}
-
-    def fake_rate_limits(self):
-        rl_calls["n"] += 1
-        if rl_calls["n"] == 1:
-            return RateLimits(remaining_minute=30, limit_minute=30)
-        return RateLimits(remaining_minute=30, limit_minute=30, daily_remaining=0)
-
-    monkeypatch.setattr(run_mod.BrainClient, "rate_limits", fake_rate_limits)
-    simulated: list[str] = []
-
-    def fake_simulate(self, code, settings):
-        simulated.append(code)
-        return f"sim_{len(simulated)}"
-
-    def fake_poll(self, sim_id, max_wait=600.0):
-        return run_mod.SimulationResult(
-            sim_id=sim_id,
-            status="COMPLETED",
-            alpha_id="a1",
-            checks=[],
-            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
-        )
-
-    monkeypatch.setattr(run_mod.BrainClient, "simulate", fake_simulate)
-    monkeypatch.setattr(run_mod.BrainClient, "poll_simulation", fake_poll)
-    monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
-
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
-    out = capsys.readouterr().out
-    assert rc == 0
-    assert len(simulated) == 3  # 第一批 3 个跑完，第二批被每日配额截断
-    assert "每日模拟配额" in out
-
-
-# ---- 阶段 4 模拟环节：纯平台头配额 / --concurrency / 中断恢复 ----
-
-
-def test_run_platform_daily_missing_not_blocked(
-    tmp_qa, monkeypatch, capsys, mock_brain
-):
-    """平台每日配额头缺失（None）时不拦截：照跑全部候选，靠平台错误码兜底。"""
+def test_run_no_quota_prompt(tmp_qa, monkeypatch, capsys, mock_brain):
+    """run 不做主动配额检查：照跑全部候选，无配额提示（靠平台 429/THROTTLED 兜底）。"""
     from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.stage import StageInfo
@@ -490,7 +339,7 @@ def test_run_platform_daily_missing_not_blocked(
     rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
     assert rc == 0
-    assert len(mock_brain.simulated) == 2  # 无平台头照跑全部，不误拦截
+    assert len(mock_brain.simulated) == 2  # 无配额检查照跑全部，不误拦截
     assert "配额" not in out  # 不出现截断/耗尽提示
 
 

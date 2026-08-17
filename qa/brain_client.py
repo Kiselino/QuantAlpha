@@ -19,17 +19,11 @@ class RateLimits:
     """限流状态（来自响应头）。
 
     minute：分钟级（实测 30 请求/分钟，x-ratelimit-*-minute）。
-    daily：每日模拟配额（x-ratelimit-limit/-remaining/-reset，无 -minute 后缀；
-    社区工具实测存在，数值随账户阶段变化；缺失时 None，不拦截——靠平台
-    错误码/429 兜底，v1.6 起无本地预算）。
     """
 
     remaining_minute: int = 30
     limit_minute: int = 30
     reset_seconds: int = 0
-    daily_limit: int | None = None
-    daily_remaining: int | None = None
-    daily_reset: int | None = None
 
 
 @dataclass
@@ -140,8 +134,6 @@ class BrainClient:
         """POST /simulations → 返回 sim_id（来自 Location 头）。
 
         平台实测要求：regular 为字符串；settings 必含 unitHandling/visualization。
-        每日配额头由调用方统一通过 rate_limits() 读取（v1.6：不在此写共享状态，
-        避免并发写竞态）。
         """
         resp = self._post_with_retry(
             "/simulations", {"type": "REGULAR", "settings": settings, "regular": code}
@@ -196,15 +188,12 @@ class BrainClient:
 
     # ---- 限流 ----
     def rate_limits(self) -> RateLimits:
-        """读取限流头（分钟级实测：x-ratelimit-*-minute 30/分；每日配额无后缀头）。"""
+        """读取分钟级限流头（x-ratelimit-*-minute 30/分；ratelimit-reset）。"""
         _, _, headers = self._retry_get("/users/self")
         return RateLimits(
             remaining_minute=_int_or(headers.get("x-ratelimit-remaining-minute"), 30),
             limit_minute=_int_or(headers.get("x-ratelimit-limit-minute"), 30),
             reset_seconds=_int_or(headers.get("ratelimit-reset"), 0),
-            daily_limit=_int_or_none(headers.get("x-ratelimit-limit")),
-            daily_remaining=_int_or_none(headers.get("x-ratelimit-remaining")),
-            daily_reset=_int_or_none(headers.get("x-ratelimit-reset")),
         )
 
     # ---- 相关性（提交前免费门）----
@@ -287,10 +276,3 @@ def _int_or(value, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
-
-
-def _int_or_none(value) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None

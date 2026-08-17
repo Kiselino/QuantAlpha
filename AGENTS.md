@@ -15,8 +15,8 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 ```
 1. 运行 `qa status`（或读取 secrets/worldquant_cookies.txt 调 API）
-   → 账号阶段检测（level/geniusLevel/consultant）+ cookie 有效性 + 配额/限流状态
-   → **v1.6：status 输出六项检查——新用户判定/知识库就绪/cookie 有效/账号阶段/配额/待提交暂存**
+   → 账号阶段检测（level/geniusLevel/consultant）+ cookie 有效性
+   → **status 输出五项检查——新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存**
    → 动态配置：并发数、可用区域、字段范围、表达式语言
    → 同时检查本地知识库 `experience/fields/`（v1.4 起字段数据本地化）：
      缺失 → 主动提示用户"首次运行需先 `qa update-knowledge` 生成账户专属字段知识库"
@@ -44,11 +44,11 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 | 步骤 | 动作 | 自动/人工 |
 |---|---|---|
-| 0 | 启动：阶段检测 + cookie 验证 + 配额状态 + 本地知识库检查 | 自动 |
+| 0 | 启动：阶段检测 + cookie 验证 + 本地知识库检查 | 自动 |
 | 1 | **生成前询问主题来源三选一**：① `qa suggest`/agent 随机抽取 ② agent 网络调研热门主题 ③ 用户指定方向 | 人工 |
 | 2 | **agent（你）读 `knowledge/generation-guide.md`（生成指南）→ 按指南六环节执行（固化输入 → 加载知识 → 字段/表达式 → 设置三层决策 → 输出候选 → 质量自检）→ 生成 10-20 个候选 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM，生成是你的事）。**候选格式：`[{description, hypothesis, expression, dataset_ids, settings?, language?}]`——settings 可选（v1.5）：decay/neutralization/truncation 按数据集类型给经验值（基本面 decay 0 / 分析师 0-4 / 技术 10-30）；language 默认 FASTEXPR（v1.6）；设计逻辑三件套写进 hypothesis；完整流程见 generation-guide.md** | 自动 |
 | 3 | validate 预检：语法 lint + 字段白名单（**读本地 experience/fields/**）+ 字段类型 + **settings 值域 + language** + 去重 + 复杂度 + **同字段集簇去重（v1.5：同信号簇只模拟最简者）** | 自动 |
-| 4 | 批量云端模拟（默认 3 并发 / `--concurrency` 可调 / 分钟限流管理 / 平台每日头动态截断（本地预算 v1.6 已删）/ **中断恢复续查（v1.6）**） | 自动 |
+| 4 | 批量云端模拟（默认 3 并发 / `--concurrency` 可调 / 分钟限流管理 / 429/THROTTLED 提示时暂停并提示（无本地预算、无主动配额检查）/ **中断恢复续查（v1.6）**） | 自动 |
 | 5 | 门槛过滤 + **PASS 免费相关门排序（v1.5：corr 低者优先）+ PASS 自动暂存待提交（v1.5）** | 自动 |
 | 6 | 候选清单报告（指标/解释/提交建议） | 自动 |
 | 7 | **用户逐条确认** → agent 代提交 → 回查 ACTIVE | **人工确认** |
@@ -59,7 +59,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 | 命令 | 功能 | 状态 |
 |---|---|---|
 | `qa login [--username ...] [--password ...]` | 账号密码登录 → 写 cookie（凭据不落盘；Persona 人机验证会提示） | ✅ 已实现 |
-| `qa status` | 阶段检测 + cookie 验证 + 配额 + 本地知识库状态（启动首查；**v1.6 输出六项检查：新用户判定/知识库就绪/cookie 有效/账号阶段/配额/待提交暂存**） | ✅ 已实现（第一批） |
+| `qa status` | 阶段检测 + cookie 验证 + 本地知识库状态（启动首查；**输出五项检查：新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存**） | ✅ 已实现（第一批） |
 | `qa run [--candidates-file ...] [--concurrency N]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。**候选文件由你（agent）先写入 `data/candidates/`**；PASS 候选自动暂存待提交（v1.5）；**`--concurrency` 并发数可调（默认 3，v1.6）；中断恢复续查（v1.6）** | ✅ 已实现（第一批） |
 | `qa report [--daily] [--pending]` | 当日候选清单 / 每日累计汇总；**`--pending` 批量预览待提交清单（含指标，提交仍逐个人工确认，v1.6）** | ✅ 已实现（第一批） |
 | `qa submit <alpha_id> [--yes]` | 人工确认后提交（提交前展示全部检查 + 免费相关门，提交后回查 ACTIVE） | ✅ 已实现 |

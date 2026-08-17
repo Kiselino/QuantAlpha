@@ -5,7 +5,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
 > 当前状态：v1.6 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
-> v1.6 要点：`qa run --concurrency` 可调并发 / `qa report --pending` 待提交预览 / 中断恢复续查 / 候选 `language` 字段 / PASS 自动暂存待提交 / `qa status` 六项环境检查。
+> v1.6 要点：`qa run --concurrency` 可调并发 / `qa report --pending` 待提交预览 / 中断恢复续查 / 候选 `language` 字段 / PASS 自动暂存待提交 / `qa status` 五项环境检查。
 > 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---
@@ -96,7 +96,7 @@ qa update-knowledge      # 按账户阶段抓取字段元数据 → 写入 exper
 
 ```bash
 qa login                                              # 账号密码登录（写入会话 cookie；也可 --username/--password）
-qa status                                             # 启动首查：阶段检测 + 六项环境检查 + 配额 + 本地知识库状态
+qa status                                             # 启动首查：阶段检测 + 五项环境检查 + 本地知识库状态
 qa update-knowledge [--regions USA,KOR] [--force]     # 首次运行必做：按账户生成本地字段知识库（24h 内已生成默认跳过，--force 强制刷新）
 # agent 读 knowledge/（公开）+ experience/（本地字段/playbook/failures）→ 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
 qa run [--concurrency N]                              # 读入候选 → 预检 → 模拟 → 筛选 → 报告（默认 3 并发可调；中断后重跑同一候选文件自动续查未完成的模拟；PASS 候选自动暂存待提交）

@@ -304,11 +304,6 @@ def _session_lost_prompt(ctx: _RunContext) -> bool:
     return True
 
 
-def _quota_exhausted_prompt() -> None:
-    """平台每日模拟配额耗尽提示（入口首查与批间截断共用文案）。"""
-    print("[run] 平台每日模拟配额已耗尽（EST 日界重置），明天再试。")
-
-
 def _finalize(
     ctx: _RunContext, cand: Candidate, vr: ValidationResult, sim: SimulationResult
 ) -> None:
@@ -466,18 +461,16 @@ def _retry_phase(
     _poll_phase(ctx, pool, [(c, v, s, False) for c, v, s in retry_started])
 
 
-def _quota_check(ctx: _RunContext) -> bool:
-    """批间限流检查（主线程统一读 rate_limits，v1.6 修并发竞态）。
+def _minute_limit_check(ctx: _RunContext) -> None:
+    """批间分钟限流检查（主线程统一读 rate_limits，v1.6 修并发竞态）。
 
-    每日配额耗尽返回 False（提前停止后续批次）；分钟剩余不足则等待后继续。
+    每日配额不主动查询（status/run 均不查）——模拟时靠平台
+    429/THROTTLED 提示后处理。分钟剩余不足则等待后继续。
     """
     try:
         rl = ctx.client.rate_limits()
     except Exception:
-        return True  # 限流头不可用时继续，靠平台错误码/429 退避兜底
-    if rl.daily_remaining is not None and rl.daily_remaining <= 0:
-        _quota_exhausted_prompt()
-        return False
+        return  # 限流头不可用时继续，靠平台错误码/429 退避兜底
     if rl.remaining_minute <= ctx.cfg.min_remaining_minute:
         # 优先用平台 reset 头；缺失时按窗口消耗比例估算
         if rl.reset_seconds and rl.reset_seconds > 0:
@@ -487,7 +480,6 @@ def _quota_check(ctx: _RunContext) -> bool:
             wait = min(max(int(ratio * 60), 10), 60)
         print(f"[run] 分钟限流剩余 {rl.remaining_minute}，等待 {wait}s 后继续……")
         time.sleep(wait)
-    return True
 
 
 def cmd_run(
@@ -542,21 +534,6 @@ def cmd_run(
     store = Store(paths.DB)
     client = BrainClient(cookie)
 
-    # 每日模拟配额：纯平台配额头（x-ratelimit-remaining，无 -minute 后缀）
-    # v1.6 删本地预算（daily_sim_budget/daily_sim_count）——头缺失（None）时不拦截，
-    # 靠平台错误码/429 退避兜底；分钟限流层才是真正的防护层（保留不动）。
-    remaining = None
-    try:
-        rl = client.rate_limits()
-        remaining = rl.daily_remaining
-        if remaining is not None:
-            print(f"[run] 平台每日模拟剩余: {remaining}")
-    except Exception:
-        pass  # 平台配额头不可用时无预算拦截，靠平台错误码兜底
-    if remaining is not None and remaining <= 0:
-        _quota_exhausted_prompt()
-        return 1
-
     validated: list[tuple[Candidate, ValidationResult]] = []
     for cand in candidates:
         vr = validate_expression(
@@ -599,12 +576,8 @@ def cmd_run(
         cand, _ = validated[idx]
         print(f"  - {reason}: {cand.expression}")
 
-    if remaining is not None and len(todo) > remaining:
-        print(f"[run] 配额剩余 {remaining}，只模拟前 {remaining} 个候选。")
-        todo = todo[:remaining]
-
     if not todo:
-        print("[run] 没有需要模拟的候选（全部预检未过/去重/配额受限）。")
+        print("[run] 没有需要模拟的候选（全部预检未过/去重）。")
         write_daily_summary([], paths.REPORTS_DIR)
         return 0
 
@@ -648,8 +621,8 @@ def cmd_run(
 
             if _session_lost_prompt(ctx):
                 break
-            if start + max_workers < len(todo) and not _quota_check(ctx):
-                break
+            if start + max_workers < len(todo):
+                _minute_limit_check(ctx)
 
     # 组合视角（P3）：PASS 候选调免费相关门，按 max_corr 升序优先（低相关先提交）
     for r in ctx.results:

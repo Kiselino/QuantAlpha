@@ -1,11 +1,11 @@
 # QuantAlpha — 系统设计文档（项目职能说明书）
 
-**版本:** v1.6 · **日期:** 2026-08-16 · **状态:** v1.5 基础上叠加流程深化批次（登录/status 增强 + commands/ 子包 + 生成指南与学习机制 + 语言字段 + 配额以平台为准 + 中断恢复 + 失败优化闭环 + 外部经验通道）
+**版本:** v1.6 · **日期:** 2026-08-16 · **状态:** v1.5 基础上叠加流程深化批次（登录/status 增强 + commands/ 子包 + 生成指南与学习机制 + 语言字段 + 限流以平台提示为准（无主动配额检查） + 中断恢复 + 失败优化闭环 + 外部经验通道）
 
 > 本文档是 QuantAlpha 系统的唯一权威设计来源。实现、修改、扩展均以本文为准。
 > 本仓库公开分发：工具 + 公开知识库（平台文档）；私有数据（cookie、账号密码、本地字段知识、个人经验、个人成果）gitignore 隔离。
 >
-> **v1.6 更新（流程深化批次，决议来源 data/todo-design.md）：** ① **登录/status 增强**：`qa status` 升级为会话级环境检查（六项输出：新用户判定/知识库就绪/cookie 有效/账号阶段/配额/待提交暂存）；入口双轨检查（run/submit/update-knowledge 各验一次 + 批处理 401 中断，幂等重跑）② **结构拆分**：cli.py 瘦身为 argparse 分发，命令迁入 `qa/commands/` 子包（login/status/run/submit/reset/update_knowledge/suggest/report_cmd/_common）③ **生成环节**：新增 `knowledge/generation-guide.md` 生成指南（六环节）+ 学习机制（候选报告展示设计逻辑、submit 展示 hypothesis、今日学习要点、playbook 双读者化）④ **语言阶段感知**：候选 JSON 增加可选 `language` 字段（默认 FASTEXPR），validate 对非 FASTEXPR fail-closed 拒绝 ⑤ **删本地每日预算**：以平台每日配额头为准（`GET /users/self` 响应 `x-ratelimit-remaining` 动态截断），本地 2000 兜底删除 ⑥ **并发参数化**：固定 3 + `--concurrency` ⑦ **中断恢复**：simulations 表落库平台 sim_id，重跑有 sim_id 续查 / 404 回退重提 ⑧ **失败→优化**：优化并入下一个生成批次（agent 自主决策 + 止损报告），failures 按 failure_reason 归因统计（模拟/提交归因分离）⑨ **外部经验通道**：新增 `knowledge/community.md`，update-knowledge 时询问用户是否同步更新 ⑩ **提交边界**：相关门被拒即弃不重试、`qa report --pending` 批量预览、run 报告补 corr 展示。**每周复盘取消**（并入学习要点）。
+> **v1.6 更新（流程深化批次，决议来源 data/todo-design.md）：** ① **登录/status 增强**：`qa status` 升级为会话级环境检查（五项输出：新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存）；入口双轨检查（run/submit/update-knowledge 各验一次 + 批处理 401 中断，幂等重跑）② **结构拆分**：cli.py 瘦身为 argparse 分发，命令迁入 `qa/commands/` 子包（login/status/run/submit/reset/update_knowledge/suggest/report_cmd/_common）③ **生成环节**：新增 `knowledge/generation-guide.md` 生成指南（六环节）+ 学习机制（候选报告展示设计逻辑、submit 展示 hypothesis、今日学习要点、playbook 双读者化）④ **语言阶段感知**：候选 JSON 增加可选 `language` 字段（默认 FASTEXPR），validate 对非 FASTEXPR fail-closed 拒绝 ⑤ **删本地每日预算与每日配额检查**：status 不展示配额、run 不做每日截断——模拟时平台 429/THROTTLED 提示后处理（429 退避、THROTTLED 暂停），分钟限流批间等待保留，本地 2000 兜底删除 ⑥ **并发参数化**：固定 3 + `--concurrency` ⑦ **中断恢复**：simulations 表落库平台 sim_id，重跑有 sim_id 续查 / 404 回退重提 ⑧ **失败→优化**：优化并入下一个生成批次（agent 自主决策 + 止损报告），failures 按 failure_reason 归因统计（模拟/提交归因分离）⑨ **外部经验通道**：新增 `knowledge/community.md`，update-knowledge 时询问用户是否同步更新 ⑩ **提交边界**：相关门被拒即弃不重试、`qa report --pending` 批量预览、run 报告补 corr 展示。**每周复盘取消**（并入学习要点）。
 >
 > **v1.5 更新（设计审查 + 实测优化，省配额/提质量）：** ① **候选级模拟参数**：`candidates.json` 每条候选支持可选 `settings`（decay/neutralization/truncation，`validate_settings` 值域校验）——playbook 的 decay 经验值（基本面 0/分析师 0-4/技术 10-30）直接落地 ② **同字段集簇去重**：批次内同字段集候选只模拟最简者（`screener.dedupe_by_fields`，防同主题变体白耗配额）③ **组合视角落地（P3）**：PASS 候选调免费相关门 `/correlations/self` 参与提交排序（corr 低者优先），替代原单指标 score 排序 ④ **待提交自动暂存**：run 的 PASS 候选自动写入 `secrets/pending_submits.json`（幂等），补上跨会话接力缺口 ⑤ **每日模拟配额预算**：本地兜底 2000/天（社区实测 ~800/晚、上界 ~5000）+ **平台每日配额头动态截断**（`GET /users/self` 响应 `x-ratelimit-remaining`，耗尽即停不硬撞 429）⑥ **fail-closed 修复**：`correlations_self` 异常不再返回 0.0 放行提交 ⑦ `qa update-knowledge --force`：24h 内已生成默认跳过（顾问 12 区域重抓很贵）⑧ **死代码清理**：删除 `write_candidates`/`load_field_ids`/`list_failures`/`compute_correlation`/`rank_candidates`/`daily_returns` 表/`ACCOUNT_INFO`/`sub_universe_factor` ⑨ **重复抽取**：cli 经验沉淀 6 处 → `_sediment_lesson/_sediment_failure`；brain_client 429 退避 → `_sleep_on_429`；store JSON 解析 → `_jload` ⑩ 全量测试 85 → 106。**明确未实现（后续批次）：** `optimizer.py`、`--smoke`/`--batch` 参数、RAG 向量检索。
 >
@@ -84,8 +84,8 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。用户通过对话�
 ### 3.0 启动流程（agent 每次会话的第一步）
 
 ```
-agent 启动 → `qa status`（会话级环境检查，v1.6 六项输出：
-  新用户判定 / 知识库就绪 / cookie 有效 / 账号阶段 / 配额 / 待提交暂存，
+agent 启动 → `qa status`（会话级环境检查，五项输出：
+  新用户判定 / 知识库就绪 / cookie 有效 / 账号阶段 / 待提交暂存，
   每项给引导动作；只提示不代做登录——输出"请运行 qa login 或提供 Copy as cURL"）
   ├─ 读 cookie（secrets/worldquant_cookies.txt）
   ├─ cookie 缺失/过期 → 认证双选：
@@ -114,11 +114,11 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 
 | 步骤 | 动作 | 组件 | 自动化 |
 |---|---|---|---|
-| 0 | **启动：阶段检测 + cookie 验证 + 配额状态 + 本地知识库检查** | stage / brain_client / knowledge | 自动 |
+| 0 | **启动：阶段检测 + cookie 验证 + 本地知识库检查** | stage / brain_client / knowledge | 自动 |
 | 1 | **生成前询问主题来源三选一**：① `qa suggest`/agent 随机抽取 ② agent 网络调研热门主题 ③ 用户指定方向 | 对话 | 人工 |
 | 2 | **agent（对话层自身）读 `knowledge/generation-guide.md`（生成指南 v1.6）→ 按六环节执行（固化输入 → 加载知识 → 字段/表达式 → 设置三层决策 → 输出候选 → 质量自检）→ 生成 10-20 个候选 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM；候选格式含可选 `language`，设计逻辑三件套写进 hypothesis，见指南） | 对话层 + candidates | 自动 |
 | 3 | **validate 前置预检**（AST 语法 lint + 字段白名单（读本地 experience/fields/）+ 哈希去重 + 复杂度控制 + settings/language 校验） | validate | 自动 |
-| 4 | 批量云端模拟（默认 3 并发 / `--concurrency` 可调 / 分钟限流管理 / 429 区分处理 / JSONL 审计 / 平台每日配额头动态截断（本地预算 v1.6 已删）/ 中断恢复续查） | brain_client | 自动 |
+| 4 | 批量云端模拟（默认 3 并发 / `--concurrency` 可调 / 分钟限流管理 / 429 区分处理 / JSONL 审计 / 中断恢复续查） | brain_client | 自动 |
 | 5 | 门槛过滤（用平台 `is.checks` 结果）+ PASS 免费相关门排序（corr 低者优先）+ PASS 自动暂存待提交 + run 报告补 corr 排序值展示 | screener | 自动 |
 | 6 | 生成候选清单报告（指标/通过项/逻辑解释/提交建议） | report | 自动 |
 | 7 | **用户逐条确认** → agent 调提交 API → **回查 `status==ACTIVE`** | brain_client | **人工确认** |
@@ -141,9 +141,9 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 
 | 文件 | 职责 | 关键实现 |
 |---|---|---|
-| `config.py` | 配置 | 阈值（Sharpe/TO/自相关）、region/universe/delay 默认值；**阶段相关变量**（并发/区域/字段/语言由 stage.py 动态注入）。**无 LLM 配置——项目不调用 LLM**。v1.6：本地每日预算 `daily_sim_budget` 已删（配额以平台头为准） |
+| `config.py` | 配置 | 阈值（Sharpe/TO/自相关）、region/universe/delay 默认值；**阶段相关变量**（并发/区域/字段/语言由 stage.py 动态注入）。**无 LLM 配置——项目不调用 LLM**。v1.6：本地每日预算 `daily_sim_budget` 已删；配额不主动查询（平台 429/THROTTLED 提示后处理） |
 | `paths.py` | 路径单点定义 | 仓库内私有文件路径集中管理（COOKIE/ACCOUNT_INFO/DB/AUDIT_DIR/REPORTS_DIR/CANDIDATES_DIR + experience/ 本地知识库路径：KNOWLEDGE_FIELDS_DIR/PLAYBOOK/FAILURES 等）；根目录可注入（测试用 tmp 仓库根） |
-| `stage.py` | **账号阶段检测** | 读 cookie → `GET /users/self` → 解析 level/geniusLevel/consultant → 输出阶段配置（并发/区域/字段/语言/配额）。**v1.6：`fetch_self` 401/403 → PermissionError 转换（与 brain_client 约定统一）；status 环境检查 `_env_checks`/`_env_verdict`（返回 new_user/partial/reset/ready）；`StageInfo` 注释 level（分数段位）与 is_consultant（资格）正交** |
+| `stage.py` | **账号阶段检测** | 读 cookie → `GET /users/self` → 解析 level/geniusLevel/consultant → 输出阶段配置（并发/区域/字段/语言）。**v1.6：`fetch_self` 401/403 → PermissionError 转换（与 brain_client 约定统一）；status 环境检查 `_env_checks`/`_env_verdict`（返回 new_user/partial/reset/ready）；`StageInfo` 注释 level（分数段位）与 is_consultant（资格）正交** |
 | `auth.py` | **账号密码登录** ✅ v1.2 | `POST /authentication`（HTTP Basic Auth）→ 提取 Set-Cookie 的 `t=` JWT 写入 cookie 文件；凭据不落盘、不进审计；401 凭据错误/Persona 人机验证（`WWW-Authenticate: persona`）分别抛异常提示；替代/补充浏览器复制 cURL 方式。v1.6：登录成功写阶段摘要（level/资格/区域/时间，不含密码与分数明细）到 `secrets/account_info.json` |
 | `brain_client.py` | BRAIN API 封装 | 认证（读 `secrets/worldquant_cookies.txt`）；模拟 POST+轮询+结果（含 is.checks，实测状态值 `COMPLETE`）；`/correlations/self` 相关门；提交 `submit()` + 回查 `get_alpha()`；**429 区分处理（常规 Retry-After 退避 vs THROTTLED 抛错）**；**空响应/非 JSON body 重试防御**（实测偶发）；分钟限流头读取；`get_json()` 批量读端点（知识库抓取用）；401/403 抛 PermissionError 提示重登 |
 | `validate.py` | **本地预检层（省配额核心）** | 语法 lint（括号配对/未知算子）+ **字段白名单校验（读本地 `experience/fields/fields.json`，v1.4；缺失抛 KnowledgeMissingError 引导 `qa update-knowledge`）+ 字段类型检查（v1.4.1：VECTOR 需 vec_* 算子包裹、GROUP 仅限 group_* 的 group_by、UNIVERSE/SYMBOL 禁用）** + **候选级 settings 值域校验（v1.5：decay 0-63/neutralization 枚举/truncation 0-1/未知键拦截）** + **language 校验（v1.6：非 FASTEXPR 直接拒绝并提示"PYTHON 暂不支持本地预检"）** + `expression_fields` 字段提取（v1.5，供簇去重）+ 表达式 SHA-256 哈希去重 + 复杂度控制（算子 ≤30、嵌套 ≤8） |
@@ -154,7 +154,7 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 | `commands/`（v1.6 新增子包） | **命令实现拆分** | cli.py 仅保留 argparse 分发（~80 行）与 `qa.cli:main` 入口；命令迁入子包，统一签名 `main(paths, cfg, args) -> int`；pyproject 零改动（`include=["qa*"]` 通配覆盖） |
 | `commands/_common.py` | run/submit 共用工具 | `_sediment_lesson` / `_sediment_failure` / `_append_pending` / `_remove_pending` |
 | `commands/login.py` | 登录命令 | `_cmd_login`（账号密码 → cookie + 阶段摘要写入 account_info.json） |
-| `commands/status.py` | 状态命令 | `cmd_status` 增强版（六项环境检查输出，每项带引导动作） |
+| `commands/status.py` | 状态命令 | `cmd_status` 增强版（五项环境检查输出，每项带引导动作） |
 | `commands/run.py` | 闭环命令 | `cmd_run` + `_simulate`/`_settings`/`_score`/`_load_operators`/`_load_fields`；`--concurrency` 参数化、批处理 401 中断、中断恢复续查 |
 | `commands/submit.py` | 提交命令 | `_cmd_submit` + `_wait_for_active`；展示 hypothesis（知情确认）；相关门被拒即弃不重试 |
 | `commands/reset.py` | 重置命令 | `_cmd_reset` |
@@ -170,7 +170,7 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 | 命令 | 功能 | 说明 |
 |---|---|---|
 | `qa login [--username ...] [--password ...]` | **账号密码登录** ✅ | `POST /authentication`（Basic Auth）→ 写 `secrets/worldquant_cookies.txt` 并验证会话；凭据不落盘/不进审计；无参数时交互输入（getpass 不回显）；Persona 验证提示人工处理。v1.6：成功写入阶段摘要到 `secrets/account_info.json` |
-| `qa status` | **会话级环境检查** ✅ v1.6 增强 | **六项输出（v1.6）：新用户判定 / 知识库就绪 / cookie 有效 / 账号阶段 / 配额 / 待提交暂存**，每项给引导动作；只提示不代做登录；阶段检测 + 配额/限流状态 |
+| `qa status` | **会话级环境检查** ✅ v1.6 增强 | **五项输出：新用户判定 / 知识库就绪 / cookie 有效 / 账号阶段 / 待提交暂存**，每项给引导动作；只提示不代做登录；阶段检测（配额不展示——模拟时平台 429/THROTTLED 提示后处理） |
 | `qa run [--candidates-file ...] [--concurrency N]` | 完整闭环：读入候选→预检→模拟→筛选→报告 ✅ | **候选由 agent 写入 `data/candidates/` 后项目读入**（默认读当日文件）；字段白名单读本地知识库（缺失报错引导首跑）；并发模拟（默认 3，v1.6 `--concurrency` 可调）；结果落库（save_alpha + save_simulation + 审计）；经验自动沉淀；入口快验 + 批处理 401 中断 + 中断恢复续查（v1.6） |
 | `qa report [--daily] [--pending]` | 查看报告 ✅ | 当日候选清单 / 每日累计汇总；**v1.6 `--pending` 批量展示待提交暂存清单（含指标 + 相关门排序，提交仍逐个人工确认）**；候选清单含设计逻辑 hypothesis 与 corr 排序值展示 |
 | `qa submit <alpha_id> [--yes]` | 人工确认后提交 ✅ | 展示全部检查 + **hypothesis（v1.6 知情确认）** + 免费相关门 → 交互确认（或 --yes agent 代提交）→ `POST /alphas/{id}/submit` → **轮询回查 ACTIVE**（平台状态更新有延迟）；**相关门被拒即弃不重试（v1.6）**；写 submissions 表 + 审计；相关门饱和/失败/ACTIVE 沉淀经验 |
@@ -269,7 +269,7 @@ QuantAlpha/
 | **429 常规限流** | GET/POST 均按 `Retry-After`（float，clamp [1s,120s]）退避重试 3 次；仍失败抛 TimeoutError 中止该候选 |
 | **429 + `THROTTLED`**（平台相关性子系统卡死） | 非普通限流 → 提示"平台故障，稍后重试"，暂停批处理 |
 | **分钟限流（实测 30 req/min）** | `rate_limits()` 读取 `x-ratelimit-remaining-minute`；**批处理主动限速已接入（v1.4.1：run 批间剩余 ≤3 时等待窗口重置；v1.5：无 reset 头时按窗口消耗比例估算等待；update-knowledge 固定节流 ~2s/请求）** |
-| **每日模拟配额** | **v1.6 以平台为准**：平台每日配额头（`GET /users/self` 响应 `x-ratelimit-remaining`）动态截断，耗尽即停止后续批次；本地预算（2000）已删——平台保护链完整（限流头 → `DAILY_SIMULATION_LIMIT_EXCEEDED` → 429 退避 → THROTTLED 暂停），`remaining=None` 时不拦截靠平台错误码兜底 |
+| **每日模拟配额** | **不主动查询**：status 不展示、run 不做每日截断；模拟时平台 `DAILY_SIMULATION_LIMIT_EXCEEDED` 错误码 / 429 退避 / THROTTLED 暂停兜底（本地预算与每日截断均已删） |
 | LLM API 失败/限流 | 重试 2 次 → 跳过该候选，不阻塞整批 |
 | 模拟结果异常（NaN/空） | 标记 FAIL_INFRA，不计入失败统计 |
 | **模拟超时/poll 失败** | 保留原 `Location` 续查，**不盲目重提**（防重复消费配额） |

@@ -26,7 +26,7 @@ def mock_brain(monkeypatch):
 
     默认 simulate 记录 code 并返回 sim_{n}；poll 返回 COMPLETED 固定指标
     （sharpe=1.5/fitness=1.1/turnover=0.2，本地门槛 PASS）；rate_limits 返回
-    30/30（每日配额头缺失，不拦截）；correlations_self 返回 0.1。
+    30/30（分钟头，每日配额不查询）；correlations_self 返回 0.1。
     测试可按需覆写 mock.rate_limit / mock.metrics / mock.corr 等字段。
     """
     from qa.brain_client import RateLimits, SimulationResult

@@ -7,10 +7,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from qa import knowledge
-from qa.brain_client import BrainClient
 from qa.config import AppConfig
 from qa.paths import QaPaths
-from qa.stage import StageInfo, get_stage, read_cookie
+from qa.stage import StageInfo, get_stage
 
 
 def _env_checks(paths: QaPaths) -> dict[str, bool]:
@@ -141,19 +140,6 @@ def cmd_status(paths: QaPaths) -> int:
     print(f"  表达式语言: {', '.join(stage.expression_languages)}")
     print(f"  并发上限: {stage.max_concurrency}")
     print(f"  D0 可用: {'是' if stage.d0_available else '否'}")
-
-    # 配额状态（六项检查之一）：网络异常时静默跳过该行，不改变 status 返回码
-    try:
-        rl = BrainClient(read_cookie(paths.COOKIE)).rate_limits()
-    except Exception:
-        pass
-    else:
-        daily = (
-            f"每日剩余 {rl.daily_remaining}"
-            if rl.daily_remaining is not None
-            else "每日配额头缺失"
-        )
-        print(f"  配额: 分钟剩余 {rl.remaining_minute}/{rl.limit_minute}，{daily}")
 
     # 知识库一致性：fields meta 的资格快照 vs 当前资格，不符提示刷新。
     # 只比 is_consultant（决定字段/区域可用性的维度）——用户阶段内 BRONZE/SILVER/GOLD

@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="qa", description="QuantAlpha CLI")
     sub = parser.add_subparsers(dest="command")
 
-    p_status = sub.add_parser("status", help="启动首查（阶段检测/配额）")
+    p_status = sub.add_parser("status", help="启动首查（阶段检测）")
     p_status.set_defaults(func=lambda a: status.main(paths, cfg, a))
 
     p_login = sub.add_parser(

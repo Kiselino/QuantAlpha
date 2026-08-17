@@ -54,44 +54,6 @@ def test_rate_limits_parse(monkeypatch):
     assert rl.remaining_minute == 29
 
 
-def test_rate_limits_parse_daily_headers(monkeypatch):
-    """每日模拟配额头（x-ratelimit-limit/-remaining/-reset，无 -minute 后缀）。"""
-    client = BrainClient("t=abc")
-    resp_headers = {
-        "x-ratelimit-limit-minute": "30",
-        "x-ratelimit-remaining-minute": "27",
-        "x-ratelimit-limit": "5000",
-        "x-ratelimit-remaining": "4321",
-        "x-ratelimit-reset": "12345",
-    }
-
-    def fake_get(path, headers=None, timeout=None, params=None):
-        return _fake_response(200, {}, resp_headers)
-
-    monkeypatch.setattr(client.session, "get", fake_get)
-    rl = client.rate_limits()
-    assert rl.daily_limit == 5000
-    assert rl.daily_remaining == 4321
-    assert rl.daily_reset == 12345
-
-
-def test_rate_limits_daily_headers_missing_defaults(monkeypatch):
-    """每日配额头缺失时返回 None（不猜测，不拦截——靠平台错误码兜底）。"""
-    client = BrainClient("t=abc")
-    resp_headers = {
-        "x-ratelimit-limit-minute": "30",
-        "x-ratelimit-remaining-minute": "27",
-    }
-
-    def fake_get(path, headers=None, timeout=None, params=None):
-        return _fake_response(200, {}, resp_headers)
-
-    monkeypatch.setattr(client.session, "get", fake_get)
-    rl = client.rate_limits()
-    assert rl.daily_limit is None
-    assert rl.daily_remaining is None
-
-
 def test_retry_get_retries_empty_body(monkeypatch):
     """空 body（平台瞬时异常）时重试而非抛 JSONDecodeError（实测偶发）。"""
     client = BrainClient("t=abc")

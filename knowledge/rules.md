@@ -1,6 +1,6 @@
 # 平台规则速查（BRAIN）
 
-> 供 agent 生成候选与筛选时参考。权威来源：设计文档 §2 + 官方文档/论坛调研。
+> 供 agent 生成候选与筛选时参考。权威来源：以 quantalpha-design.md 为准 + 官方文档/论坛调研。
 
 ## 提交门槛（硬性）
 
@@ -12,6 +12,8 @@
 | 自相关 | <0.7（Sharpe≥1.375 可豁免） |
 | 子宇宙 | `subuniverse_sharpe ≥ 0.75·√(sub/alpha)·alpha_sharpe` |
 | 单股权重 | <30%（目标 ≤10%） |
+
+> 数值以 quantalpha-design.md 提交门槛章节为准（本表为速查）。
 
 **Fitness 公式（官方）：** `Fitness = Sharpe · √(|Returns| / max(Turnover, 0.125))`——高 Return、高 Sharpe、低 TO（<40% 更佳）三管齐下。
 

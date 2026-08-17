@@ -130,11 +130,7 @@ class BrainClient:
                 _sleep_on_429(resp)
                 continue
             if resp.status_code in (401, 403):
-                if (
-                    rejection_ok
-                    and resp.status_code == 403
-                    and '"is"' in resp.text[:2048]
-                ):
+                if rejection_ok and resp.status_code == 403 and _has_is_checks(resp):
                     return resp
                 raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
             return resp
@@ -250,6 +246,20 @@ class BrainClient:
         """GET /alphas/{id} → alpha 详情（提交后回查 status 是否 ACTIVE）。"""
         _, data, _ = self._retry_get(f"/alphas/{alpha_id}")
         return data if isinstance(data, dict) else {}
+
+
+def _has_is_checks(resp: requests.Response) -> bool:
+    """提交拒绝载荷判定：403 + JSON body 含 is.checks 键。
+
+    比嗅探 '"is"' 子串稳定：必须能解析出 is.checks 结构才判为
+    SubmissionRejected（否则按会话过期处理），避免误判误报。
+    """
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    checks = (body.get("is") or {}) if isinstance(body, dict) else None
+    return isinstance(checks, dict) and "checks" in checks
 
 
 def _sleep_on_429(resp: requests.Response) -> None:

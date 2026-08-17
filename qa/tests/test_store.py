@@ -31,6 +31,20 @@ def test_alpha_hash_exists(tmp_qa):
     assert s.alpha_hash_exists("nope") is False
 
 
+def test_sim_failure_exists(tmp_qa):
+    """防重：simulations 表已有 ERROR/FAILED 终态 → 不重复模拟；PENDING 仍可续查。"""
+    s = Store(QaPaths(tmp_qa).DB)
+    assert s.sim_failure_exists("h1") is False
+    s.save_simulation({"id": "sim123", "alpha_id": "h1", "status": "PENDING"})
+    assert s.sim_failure_exists("h1") is False  # PENDING 是续查对象，不防重
+    s.save_simulation({"id": "sim123", "alpha_id": "h1", "status": "ERROR"})
+    assert s.sim_failure_exists("h1") is True
+    s.save_simulation({"id": "sim124", "alpha_id": "h2", "status": "FAILED"})
+    assert s.sim_failure_exists("h2") is True
+    s.save_simulation({"id": "sim125", "alpha_id": "h3", "status": "COMPLETE"})
+    assert s.sim_failure_exists("h3") is False  # 终态成功由 alphas 表防重
+
+
 def test_save_simulation(tmp_qa):
     s = Store(QaPaths(tmp_qa).DB)
     s.save_simulation({"id": "s1", "alpha_id": "a1", "status": "COMPLETED"})

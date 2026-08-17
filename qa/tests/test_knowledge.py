@@ -76,6 +76,7 @@ def seeded(tmp_path):
 
 # ---- 构建 ----
 
+
 def test_build_writes_fields_json(seeded):
     paths, _, _ = seeded
     assert paths.KNOWLEDGE_FIELDS_JSON.exists()
@@ -85,7 +86,14 @@ def test_build_writes_fields_json(seeded):
     assert "pv1_f000" in ids and "fnd_roe" in ids
     # 精简字段结构
     sample = data[0]
-    assert set(sample) == {"id", "description", "dataset", "type", "coverage", "userCount"}
+    assert set(sample) == {
+        "id",
+        "description",
+        "dataset",
+        "type",
+        "coverage",
+        "userCount",
+    }
 
 
 def test_build_paginates_fields(seeded):
@@ -148,6 +156,7 @@ def test_build_skips_invalid_field_entries(tmp_path):
 
 # ---- 读取 ----
 
+
 def test_load_fields_returns_set(seeded):
     paths, _, _ = seeded
     ids, _ = knowledge.load_fields(paths)
@@ -158,6 +167,15 @@ def test_load_fields_returns_set(seeded):
 def test_load_fields_missing_raises(tmp_path):
     paths = QaPaths(tmp_path)
     with pytest.raises(KnowledgeMissingError):
+        knowledge.load_fields(paths)
+
+
+def test_load_fields_corrupt_json_raises_with_guidance(tmp_path):
+    """fields.json 损坏（JSONDecodeError）→ 抛引导文案的 KnowledgeMissingError。"""
+    paths = QaPaths(tmp_path)
+    paths.KNOWLEDGE_FIELDS_DIR.mkdir(parents=True, exist_ok=True)
+    paths.KNOWLEDGE_FIELDS_JSON.write_text("{broken json", encoding="utf-8")
+    with pytest.raises(KnowledgeMissingError, match="update-knowledge --force"):
         knowledge.load_fields(paths)
 
 
@@ -177,6 +195,7 @@ def test_knowledge_status_meta_or_none(seeded, tmp_path):
 
 
 # ---- 经验沉淀 ----
+
 
 def test_ensure_templates_creates_playbook_and_failures(tmp_path):
     paths = QaPaths(tmp_path)
@@ -201,7 +220,9 @@ def test_append_lesson_dedupes_by_id(seeded):
 
 def test_append_failure(seeded):
     paths, _, _ = seeded
-    knowledge.append_experience(paths, "failure", "h2", "杠杆信号无效", "- 原因: Sharpe 0.5")
+    knowledge.append_experience(
+        paths, "failure", "h2", "杠杆信号无效", "- 原因: Sharpe 0.5"
+    )
     text = paths.FAILURES.read_text(encoding="utf-8")
     assert "杠杆信号无效" in text
     assert "h2" in text

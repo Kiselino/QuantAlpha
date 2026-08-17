@@ -4,7 +4,8 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
-> 当前状态：v1.5 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
+> 当前状态：v1.6 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
+> v1.6 要点：`qa run --concurrency` 可调并发 / `qa report --pending` 待提交预览 / 中断恢复续查 / 候选 `language` 字段 / PASS 自动暂存待提交 / `qa status` 六项环境检查。
 > 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---
@@ -49,7 +50,7 @@ uv sync
 pip install -e .
 ```
 
-> 首次运行 `qa status` / `qa run` 会自动创建 `data/`、`reports/` 等私有目录（gitignored）。
+> 首次运行 `qa run` 会自动创建 `data/`、`reports/` 等私有目录（gitignored）。
 
 ### 2. 配置会话认证
 
@@ -95,12 +96,13 @@ qa update-knowledge      # 按账户阶段抓取字段元数据 → 写入 exper
 
 ```bash
 qa login                                              # 账号密码登录（写入会话 cookie；也可 --username/--password）
-qa status                                             # 启动首查：阶段检测 + 配额 + 本地知识库状态
-qa update-knowledge                                   # 首次运行必做：按账户生成本地字段知识库
+qa status                                             # 启动首查：阶段检测 + 六项环境检查 + 配额 + 本地知识库状态
+qa update-knowledge [--regions USA,KOR] [--force]     # 首次运行必做：按账户生成本地字段知识库（24h 内已生成默认跳过，--force 强制刷新）
 # agent 读 knowledge/（公开）+ experience/（本地字段/playbook/failures）→ 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
-qa run                                                # 读入候选 → 预检 → 模拟 → 筛选 → 报告
+qa run [--concurrency N]                              # 读入候选 → 预检 → 模拟 → 筛选 → 报告（默认 3 并发可调；中断后重跑同一候选文件自动续查未完成的模拟；PASS 候选自动暂存待提交）
 qa report --daily                                     # 查看每日达标汇总
-qa submit <alpha_id>                                  # 人工确认后提交（展示检查 + 回查 ACTIVE）
+qa report --pending                                   # 预览待提交暂存清单（含指标；提交仍逐个人工确认）
+qa submit <alpha_id> [--yes]                          # 人工确认后提交（展示检查 + 回查 ACTIVE；--yes 供 agent 代提交）
 qa suggest                                            # 随机建议研究方向（agent 生成候选时的主题来源之一）
 qa reset [--yes]                                      # 清除积累的经验，回到初始状态（保留登录凭证与本地字段知识）
 ```
@@ -115,7 +117,7 @@ qa reset [--yes]                                      # 清除积累的经验，
 
 知识库拆分（v1.4）：
 
-- **公开 `knowledge/`**：operators（FASTEXPR 算子）、rules（平台规则）、pitfalls（量化陷阱）、字段策略说明——平台公开文档，随仓库分发
+- **公开 `knowledge/`**：operators（FASTEXPR 算子）、rules（平台规则）、pitfalls（量化陷阱）、字段策略说明、generation-guide（alpha 生成指南）、community（外部经验库）——平台公开文档，随仓库分发
 - **本地 `experience/`**（gitignored）：字段元数据（`qa update-knowledge` 按账户权限生成）、playbook/failures（个人经验沉淀）——**账户专属，不上传**，因为字段可用范围随账户权限变化，且表达式/字段研究属于个人数据
 
 使用者需要：
@@ -136,7 +138,7 @@ QuantAlpha/
 ├── README.md              # 本文件：安装、认证配置、快速开始
 ├── quantalpha-design.md   # 权威设计（系统设计/模块/数据模型）
 ├── qa/                    # Python 工具库（auth/stage/brain_client/knowledge/...）
-├── knowledge/             # 公开知识库（算子/规则/陷阱/字段策略——平台公开文档）
+├── knowledge/             # 公开知识库（算子/规则/陷阱/字段策略/生成指南/社区经验——平台公开文档）
 ├── pyrightconfig.json     # LSP 配置（basedpyright）
 ├── experience/            # 🔒 本地账户知识库：fields/ + playbook.md + failures.md（gitignored）
 ├── data/                  # 🔒 私有：qa.db + audit + candidates（gitignored）
@@ -148,7 +150,7 @@ QuantAlpha/
 
 - `quantalpha-design.md` — 系统设计（模块/数据模型/错误处理/MVP）
 - `AGENTS.md` — agent 工作流入口与关键知识速查
-- `knowledge/` — 平台规则、算子参考、字段策略说明（公开）；本地字段/经验见 `experience/`（`qa update-knowledge` 生成）
+- `knowledge/` — 平台规则、算子参考、字段策略说明、生成指南（generation-guide）、外部经验库（community）（公开）；本地字段/经验见 `experience/`（`qa update-knowledge` 生成）
 
 ## 免责声明
 

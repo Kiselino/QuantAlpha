@@ -74,9 +74,7 @@ def _paged_results(
     return items
 
 
-def fetch_dataset_ids(
-    client: Any, region: str, callback: Callable[[str], None] | None = None
-) -> list[str]:
+def fetch_dataset_ids(client: Any, region: str) -> list[str]:
     """分页拉取区域数据集 id 列表。"""
     return [
         it["id"]
@@ -146,7 +144,7 @@ def build_local_knowledge(
     for region in regions:
         if callback:
             callback(f"[knowledge] 区域 {region}: 拉取数据集……")
-        ds_ids = fetch_dataset_ids(client, region, callback)
+        ds_ids = fetch_dataset_ids(client, region)
         dataset_count += len(ds_ids)
         for ds_id in ds_ids:
             if callback:
@@ -193,7 +191,12 @@ def load_fields(paths: QaPaths) -> tuple[set[str], dict[str, str]]:
             f"本地知识库未生成: {p}\n"
             "首次运行请先执行 `qa update-knowledge` 按账户抓取字段知识（约几分钟）。"
         )
-    data = json.loads(p.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        raise KnowledgeMissingError(
+            f"本地字段知识库损坏: {p}\n请运行 `qa update-knowledge --force` 重建。"
+        ) from None
     ids: set[str] = set()
     types: dict[str, str] = {}
     for f in data:

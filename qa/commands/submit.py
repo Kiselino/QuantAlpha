@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import time
+from typing import Any
+
 from qa.brain_client import BrainClient, SubmissionRejected
 from qa.commands._common import _remove_pending, _sediment_failure, _sediment_lesson
 from qa.config import AppConfig
@@ -94,9 +97,10 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
         print("[submit] 已取消。")
         return 0
 
+    # submit 与回查分开 try：平台已受理（submit 成功）后回查网络异常不是"提交失败"，
+    # 只提示核实并照常删 pending（否则重试会重复提交）
     try:
         resp = client.submit(platform_alpha_id)
-        detail = _wait_for_active(client, platform_alpha_id)
     except PermissionError:
         print("[submit] 登录失效：请 qa login 重新认证后重试")
         return 1
@@ -136,11 +140,21 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
         )
         return 1
 
+    # 平台已接受提交（未抛 SubmissionRejected/异常）→ 回查 ACTIVE；
+    # 回查异常视为"已受理但未同步"，照常删 pending 并提示核实
+    verify_failed = False
+    try:
+        detail: dict[str, Any] = _wait_for_active(client, platform_alpha_id)
+    except Exception as e:
+        print(f"[submit] 提交已受理，回查失败: {e}")
+        detail = {}
+        verify_failed = True
+
     # 平台已接受提交（未抛 SubmissionRejected/异常）→ 从待提交暂存删除，
     # 无论回查状态是否 ACTIVE；被拒/异常时保留暂存供用户重试。
     _remove_pending(paths, alpha_id)
 
-    current_status = detail.get("status", "?")
+    current_status = detail.get("status") or "UNKNOWN"
     confirmed_active = current_status == "ACTIVE"
     store.save_submission(
         {
@@ -152,8 +166,14 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
             "confirmed_active": confirmed_active,
         }
     )
+    # UNKNOWN（回查异常）视为已受理 → SUBMITTED；只有明确回查到非 ACTIVE 才标 REJECTED
     store.save_alpha(
-        {**alpha, "status": "SUBMITTED" if confirmed_active else "REJECTED"}
+        {
+            **alpha,
+            "status": "SUBMITTED"
+            if (confirmed_active or current_status == "UNKNOWN")
+            else "REJECTED",
+        }
     )
     store.append_audit(
         "submit",
@@ -184,10 +204,13 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
             f"- 结论: 该方向通过平台全部检查并激活，可考虑同簇扩展",
         )
         return 0
-    print(
-        f"[submit] ⚠️ 平台已接受提交，状态未同步 ACTIVE 属正常延迟（当前 {current_status}），"
-        "请到平台核实"
-    )
+    if verify_failed:
+        print(f"[submit] ⚠️ 提交已受理，回查失败，请到平台核实该 alpha 状态。")
+    else:
+        print(
+            f"[submit] ⚠️ 平台已接受提交，状态未同步 ACTIVE 属正常延迟（当前 {current_status}），"
+            "请到平台核实"
+        )
     return 1
 
 
@@ -195,16 +218,14 @@ def _wait_for_active(
     client: BrainClient, platform_alpha_id: str, timeout: float = 120.0
 ) -> dict:
     """提交后轮询平台状态直到 ACTIVE（状态更新有延迟，实测提交后需数秒）。"""
-    import time as _time
-
-    deadline = _time.time() + timeout
+    deadline = time.time() + timeout
     last = {}
-    while _time.time() < deadline:
+    while time.time() < deadline:
         detail = client.get_alpha(platform_alpha_id)
         last = detail
         if detail.get("status") == "ACTIVE":
             return detail
-        _time.sleep(5.0)
+        time.sleep(5.0)
     return last
 
 

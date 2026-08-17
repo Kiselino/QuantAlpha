@@ -126,6 +126,20 @@ class Store:
         ).fetchone()
         return row is not None
 
+    def sim_failure_exists(self, expr_hash: str) -> bool:
+        """按表达式哈希查 simulations 表已有 ERROR/FAILED 终态。
+
+        平台语义拒绝的表达式（参数拒绝/平台 ERROR/FAILED）不重复模拟：
+        ERROR/FAILED 记录即"已试过且失败"，重跑时跳过并报告原因；
+        PENDING/TIMEOUT 不走此路径（中断恢复需续查），COMPLETE 已进 alphas 表。
+        """
+        row = self._conn.execute(
+            "SELECT 1 FROM simulations WHERE alpha_id = ? "
+            "AND status IN ('ERROR', 'FAILED') LIMIT 1",
+            (expr_hash,),
+        ).fetchone()
+        return row is not None
+
     def list_alphas(self, status: str | None = None) -> list[dict[str, Any]]:
         """列出 alpha 记录（可按状态过滤；创建时间倒序）。"""
         if status:

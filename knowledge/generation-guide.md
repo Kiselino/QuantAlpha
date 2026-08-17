@@ -58,6 +58,7 @@
 ### d. 设置选择三层决策
 
 1. **数据集经验值**（第一层）：decay 基本面 0 / 分析师 0-4 / 技术 10-30；truncation 0.05-0.1
+   （数值以 quantalpha-design.md 为准，本处为速查）
 2. **失败历史反向调整**（第二层）：读本批/历史 failures 反向调参——
    HIGH_TURNOVER → 增大 decay；CONCENTRATED_WEIGHT → ts_backfill / 降 truncation；
    LOW_SHARPE → 延长 lookback / 换基本面字段（完整映射见 `knowledge/pitfalls.md`）

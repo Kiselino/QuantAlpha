@@ -28,7 +28,7 @@ def _report_pending(paths: QaPaths) -> int:
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
     except ValueError:
-        print("[report] 暂存为空：pending_submits.json 解析失败")
+        print("[report] 暂存文件损坏：pending_submits.json 无法解析")
         return 0
     entries = [e for e in data if isinstance(e, dict)] if isinstance(data, list) else []
     if not entries:

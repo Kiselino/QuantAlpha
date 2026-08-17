@@ -49,7 +49,7 @@ def login(email: str, password: str, base_url: str = BASE_URL) -> str:
             try:
                 inquiry = str((resp.json() or {}).get("inquiry", ""))
             except ValueError:
-                pass
+                pass  # Persona 响应无 inquiry 字段属正常（401 拒绝页非 JSON），按空串处理
             raise PersonaRequired(
                 "账号触发 Persona 人机验证，无法全自动登录。"
                 "请打开 https://inquiry.withpersona.com 完成身份验证后重试"

@@ -52,7 +52,6 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="候选 JSON 文件路径（默认读当日 data/candidates/YYYY-MM-DD.json）",
     )
-    p_run.add_argument("--idea", type=str, default=None, help="研究方向/点子（提示用）")
     p_run.add_argument(
         "--concurrency",
         type=int,

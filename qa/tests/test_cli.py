@@ -110,7 +110,7 @@ def test_settings_merge_candidate_overrides():
     )
     assert merged["decay"] == 12
     assert merged["neutralization"] == "SECTOR"
-    assert abs(merged["truncation"] - 0.05) < 1e-9
+    assert abs(float(merged["truncation"]) - 0.05) < 1e-9
     assert merged["region"] == "USA"  # 未覆盖的键保持全局默认
     # 未知键被忽略（值域校验由 validate 负责）
     assert run_mod._settings(cfg, {"hump": 1}) == base
@@ -204,7 +204,7 @@ def test_run_settings_pending_corr_ranking(tmp_qa, monkeypatch, capsys):
         lambda self, aid: {"a1": 0.6, "a2": 0.1}[aid],
     )
 
-    rc = run_mod.cmd_run(paths, cfg, candidates_file=str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, cfg, candidates_file=str(cand_path))
     out = capsys.readouterr().out
 
     assert rc == 0
@@ -292,7 +292,7 @@ def test_run_dedupe_same_field_set(tmp_qa, monkeypatch, capsys):
     monkeypatch.setattr(run_mod.BrainClient, "poll_simulation", fake_poll)
     monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
 
-    rc = run_mod.cmd_run(paths, cfg, candidates_file=str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, cfg, candidates_file=str(cand_path))
     out = capsys.readouterr().out
 
     assert rc == 0
@@ -302,7 +302,11 @@ def test_run_dedupe_same_field_set(tmp_qa, monkeypatch, capsys):
 
 
 def test_run_respects_platform_daily_remaining(tmp_qa, monkeypatch, capsys):
-    """平台每日配额头存在时，run 预算取平台剩余（v1.6：纯平台头，无本地预算）。"""
+    """平台每日配额头存在时，run 预算取平台剩余（v1.6：纯平台头，无本地预算）。
+
+    断言走入口首查 remaining=1 分支：todo 截断为 1 个，模拟只发起 1 次
+    （非批间截断——批间截断场景由 test_run_stops_when_platform_daily_exhausted 覆盖）。
+    """
     from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.stage import StageInfo
@@ -349,11 +353,6 @@ def test_run_respects_platform_daily_remaining(tmp_qa, monkeypatch, capsys):
         )
 
     monkeypatch.setattr(run_mod.BrainClient, "simulate", fake_simulate)
-    monkeypatch.setattr(
-        run_mod.BrainClient,
-        "rate_limits",
-        lambda self: RateLimits(remaining_minute=30, limit_minute=30),
-    )
     monkeypatch.setattr(run_mod.BrainClient, "poll_simulation", fake_poll)
     monkeypatch.setattr(
         run_mod.BrainClient,
@@ -363,7 +362,7 @@ def test_run_respects_platform_daily_remaining(tmp_qa, monkeypatch, capsys):
         ),
     )
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
     assert rc == 0
     assert len(simulated) == 1  # 平台只剩 1 次
@@ -444,7 +443,7 @@ def test_run_stops_when_platform_daily_exhausted(tmp_qa, monkeypatch, capsys):
     monkeypatch.setattr(run_mod.BrainClient, "poll_simulation", fake_poll)
     monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
     assert rc == 0
     assert len(simulated) == 3  # 第一批 3 个跑完，第二批被每日配额截断
@@ -454,12 +453,13 @@ def test_run_stops_when_platform_daily_exhausted(tmp_qa, monkeypatch, capsys):
 # ---- 阶段 4 模拟环节：纯平台头配额 / --concurrency / 中断恢复 ----
 
 
-def test_run_platform_daily_missing_not_blocked(tmp_qa, monkeypatch, capsys):
+def test_run_platform_daily_missing_not_blocked(
+    tmp_qa, monkeypatch, capsys, mock_brain
+):
     """平台每日配额头缺失（None）时不拦截：照跑全部候选，靠平台错误码兜底。"""
     from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.stage import StageInfo
-    from qa.brain_client import RateLimits
     from qa.commands import run as run_mod
 
     paths = QaPaths(tmp_qa)
@@ -486,35 +486,11 @@ def test_run_platform_daily_missing_not_blocked(tmp_qa, monkeypatch, capsys):
     monkeypatch.setattr(
         run_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
     )
-    simulated: list[str] = []
 
-    def fake_simulate(self, code, settings):
-        simulated.append(code)
-        return f"sim_{len(simulated)}"
-
-    monkeypatch.setattr(run_mod.BrainClient, "simulate", fake_simulate)
-    monkeypatch.setattr(
-        run_mod.BrainClient,
-        "rate_limits",
-        lambda self: RateLimits(remaining_minute=30, limit_minute=30),
-    )
-    monkeypatch.setattr(
-        run_mod.BrainClient,
-        "poll_simulation",
-        lambda self, sid, max_wait=600.0: run_mod.SimulationResult(
-            sim_id=sid,
-            status="COMPLETED",
-            alpha_id="a1",
-            checks=[],
-            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
-        ),
-    )
-    monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
-
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
     assert rc == 0
-    assert len(simulated) == 2  # 无平台头照跑全部，不误拦截
+    assert len(mock_brain.simulated) == 2  # 无平台头照跑全部，不误拦截
     assert "配额" not in out  # 不出现截断/耗尽提示
 
 
@@ -577,15 +553,13 @@ def test_run_concurrency_priority(tmp_qa, monkeypatch, capsys):
     monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
 
     # 显式参数优先：stage=2 被覆盖为 5
-    rc = run_mod.cmd_run(
-        paths, run_mod.AppConfig(), str(cand_path), idea=None, concurrency=5
-    )
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), concurrency=5)
     assert rc == 0
     assert "并发 5" in capsys.readouterr().out
 
     # 无显式参数：stage.max_concurrency 生效
     paths.DB.unlink()
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     assert rc == 0
     assert "并发 2" in capsys.readouterr().out
 
@@ -596,7 +570,7 @@ def test_run_concurrency_priority(tmp_qa, monkeypatch, capsys):
         "get_stage",
         lambda p: StageInfo(level="TEST", is_consultant=False, max_concurrency=0),
     )
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     assert rc == 0
     assert "并发 3" in capsys.readouterr().out
 
@@ -688,7 +662,7 @@ def test_run_resumes_pending_simulation(tmp_qa, monkeypatch, capsys):
     )
     monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
     assert rc == 0
     assert polled == ["plat_sim_1"]  # 直接续查平台 sim_id
@@ -767,7 +741,7 @@ def test_run_resume_fallback_on_404(tmp_qa, monkeypatch, capsys):
     )
     monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
     assert rc == 0
     assert "PASS" in out
@@ -854,7 +828,7 @@ def test_cmd_run_end_to_end(tmp_qa, monkeypatch, capsys):
         lambda self: RateLimits(remaining_minute=30, limit_minute=30),
     )
 
-    rc = run_mod.cmd_run(paths, cfg, candidates_file=str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, cfg, candidates_file=str(cand_path))
     out = capsys.readouterr().out
 
     assert rc == 0
@@ -970,19 +944,20 @@ def test_cmd_run_missing_knowledge_errors(tmp_qa, monkeypatch, capsys):
     )
     monkeypatch.setattr(run_mod, "get_stage", lambda p: None)
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
 
     assert rc == 1
     assert "update-knowledge" in out
 
 
-def test_cmd_run_rejects_vector_field_via_type_check(tmp_qa, monkeypatch, capsys):
+def test_cmd_run_rejects_vector_field_via_type_check(
+    tmp_qa, monkeypatch, capsys, mock_brain
+):
     """v1.4.1：VECTOR 字段未用 vec_* 转换 → 预检拦截（省无效模拟配额）。"""
     from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.stage import StageInfo
-    from qa.brain_client import RateLimits
     from qa.commands import run as run_mod
 
     paths = QaPaths(tmp_qa)
@@ -1011,41 +986,21 @@ def test_cmd_run_rejects_vector_field_via_type_check(tmp_qa, monkeypatch, capsys
         "get_stage",
         lambda p: StageInfo(level="TEST", is_consultant=False),
     )
-    monkeypatch.setattr(
-        run_mod.BrainClient, "simulate", lambda self, c, s: f"sim_{c[:8]}"
-    )
-    monkeypatch.setattr(
-        run_mod.BrainClient,
-        "rate_limits",
-        lambda self: RateLimits(remaining_minute=30, limit_minute=30),
-    )
-    monkeypatch.setattr(
-        run_mod.BrainClient,
-        "poll_simulation",
-        lambda self, sid, max_wait=600.0: run_mod.SimulationResult(
-            sim_id=sid,
-            status="COMPLETED",
-            alpha_id="a1",
-            checks=[],
-            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
-        ),
-    )
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
 
     assert rc == 0
     assert "VECTOR" in out  # 类型检查拦截提示
-    assert "待模拟" in out and out.count("待模拟") == 1  # 只模拟合法候选
+    assert mock_brain.simulated == ["rank(close)"]  # 只模拟合法候选
     assert "PASS" in out
 
 
-def test_cmd_run_rejects_non_fastexpr_language(tmp_qa, monkeypatch, capsys):
+def test_cmd_run_rejects_non_fastexpr_language(tmp_qa, monkeypatch, capsys, mock_brain):
     """v1.6：非 FASTEXPR（PYTHON/ML）候选预检 fail-closed 拒绝，不进入模拟。"""
     from qa.candidates import Candidate
     from qa.paths import QaPaths
     from qa.stage import StageInfo
-    from qa.brain_client import RateLimits
     from qa.commands import run as run_mod
 
     paths = QaPaths(tmp_qa)
@@ -1075,37 +1030,13 @@ def test_cmd_run_rejects_non_fastexpr_language(tmp_qa, monkeypatch, capsys):
         "get_stage",
         lambda p: StageInfo(level="TEST", is_consultant=False),
     )
-    simulated: list[str] = []
 
-    def fake_simulate(self, code, settings):
-        simulated.append(code)
-        return f"sim_{len(simulated)}"
-
-    monkeypatch.setattr(run_mod.BrainClient, "simulate", fake_simulate)
-    monkeypatch.setattr(
-        run_mod.BrainClient,
-        "rate_limits",
-        lambda self: RateLimits(remaining_minute=30, limit_minute=30),
-    )
-    monkeypatch.setattr(
-        run_mod.BrainClient,
-        "poll_simulation",
-        lambda self, sid, max_wait=600.0: run_mod.SimulationResult(
-            sim_id=sid,
-            status="COMPLETED",
-            alpha_id="a1",
-            checks=[],
-            metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
-        ),
-    )
-    monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
-
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
 
     assert rc == 0
     assert "暂不支持本地预检" in out
-    assert len(simulated) == 1  # 只模拟 FASTEXPR 候选
+    assert mock_brain.simulated == ["rank(close)"]  # 只模拟 FASTEXPR 候选
     assert "PASS" in out
 
 
@@ -1165,7 +1096,7 @@ def test_cmd_run_auto_sediments_lessons_and_failures(tmp_qa, monkeypatch, capsys
     )
     monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     assert rc == 0
 
     store = Store(paths.DB)
@@ -1177,7 +1108,162 @@ def test_cmd_run_auto_sediments_lessons_and_failures(tmp_qa, monkeypatch, capsys
     assert "低夏普失败" in paths.FAILURES.read_text(encoding="utf-8")
 
 
-def test_update_knowledge_skips_fresh_without_force(tmp_qa, monkeypatch, capsys):
+def test_cmd_run_skips_sim_failure_on_rerun(tmp_qa, monkeypatch, capsys):
+    """防重接线：simulations 表已有 ERROR 记录（平台拒绝过）→ 重跑跳过不重复模拟。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.store import Store
+    from qa.validate import expression_hash
+    from qa.commands import run as run_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    expr = "rank(close)"
+    h = expression_hash(expr)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="动量", hypothesis="h", expression=expr, dataset_ids=["pv1"]
+            )
+        ],
+    )
+    # 预置上次运行失败留下的 ERROR 记录（id=sim_{hash} 占位）
+    store = Store(paths.DB)
+    store.save_simulation(
+        {"id": f"sim_{h}", "alpha_id": h, "status": "ERROR", "result": {"error": "400"}}
+    )
+    monkeypatch.setattr(
+        run_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+    simulated: list[str] = []
+
+    def fake_simulate(self, code, settings):
+        simulated.append(code)
+        return "never"
+
+    monkeypatch.setattr(run_mod.BrainClient, "simulate", fake_simulate)
+
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert simulated == []  # 平台拒绝过的表达式不重复模拟
+    assert "不重复模拟" in out  # 跳过原因对用户透明
+
+
+def test_cmd_run_sediments_fail_infra_for_platform_error(tmp_qa, monkeypatch, capsys):
+    """FAIL_INFRA 沉淀：平台返回 ERROR 状态（无指标）→ 写 failures（模拟 FAIL→failures 约定）。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.brain_client import RateLimits
+    from qa.store import Store
+    from qa.commands import run as run_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="平台 ERROR",
+                hypothesis="h",
+                expression="rank(close)",
+                dataset_ids=["pv1"],
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        run_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+    monkeypatch.setattr(
+        run_mod.BrainClient, "simulate", lambda self, c, s: "plat_err_sim"
+    )
+    monkeypatch.setattr(
+        run_mod.BrainClient,
+        "poll_simulation",
+        lambda self, sid, max_wait=600.0: run_mod.SimulationResult(
+            sim_id=sid, status="ERROR", alpha_id=None, checks=[], metrics={}
+        ),
+    )
+    monkeypatch.setattr(
+        run_mod.BrainClient,
+        "rate_limits",
+        lambda self: RateLimits(remaining_minute=30, limit_minute=30),
+    )
+    monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
+
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    assert "FAIL_INFRA" in out
+    store = Store(paths.DB)
+    failures = store._conn.execute("SELECT * FROM failures").fetchall()
+    assert len(failures) == 1
+    assert "模拟基础设施失败" in failures[0]["failure_reason"]
+    assert "平台 ERROR" in paths.FAILURES.read_text(encoding="utf-8")
+
+
+def test_cmd_submit_verify_failure_keeps_pending_removed(tmp_qa, monkeypatch, capsys):
+    """提交已受理但回查失败：不沉淀"提交失败"假记录，照常删 pending，提示核实。"""
+    from qa.paths import QaPaths
+    from qa.store import Store
+    from qa.validate import expression_hash
+    from qa.commands import _common as common_mod
+    from qa.commands import submit as submit_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    store = Store(paths.DB)
+    expr = "rank(close)"
+    h = expression_hash(expr)
+    store.save_alpha({"id": h, "expression": expr, "ast_hash": h, "status": "COMPLETE"})
+    store.save_simulation(
+        {
+            "id": f"sim_{h}",
+            "alpha_id": h,
+            "result": {"alpha": "PLATFORM_A1"},
+            "status": "COMPLETE",
+        }
+    )
+    common_mod._append_pending(paths, {"id": h, "description": "动量"})
+
+    monkeypatch.setattr(
+        submit_mod.BrainClient, "correlations_self", lambda self, aid: 0.12
+    )
+    monkeypatch.setattr(
+        submit_mod.BrainClient, "submit", lambda self, aid: {"status": "SUBMITTED"}
+    )
+    # 回查网络异常：平台已受理，但状态未知
+    monkeypatch.setattr(
+        submit_mod,
+        "_wait_for_active",
+        lambda client, aid: (_ for _ in ()).throw(RuntimeError("网络中断")),
+    )
+
+    rc = submit_mod._cmd_submit(paths, h, yes=True)
+    out = capsys.readouterr().out
+
+    assert rc == 1
+    assert "提交已受理，回查失败" in out
+    assert "请到平台核实" in out
+    # 平台已受理 → pending 照常删除（防止重试重复提交）
+    pending = json.loads(paths.PENDING_SUBMITS.read_text(encoding="utf-8"))
+    assert pending == []
+    # 不沉淀"提交失败"假记录：submissions 表有记录且非 confirmed_active，failures 无 sub_ 前缀
+    subs = store._conn.execute("SELECT * FROM submissions").fetchall()
+    assert len(subs) == 1
+    assert subs[0]["current_status"] == "UNKNOWN"
+    failures = store._conn.execute("SELECT * FROM failures").fetchall()
+    assert [f["id"] for f in failures] == []
+
     """24h 内已生成的知识库默认跳过抓取；--force 强制刷新。"""
     from datetime import datetime, timedelta, timezone
 
@@ -1285,14 +1371,12 @@ def test_cmd_suggest_requires_and_uses_knowledge(tmp_qa, monkeypatch, capsys):
     assert any(f in out for f in ("close", "volume", "subindustry"))
 
 
-def test_signal_fields_filters_unusable_types():
+def test_signal_fields_filters_unusable_types(tmp_qa, monkeypatch):
     """v1.4.1：suggest 排除 UNIVERSE/SYMBOL/VECTOR 字段（不可用于标量表达式）。"""
     from qa.commands import suggest as suggest_mod
     from qa.paths import QaPaths
-    import tempfile
-    from pathlib import Path
 
-    paths = QaPaths(Path(tempfile.mkdtemp()))
+    paths = QaPaths(tmp_qa)
     _seed_knowledge(paths)
     from qa import knowledge
 
@@ -1364,7 +1448,7 @@ def test_cmd_run_respects_minute_rate_limit(tmp_qa, monkeypatch, capsys):
     sleeps: list[float] = []
     monkeypatch.setattr(run_mod.time, "sleep", lambda s: sleeps.append(s))
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
 
     assert rc == 0
@@ -1707,7 +1791,7 @@ def test_cmd_run_interrupts_on_session_expired(tmp_qa, monkeypatch, capsys):
     )
     monkeypatch.setattr(run_mod.time, "sleep", lambda s: None)
 
-    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path), idea=None)
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
     assert rc == 0
     assert "会话已过期" in out

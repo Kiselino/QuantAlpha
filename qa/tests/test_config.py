@@ -22,7 +22,6 @@ def test_thresholds_defaults():
     assert t.sharpe_d1 == 1.25
     assert t.fitness_d1 == 1.0
     assert t.turnover_max == 0.70
-    assert t.autocorr_max == 0.7
 
 
 def test_simulation_defaults():

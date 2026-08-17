@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import getpass
+import os
+
 from qa import auth
 from qa.commands.status import _save_account_info
 from qa.config import AppConfig
@@ -16,8 +19,6 @@ def _cmd_login(paths: QaPaths, username: str | None, password: str | None) -> in
     凭据不落盘、不进审计；仅写入的 cookie 存于 gitignored 的 secrets/。
     """
     try:
-        import getpass
-
         email = username or input("BRAIN 账号邮箱: ").strip()
         pwd = password or getpass.getpass("BRAIN 账号密码: ")
         if not email or not pwd:
@@ -34,8 +35,12 @@ def _cmd_login(paths: QaPaths, username: str | None, password: str | None) -> in
         print(f"[login] 登录失败: {e}")
         return 1
 
+    # cookie 是会话凭据，0600 权限防止同机其他用户读取（account_info.json 等
+    # 阶段摘要与 pending 清单非凭据，保持默认权限）
     paths.COOKIE.parent.mkdir(parents=True, exist_ok=True)
-    paths.COOKIE.write_text(cookie, encoding="utf-8")
+    fd = os.open(paths.COOKIE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(cookie)
     print(f"[login] 登录成功，会话 cookie 已写入 {paths.COOKIE}")
     print("[login] 验证会话……")
     try:

@@ -24,6 +24,14 @@ def _format_corr(corr: float) -> str:
     return f"{corr:.2f}（提交前需复查{suffix}）"
 
 
+def _metrics_line(metrics: dict[str, Any]) -> str:
+    """指标行渲染（候选清单与待提交清单共用，格式保持一致）。"""
+    return (
+        f"- 指标: Sharpe={metrics.get('sharpe', '—'):}  "
+        f"Fitness={metrics.get('fitness', '—'):}  Turnover={metrics.get('turnover', '—'):}"
+    )
+
+
 def format_candidates(candidates: list[dict[str, Any]]) -> str:
     """生成候选清单 markdown（指标/通过项/逻辑解释/相关门排序/建议排序）。"""
     lines = ["## 候选清单", ""]
@@ -37,10 +45,7 @@ def format_candidates(candidates: list[dict[str, Any]]) -> str:
         lines.append(f"- 表达式: `{c.get('expression', '')}`")
         if c.get("hypothesis"):
             lines.append(f"- 设计逻辑: {c['hypothesis']}")
-        lines.append(
-            f"- 指标: Sharpe={c.get('sharpe', '—'):}  "
-            f"Fitness={c.get('fitness', '—'):}  Turnover={c.get('turnover', '—'):}"
-        )
+        lines.append(_metrics_line(c))
         if c.get("corr") is not None:
             lines.append(f"- 相关门: {_format_corr(c['corr'])}")
         if c.get("reason"):
@@ -63,10 +68,7 @@ def format_pending(entries: list[dict[str, Any]]) -> str:
         if e.get("hypothesis"):
             lines.append(f"- 设计逻辑: {e['hypothesis']}")
         metrics = e.get("metrics") or {}
-        lines.append(
-            f"- 指标: Sharpe={metrics.get('sharpe', '—'):}  "
-            f"Fitness={metrics.get('fitness', '—'):}  Turnover={metrics.get('turnover', '—'):}"
-        )
+        lines.append(_metrics_line(metrics))
         if e.get("corr") is not None:
             lines.append(f"- 相关门: {_format_corr(e['corr'])}")
         lines.append("")

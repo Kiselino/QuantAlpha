@@ -77,7 +77,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **保留（非经验）：**
 - `secrets/` 下 cookie 与 account_info.json（登录凭证，重置后无需重新登录）
-- `knowledge/` 公开静态知识库（operators/rules/pitfalls/fields 策略说明）
+- `knowledge/` 公开静态知识库（operators/rules/pitfalls/fields 策略说明/generation-guide/community，平台公开文档）
 - `experience/fields/` 账户字段知识（按账户生成，非经验积累）
 - `qa/` 代码、`pyproject.toml`、`pyrightconfig.json`
 
@@ -103,7 +103,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 - **组合视角：** alpha 非独立，平台按整体评判 → 生成/筛选考虑与现有组合相关性
 - **字段优先级：** 基本面 40% > 混合 12.7% > 纯技术 5.3%；黄金组合 `group_rank(ts_rank(x,N),subindustry)`
 - **decay 经验值：** 基本面 0 / 分析师 0-4 / 技术 10-30；truncation 0.05-0.1
-- **知识库拆分（v1.4）：** 公开 `knowledge/`（operators/rules/pitfalls，平台公开文档）随仓库分发；本地 `experience/`（字段元数据 + playbook + failures，账户专属）gitignored 不上传——**生成前必须读本地 experience/ 的字段与经验**
+- **知识库拆分（v1.4）：** 公开 `knowledge/`（operators/rules/pitfalls/generation-guide/community，平台公开文档）随仓库分发；本地 `experience/`（字段元数据 + playbook + failures，账户专属）gitignored 不上传——**生成前必须读本地 experience/ 的字段与经验**
 
 ## 项目结构与文档导航
 
@@ -113,7 +113,7 @@ QuantAlpha/
 ├── README.md                    # 人类说明：安装、认证配置（双选）、快速开始
 ├── quantalpha-design.md         # ⭐ 权威设计 v1.6（模块职责/数据模型/错误处理/MVP）
 ├── qa/                          # Python 工具库（auth/stage/brain_client/validate/knowledge/...）
-├── knowledge/                   # ✅ 公开静态知识库：operators/rules/pitfalls/fields 策略说明
+├── knowledge/                   # ✅ 公开静态知识库：operators/rules/pitfalls/fields 策略说明 + generation-guide/community
 ├── pyrightconfig.json           # LSP 配置（basedpyright）
 ├── experience/                  # 🔒 gitignored：本地账户知识库（fields/ + playbook.md + failures.md）
 ├── data/                        # 🔒 gitignored：qa.db + audit/ + candidates/
@@ -135,7 +135,7 @@ QuantAlpha/
 
 **不提交（中间态/skill 产物/私有数据）：**
 - `data/`、`reports/`（私有数据，gitignored）
-- 其他草稿/临时文件（含历史 `design/` 目录残留）
+- 其他草稿/临时文件
 
 ## 个人信息约定（用户要求，提交时遵守）
 

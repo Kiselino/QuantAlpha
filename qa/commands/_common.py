@@ -10,8 +10,7 @@ from qa import knowledge
 from qa.paths import QaPaths
 from qa.store import Store
 
-# 失败→修复建议映射（来源 knowledge/pitfalls.md「常见失败与修复」表；
-# todo-design.md 引用的 rules.md:30-38 行号已过期，实际内容在 pitfalls.md:31-37）
+# 失败→修复建议映射（来源 knowledge/pitfalls.md「常见失败与修复」表）
 _FAILURE_FIX_SUGGESTIONS = {
     "LOW_SHARPE": "延长 lookback / 换基本面字段 / 黄金组合",
     "HIGH_TURNOVER": "增大 decay（技术 10-30）或 ts_rank 平滑",

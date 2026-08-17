@@ -36,13 +36,9 @@ class Thresholds:
     """提交门槛（对齐平台提交检查，见设计 §2.3）。"""
 
     fitness_d1: float = 1.0
-    fitness_d0: float = 1.3
     sharpe_d1: float = 1.25
-    sharpe_d0: float = 2.0
     turnover_min: float = 0.01
     turnover_max: float = 0.70
-    autocorr_max: float = 0.7
-    sharpe_autocorr_exempt: float = 1.375  # Sharpe≥此值可豁免自相关
     margin_marginal: float = 0.1  # 距门槛 10% 内视为 MARGINAL
 
 

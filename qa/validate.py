@@ -71,10 +71,11 @@ def check_syntax(expr: str, operators: set[str]) -> list[str]:
         tok = tokens[i]
         if tok == "(":
             depth += 1
-            # 前一个 token 必须是已知算子（函数调用）
+            # 前一个 token 必须是已知算子（函数调用），或运算符/分隔符（分组括号，
+            # 如 (close - low) / (high - low)）；其余标识符视为未知算子
             if i == 0:
                 errors.append("表达式以 '(' 开头，缺少算子")
-            elif tokens[i - 1] not in operators:
+            elif tokens[i - 1] not in operators and tokens[i - 1] not in "(),+-*/<>=!":
                 errors.append(f"未知算子: {tokens[i - 1]}")
         elif tok == ")":
             depth -= 1

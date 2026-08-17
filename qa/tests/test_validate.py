@@ -61,6 +61,19 @@ def test_check_syntax_valid():
     assert check_syntax("rank(close)", OPERATORS) == []
 
 
+def test_check_syntax_grouping_parens():
+    # 分组括号（表达式级括号）不应被误判为未知算子
+    assert check_syntax("rank((close - low) / (high - low))", OPERATORS) == []
+    assert (
+        check_syntax(
+            "group_rank(ts_rank((close - low) / (high - low), 60), subindustry)",
+            OPERATORS,
+        )
+        == []
+    )
+    assert check_syntax("rank(close * (1 + returns))", OPERATORS) == []
+
+
 def test_check_syntax_unbalanced():
     errs = check_syntax("rank(close", OPERATORS)
     assert any("括号" in e for e in errs)

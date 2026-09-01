@@ -1,39 +1,81 @@
-# Alpha 生成与优化操作指南（generation-guide）
+# Alpha 生成与优化操作指南（generation）
 
 > 定位：面向任何 agent 工具（opencode / claude code / codex）的候选生成与优化操作手册。
 > 随仓库公开分发，与具体工具无关。**生成候选前必须通读本指南**。
-> 主题来源遵循 AGENTS.md 启动流程：详细模式按步骤 6 三选一询问（① `qa suggest` 随机
-> ② 网络热门 ③ 用户指定），用户选择后再进入生成；简易模式（Quick Mode）见下方 §0，
-> 主题由 agent 每轮自动 `qa suggest` 随机抽取，不询问用户。
+> 读取时机：进入生成环节前（`AGENTS.md` 导航表）。
+> 启动与模式询问见 `document/flows/startup.md`；用户 vs 顾问权限见 `document/flows/access.md`；
+> 用户深问概念时见 `document/flows/learning.md`。
 
 ---
 
-## 0. 简易模式执行细则（Quick Mode）
+## 1. 三模式执行细则（启动时三选一）
 
-> 适用：启动流程选"简易模式"后，agent 自主循环生成，无需用户中途指令。
-> 详细模式仍按 §1 六环节逐步执行。用户要求查看思路/经验时，agent 按需补充讲解。
+> 启动流程 `document/flows/startup.md` §4 询问运行模式；会话中可随时口头切换。
+
+### 1.1 教学模式（人机交互学习核心）
+
+**定位**：边做边学——agent 主导"教学式生成"，每环节先讲概念（为什么），用户确认理解后再执行。
+
+**执行要点**：
+
+1. 进入生成前：讲解本批主题背后的核心概念（如"动量信号为什么用 `ts_rank`"），
+   用户理解后进入六环节（§2）
+2. 六环节每步先给出**一句话原理**（"这一步是把输入固化成硬约束，避免生成跑偏"），再执行
+3. 用户可随时打断深问（"`ts_decay_linear` 和 `ts_mean` 有什么区别？"）——
+   进入 `document/flows/learning.md` 教学流程，讲清楚后回到生成
+4. 模拟结果输出后：逐条讲解 PASS/FAIL 含义（"LOW_SHARPE 说明信号不稳定，通常
+   换更长窗口或换基本面字段"），归因讲解见 §4
+5. 每轮结束输出"今日学习要点"（验证了什么/证伪了什么/明天怎么调）
+
+**节奏**：宁慢勿快，以用户理解为先；候选数量可减至 5-10 个/批。
+
+### 1.2 随机模式（快速探索 + 顺带教学）
+
+**定位**：随机主题快速探索，期间穿插讲解，节奏比教学模式快。
+
+**执行要点**：
+
+1. 主题来源：`qa suggest` 随机抽取（启动时已询问，见 startup.md §5）
+2. 按六环节（§2）正常生成，**每批开头与结尾各给 1-2 句要点讲解**（主题思路 +
+   本批学到了什么），不逐候选讲解
+3. 用户追问时同样转 `document/flows/learning.md` 深入教学
+4. 模拟结果输出后给一句话归因总结（PASS 由什么结构贡献 / FAIL 疑似什么原因）
+5. 每轮结束输出"今日学习要点"（简版）
+
+### 1.3 快速模式（高价值复用，三引擎任选/组合）
+
+**定位**：用户有正事，agent 后台跑。**主题与方向来自历史数据，不询问用户**。
+三引擎可任选或组合，agent 按可用素材自主决策：
+
+| 引擎 | 素材来源 | 动作 |
+|---|---|---|
+| a. 主题深挖/发散 | `data/qa.db` 历史高 Fitness/高通过率主题（`qa report --daily` 汇总可辅助） | 深挖：同主题换字段族/窗口/中性化变体；发散：迁移到相似数据集族 |
+| b. 失败优化 | `experience/failures.md` 高价值可优化 alpha（归因可修类：LOW_SHARPE/HIGH_TURNOVER/CONCENTRATED_WEIGHT） | 按 §4 归因 → 调参/同方向变体 → `-opt.json` |
+| c. 模版生成 | `document/reference/templates.md` 有效模版库 | 选模版 → 套字段/数据集 → 生成变体（模版含参数经验值） |
 
 **循环结构（默认最多 10 轮）：**
 
 ```
-每轮：qa suggest 随机主题 → 读知识（§1b 顺序）→ 生成 10-15 候选
-      → 写入 data/candidates/YYYY-MM-DD-quick-N.json → qa run
+每轮：选引擎（有模版优先 c；有可修失败优先 b；否则 a）
+     → 读知识（§2b 顺序）→ 生成 10-15 候选
+     → 写入 data/candidates/YYYY-MM-DD-quick-N.json → qa run
 ```
 
 - **输出纪律**：每轮只输出一行进度：
-  `[轮次 N/10] 主题：xxx | 模拟 M 个 | PASS K | 最佳 Fitness/S`
-  不展开思路、不逐候选讲解；全部候选信息照常写入文件与 db
-- **主题止损**（每主题最多两批）：
+  `[轮次 N/10] 引擎：c(模版 T1) | 模拟 M 个 | PASS K | 最佳 Fitness/S`
+- **主题止损**（引擎 a/b 每主题最多两批）：
   1. 第一批全灭 → 读本批 failures 归因 → 调参/同方向变体 → 生成 `-opt.json` 再跑一次
-  2. 优化批仍无 PASS 且 **Fitness < 0.75 且 Sharpe < 1.0**（双低判定，与 AGENTS.md 一致）
-     → 该主题止损，换新主题（再跑 `qa suggest`）
+  2. 优化批仍无 PASS 且 **Fitness < 0.75 且 Sharpe < 1.0**（双低判定）→ 止损换主题
   3. 优化批出现 Fitness ≥ 0.75 **或** Sharpe ≥ 1.0 → 视为接近标准，允许再续一轮优化
 - **提前停止**：出现 PASS（自动暂存）→ 立即结束循环，输出完整摘要
 - **强制停止**：429/THROTTLED/配额受限/用户打断 → 停止并报告现状
-- **结束输出**：完整摘要（每轮主题+结果、PASS 候选指标、暂存清单）→ 等用户确认提交
-- **合规**：提交仍需逐条人工确认（红线不变）；经验沉淀照常但不主动展示
+- **结束输出**：完整摘要（每轮引擎/主题+结果、PASS 候选指标、暂存清单）→ 等用户确认提交
+- **合规**：提交仍需逐条人工确认（红线不变）；经验沉淀照常但不主动展示；
+  教学讲解不主动输出，用户要求时再补充
 
-## 1. 生成流程六环节
+---
+
+## 2. 生成流程六环节
 
 生成候选不是自由发挥，而是按以下六环节执行的有约束研究流程。
 
@@ -60,8 +102,9 @@
    （双读者化：报告与学习要点标注"本候选基于 playbook \<日期\> \<条目\>"）
 2. `experience/failures.md` —— 什么**无效**：已证伪死路，直接避开，不重复投入
 3. `experience/fields/top_fields.json` —— 每数据集 userCount top 15，选字段的起点
-4. `knowledge/operators.md` —— 67 算子语法 / 参数 / 官方示例
+4. `document/reference/operators.md` —— 67 算子语法 / 参数 / 官方示例
 5. `experience/fields/fields.json` —— 全量字段白名单 + 类型（validate 预检依据）
+6. `document/reference/templates.md` —— 有效模版库（快速模式引擎 c 必读，其余模式可参考）
 
 ### c. 字段与表达式
 
@@ -87,7 +130,7 @@
    （数值以 quantalpha-design.md 为准，本处为速查）
 2. **失败历史反向调整**（第二层）：读本批/历史 failures 反向调参——
    HIGH_TURNOVER → 增大 decay；CONCENTRATED_WEIGHT → ts_backfill / 降 truncation；
-   LOW_SHARPE → 延长 lookback / 换基本面字段（完整映射见 `knowledge/pitfalls.md`）
+   LOW_SHARPE → 延长 lookback / 换基本面字段（完整映射见 `document/reference/pitfalls.md`）
 3. **合法边界**（第三层）：以 `validate_settings` 白名单为准（decay 0-63 整数、
    neutralization 枚举、truncation 0-1、未知键拦截），超界即被预检拒绝
 
@@ -106,13 +149,13 @@
 }
 ```
 
-- `language` 可选，默认 `"FASTEXPR"`（v1.6 起 validate 对非 FASTEXPR 直接拒绝，见 §2）
+- `language` 可选，默认 `"FASTEXPR"`（v1.6 起 validate 对非 FASTEXPR 直接拒绝）
 - **设计逻辑三件套（假设 / 预期信号来源 / 可能失败点）全部写进 `hypothesis` 字段**，
   候选报告与提交确认时直接展示，实现知情确认（机械确认 → 知情确认）
 
 ### f. 质量自检清单（写文件前逐项过）
 
-- [ ] 算子 ∈ 白名单（**以 validate 为准**；67 算子全名单与语法见 `knowledge/operators.md`）
+- [ ] 算子 ∈ 白名单（**以 validate 为准**；67 算子全名单与语法见 `document/reference/operators.md`）
 - [ ] 字段 ∈ `experience/fields/fields.json`（validate 白名单）
 - [ ] 类型合规：VECTOR 需 `vec_*` 包裹、GROUP 仅作 `group_*` 的 group_by、UNIVERSE/SYMBOL 禁用
 - [ ] 复杂度 ≤30 算子 / ≤8 深度
@@ -123,9 +166,10 @@
 
 ---
 
-## 2. 顾问阶段差异
+## 3. 权限差异（用户 vs 顾问）
 
-不写死用户/顾问双分支，**统一以 `qa status` 阶段检测输出为准**：
+不写死用户/顾问双分支，**统一以 `qa status` 阶段检测输出为准**（能力矩阵与顾问路径见
+`document/flows/access.md`）：
 
 - 字段范围：用户阶段 USA；顾问阶段 12 区域（`experience/fields/` 按账户抓取，
   `qa update-knowledge --force` 刷新）
@@ -135,7 +179,7 @@
 
 ---
 
-## 3. 失败 → 优化（agent 自主模式）
+## 4. 失败 → 优化（agent 自主模式）
 
 **优化循环 = 下一个生成批次**（无独立代码优化器）。用户说"优化这批候选"后，agent 自主决策：
 
@@ -156,7 +200,7 @@ ALREADY_SUBMITTED）——生成侧靠"避开已提交信号簇"从源头减少�
 
 ---
 
-## 4. 用户覆盖原则
+## 5. 用户覆盖原则
 
 > 知识库与经验是参考而非束缚。若用户明确要求忽略某条经验或按自己的想法来，
 > 以用户要求为准（用户覆盖优先）。
@@ -170,7 +214,7 @@ ALREADY_SUBMITTED）——生成侧靠"避开已提交信号簇"从源头减少�
 
 ---
 
-## 5. 四层可靠性分层（agent 必须区分）
+## 6. 四层可靠性分层（agent 必须区分）
 
 | 层 | 来源 | 性质 | 用法 |
 |---|---|---|---|
@@ -181,23 +225,8 @@ ALREADY_SUBMITTED）——生成侧靠"避开已提交信号簇"从源头减少�
 
 ---
 
-## 6. 外部经验更新（community.md 写入流程）
+## 7. 外部经验与调研
 
-`qa update-knowledge` 运行时，agent 询问用户"是否同时更新外部经验？"→ 用户同意后：
-
-1. 网络调研（官方论坛 / BRAIN 社区 / 教程；**先确认 cookie 有效，见 §7**）
-2. 总结为新条目：方向 + 结论 + 来源 URL + 日期 + 可信度
-3. **展示给用户确认** → 追加写入 `knowledge/community.md`
-4. **禁止掺入个人私有表达式 / 账号信息**（分享红线）
-
-> 机械抓取（字段）与判断性内容（外部经验）分离：CLI 命令本身不弹交互，询问由 agent 在会话中执行。
-
----
-
-## 7. 调研访问规则
-
-- BRAIN 平台匿名访问是登录墙（返回 JS 空壳页面）
-- 调研（算子文档、字段、模拟示例等）前：先 `qa status` 验证 cookie 有效；失效则 `qa login` 刷新
-- 携带 `secrets/worldquant_cookies.txt` 访问；`/operators/{name}` 详情页含官方
-  SIMULATION_EXAMPLE（完整 settings 含 language），是生成指南的优质参考源
-- 遇到官网墙异常时**优先怀疑 cookie 过期**——更新登录状态后重试，不要盲目换信息来源
+- 外部经验更新（community.md 写入流程）：见 `document/flows/update-knowledge.md`
+- 调研访问规则（cookie 验证 / 登录墙处理）：见 `document/flows/update-knowledge.md`
+- 网络模版收集：见 `document/flows/update-knowledge.md` + `document/reference/templates.md`

@@ -67,6 +67,8 @@ delay=1、universe=TOP3000、truncation=0.08、decay=0、neutralization=INDUSTRY
 - **1.5USD 大法**：当日只交 1 个 alpha，Base ≥1.5 → 质量不错；只有 1.2 需警惕
 - 前 3 个月是"试用期"，核心目标是**积累 Value Factor**，之后收入数倍提升
 - **Super Alpha**：累计提交 100 个 alpha 后解锁，可组合已有 alpha（每日 1 个上限，收入常更高）；社区门槛经验：fit>5 + prod corr<0.7
+- **ACTIVE 计重**（官方 19218586723991）：**仅顾问**的 ACTIVE alpha 可累积 weight；用户阶段 ACTIVE 不产生 weight
+- **DECOMMISSIONED 状态**（官方 19218490444823）：数据集下架（无法再模拟）/ OS 期长期表现不佳 / 平台裁定——提交后 alpha 可能被停用
 - **研究小组**：提交 30 个 alpha 后可申请，双周评比有额外奖金
 - 评级（Spectacular/Excellent）≠ 高 Quality Factor / 高 base
 - 税务：劳务报酬代扣代缴（800 以下免税、以上 20%）；Base 每两月发放 + Quarterly 每季（1/3/5/6/7/9/11/12 月发薪日）

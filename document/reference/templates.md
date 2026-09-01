@@ -76,7 +76,26 @@
 
 ---
 
+## T7 设置三角调优（decay/truncation/neutralization）
+
+- **结构**：`表达式不变，只调 settings`——decay 分级调优 + truncation 0.05-0.1 + neutralization 按分组
+- **适用**：任何 Fitness 卡壳（0.7-1.0 区间）的 alpha，先调设置再改代码
+- **参数经验**：decay 1-3 → TO 40-60%；4-7 → 25-40%；8-15 → 15-25%；15+ → <15%；
+  反转类 decay 5-8、动量类 10+；原则 = 用能保持 TO<70% 的最小 decay，从低逐步加
+- **来源**：网络-https://support.worldquantbrain.com/hc/en-us/community/posts/40205054470295（中可信度）
+- **实证**：社区案例 decay 5→10 让 Fitness 0.70→1.02（零代码改动）；与自有期权簇 decay 8 经验一致
+
+## T8 算子序列选择（时序/截面变换顺序）
+
+- **结构**：A. `group_rank(ts_rank(x, N), group)`（时序→截面：去个股基线偏差）；B. `ts_rank(rank(x), N)`（截面→时序：衡量相对地位变化）
+- **适用**：合成复合信号时选型；A 适合基本面/波动类（保留历史上下文），B 适合衡量相对排名改善
+- **参数经验**：A 的 N 60-120（半年基准）；B 的 N 跟随信号周期
+- **来源**：网络-https://support.worldquantbrain.com/hc/en-us/community/posts/42801563919895（中可信度）
+- **实证**：序列顺序显著影响信号分布与风险参数，生成时必须有意识地选择（T1 黄金组合即 A 型）
+
+---
+
 ## 网络模版收集区（预留）
 
-> 调研收集的模版追加到下方（格式同上，来源标 `网络-URL` + 可信度）。
-> 当前为空，见 `document/flows/update-knowledge.md` §4 收集流程。
+> 调研收集的模版追加到上方（格式同上，来源标 `网络-URL` + 可信度）。
+> 当前已有 T7/T8，见 `document/flows/update-knowledge.md` §4 收集流程。

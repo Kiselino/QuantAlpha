@@ -31,5 +31,8 @@
 
 | 日期 | 方向 | 结论 | 来源 URL | 可信度 | 备注 |
 |---|---|---|---|---|---|
-| 2026-08-16 | 动量类因子 | 示例：动量类因子在美股日频的衰减研究（通用学术结论，非具体配方） | https://example.com/momentum-decay（占位） | 中 | 示例条目：展示"方向+结论+来源+可信度"写法 |
-| 2026-08-16 | 低波动异象 | 示例：低波动组合在多数市场长期跑赢，但极端行情下回撤放大 | https://example.com/low-vol-anomaly（占位） | 中 | 示例条目：结论为通用观察，需按平台模拟验证 |
+| 2026-09-01 | 模拟设置 | 设置三角（decay/truncation/neutralization）相互影响；仅调 decay 5→10 即可让 Fitness 0.70→1.02（零代码改动）；decay 分级：1-3→TO 40-60%、4-7→25-40%、8-15→15-25%、15+→<15% | https://support.worldquantbrain.com/hc/en-us/community/posts/40205054470295 | 中 | 社区 Masterclass 帖；与自有实证（decay 8 期权簇）一致 |
+| 2026-09-01 | 算子序列 | 时序→截面（ts_rank 后 rank/group_rank）：去个股自身基线偏差、保留历史上下文；截面→时序（rank 后 ts_rank(rank(x),N)）：衡量相对地位改善/恶化 | https://support.worldquantbrain.com/hc/en-us/community/posts/42801563919895 | 中 | Deep Dive 帖；序列选择影响信号分布，生成时须有意识 |
+| 2026-09-01 | decay 参数 | 反转类 alpha decay 5-8 合适、动量类 10+（效应数月）；原则=用能保持 TO<70% 的最小 decay，从低开始逐步加 | https://support.worldquantbrain.com/hc/en-us/community/posts/40782573762583 | 中 | 与自有 decay 经验值（技术 10-30）互补 |
+| 2026-09-01 | 中性化 | 中性化剥离市场噪声/风险因子；sub-industry vs industry 分组选择影响相关性与 Fitness | https://support.worldquantbrain.com/hc/en-us/community/posts/38706536824855 | 中 | 社区帖；与黄金组合 subindustry 分组一致 |
+| 2026-09-01 | 信号拥挤 | 热门信号随参与者增加性能衰减（Signal Crowding）——需持续寻找低拥挤信号源 | https://support.worldquantbrain.com/hc/en-us/community/posts/38706522115735 | 中 | 与"避开已提交饱和簇"策略一致 |

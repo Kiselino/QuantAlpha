@@ -130,7 +130,9 @@
    （数值以 quantalpha-design.md 为准，本处为速查）
 2. **失败历史反向调整**（第二层）：读本批/历史 failures 反向调参——
    HIGH_TURNOVER → 增大 decay；CONCENTRATED_WEIGHT → ts_backfill / 降 truncation；
-   LOW_SHARPE → 延长 lookback / 换基本面字段（完整映射见 `document/reference/pitfalls.md`）
+   LOW_SHARPE → 延长 lookback / 换基本面字段（完整映射见 `document/reference/pitfalls.md`）。
+   **注意**：ts_backfill 是"假设不是修复"——只适用于结构性低频数据（基本面/预期类），
+   高频信号（快反转/新闻）长 backfill 会虚高 Sharpe 且错过 regime 切换（pitfalls.md 实测警告）
 3. **合法边界**（第三层）：以 `validate_settings` 白名单为准（decay 0-63 整数、
    neutralization 枚举、truncation 0-1、未知键拦截），超界即被预检拒绝
 

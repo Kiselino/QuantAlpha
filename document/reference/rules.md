@@ -78,8 +78,17 @@ delay=1、universe=TOP3000、truncation=0.08、decay=0、neutralization=INDUSTRY
 ## 组合视角（alpha 非独立）
 
 - 提交检查 `SELF_CORRELATION`：与已提交全部 alpha 日收益 max Pearson <0.7
-- 低相关要靠**不同数据来源/经济逻辑**，不是调参（换窗口/中性化无效）
+- **相关门范围随阶段变化**（官方 5973662104599）：**用户阶段只与自己已提交的 alpha 比相关**；
+  成为顾问后改用整个 BRAIN alpha 池度量相关 → 顾问阶段相关门显著更严，生成时必须更强调
+  信号独特性（低相关要靠**不同数据来源/经济逻辑**，不是调参）
 - 提交前可调 `/correlations/self` 免费查相关门
+
+## 多空平衡要求
+
+- **提交的 alpha 必须多空平衡**（官方 13306223024151）：`Neutralization = None` 仅用于分析
+  数据集；若最后层不加 `group_neutralize`/`group_normalize`，可能长空数量失衡 → 引入市场风险
+- 多空失衡后果：WQChallenge 分数次优、IS/OS 合并表现次优、可能被拒
+- 生成/预检时的自查点：非 INDUSTRY/SUBINDUSTRY 中性化的候选，检查表达式是否含分组中性化收尾
 
 ## 平台 API 备忘
 

@@ -36,14 +36,21 @@
 - 素材：官方 How BRAIN Works / Simulation Settings（`document/flows/update-knowledge.md` §2 访问方式）
   + 项目实操（本批候选的 settings 为什么这么选）
 - 讲解要点：simulation 是平台评分器不是回测；settings 各参数（decay/neutralization/truncation）
-  影响什么指标
+  影响什么指标；**Alpha 定义（官方 5971767795479）**：数学预测模型 = 数据字段 × 算子的组合，
+  输出为宇宙内每只股票的权重向量；**论文实现方法（官方 5971656020503）**：学术结果只是指引，
+  用最简形式实现，再按平台机制改进
 
 ### 方向 3：数据探索与操作符
 
 - 覆盖：数据字段分类（基本面/分析师/技术/另类）与结构差异、Data Explorer 指标含义、
   常用数据探索表达式、操作符类别与用途
 - 素材：`document/reference/fields.md` + `document/reference/operators.md` + 实操表达式拆解
-- 讲解要点：字段类型（VECTOR/GROUP/UNIVERSE）决定算子选择；算子类别→数据操作→目的
+- 讲解要点：字段类型（VECTOR/GROUP/UNIVERSE）决定算子选择；算子类别→数据操作→目的；
+  **group_neutralize vs Neutralization setting（官方 6425949726487）**：两者同一操作
+  （分组减均值），但 setting 是提交前最后一步对全 alpha 做中性化（保证多空平衡），
+  `group_neutralize(x, group)` 只中性化表达式的特定部分；
+  **group 类算子选择（社区 38337681301143）**：`group_rank` = 组内 0-1 排名
+  （"同行强弱"，抗离群）、`group_zscore` = 组内标准化、`group_neutralize` = 组内去均值
 
 ### 方向 4：回测结果与提交
 

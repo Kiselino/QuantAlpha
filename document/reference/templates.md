@@ -93,6 +93,14 @@
 - **来源**：网络-https://support.worldquantbrain.com/hc/en-us/community/posts/42801563919895（中可信度）
 - **实证**：序列顺序显著影响信号分布与风险参数，生成时必须有意识地选择（T1 黄金组合即 A 型）
 
+## T9 分组算子选型（group_rank vs group_zscore vs group_neutralize）
+
+- **结构**：`group_rank(x, group)`（组内 0-1 排名）/ `group_zscore(x, group)`（组内标准化）/ `group_neutralize(x, group)`（组内去均值）
+- **适用**：x 值域分布不同时选型——排名抗离群、保留相对位置（"同行强弱"）；zscore 保留偏离程度；neutralize 直接去均值（多空平衡收尾）
+- **参数经验**：group 用 subindustry 优于 industry（自有实证）；setting 级中性化 = 最后一步全 alpha 去均值（保证多空平衡），表达式内 group_neutralize 只作用于局部
+- **来源**：网络-https://support.worldquantbrain.com/hc/en-us/community/posts/38337681301143 + 官方 6425949726487（中可信度）
+- **实证**：黄金组合（T1）即 group_rank 型；多空平衡要求见 rules.md（官方 13306223024151）
+
 ---
 
 ## 网络模版收集区（预留）

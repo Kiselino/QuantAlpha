@@ -36,18 +36,34 @@
 | CONCENTRATED_WEIGHT | 降 truncation；检查覆盖（ts_backfill） |
 | LOW_FITNESS | 通常由高换手导致——先降 turnover |
 
+## ts_backfill 陷阱（社区实测警告，2026-09）
+
+> `ts_backfill` 是**假设不是修复**：它不是简单补缺失，而是创造人工持续性——
+> 平滑信号、降 turnover、**可能虚高 Sharpe**（样本内表现更好、波动更低）。
+> 短半衰期信号（快反转/新闻类）做长 backfill 会错过 regime 切换、持仓被过时数据驱动。
+> **backfill 只适用于结构性低频数据**（基本面/宏观/分析师预期），不适用于高频信号；
+> 用它解决 CONCENTRATED_WEIGHT 时注意别把信号填"死"。
+
+## 信号拥挤检测（社区讨论，2026-09）
+
+- 拥挤信号特征：历史表现好但样本外快速衰减；社区趋同构建；隐式暴露共同风格
+- 检测方式：field `userCount` 高、已提交同簇拦截、提交后相关门骤紧
+- 应对：跟踪已提交信号簇分布（**换簇不换参**）、寻找低拥挤信号源、用社区方法论帖的
+  独立信号源混合思路（见 templates.md T4）
+
 ## 平台报错快速映射（Help Center 错误信息大全精选）
 
 | 报错/提示 | 含义与修复 |
 |---|---|
 | `DAILY_SIMULATION_LIMIT_EXCEEDED` | 每日模拟限额，美东时间重置，明日再试 |
-| "Alpha better suited for Delay 1" | D1 Sharpe 高于 D0 → 建议提交 D1（成本更低） |
+| "Alpha better suited for Delay 1" | D1 Sharpe 高于 D0 → 建议提交 D1（成本更低，官方 19083452017559） |
+| "Most illiquid 50% ... above cutoff" | 不流动 50% after-cost Sharpe 低于阈值（X≈52.5%·原始 after-cost Sharpe，官方 19083525654551）；修复：提高不流动部分权重/分开 decay |
 | "表达式过复杂" | 算子调用超限（上限 30/深度 8），简化 |
 | "未知字段/变量" | 字段在该区域/延迟不覆盖，换字段 |
 | "保留字冲突" | 避免保留字作字段名 |
 | "必须 ≥10 个成分 alpha（SuperAlpha）" | Super 提交前先凑足成分 |
 | 均值回归警告 | 信号有均值回复特性，注意方向选择 |
-| "Overused"（数据集警告） | 该数据集类别过度使用，临时禁用（见 fields/README.md） |
+| "Overused"（数据集警告） | 该数据集类别过度使用，临时禁用（见 fields.md） |
 
 ## 权威修复文章索引（Help Center 文章 ID，登录后可查）
 

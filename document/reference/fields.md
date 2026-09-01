@@ -10,6 +10,26 @@
 - **Vector 字段**（nws/scl 等 VECTOR 类型）：不能直接用于标量表达式，需 `vec_*` 算子转换；原始 turnover 高，须 `ts_rank`/`ts_decay` 降频
 - 生成候选时优先基本面数据集（通过率最高），避免使用 `userCount` 过高的饱和字段
 
+## 数据集分布（官方 API 核对，2026-09-01）
+
+`GET /data-sets` 全量 **204 个数据集（区域 USA）**，类别分布：
+
+| 类别 | 数量 | 说明 |
+|---|---|---|
+| Price Volume | 36 | 价格/成交量（技术信号载体） |
+| Fundamental | 30 | 基本面（价值/质量/成长，通过率最高） |
+| Model | 30 | 模型输出 |
+| Option | 30 | 期权（IV 情绪信号） |
+| News | 24 | 新闻 |
+| Social Media | 24 | 社交媒体 |
+| Analyst | 12 | 分析师预期 |
+| Earnings | 12 | 盈利 |
+| Sentiment | 6 | 情绪 |
+
+> 账户可见范围远小于全量：本地 `experience/fields/meta.json` 记录（如 21 数据集 / 8642 字段）。
+> 顾问阶段 12 区域的数据集范围按账户抓取自动扩大（`qa update-knowledge --force` 刷新）。
+> 数据集 API 分页注意：`limit` 上限约 20（>20 返回 400 "pagination limit too high"）。
+
 ## 本地字段知识（账户专属，不上传）
 
 | 文件 | 内容 | 用途 |

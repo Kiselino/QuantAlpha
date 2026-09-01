@@ -22,8 +22,8 @@
 | 等级 | 分数段位 | 说明 |
 |---|---|---|
 | BRONZE | > 1000 分 | 分数段位，**非顾问资格** |
-| SILVER | > 5000 分 | 解锁 D0 模式 |
-| GOLD | > 10000 分 | **GOLD 用户还不是顾问** |
+| SILVER | > 5000 分 | 解锁 D0 模式（官方文章 38301762395415："To get access to D0 Alphas, you must reach 5,000 Individual Qualifier Score"） |
+| GOLD | > 10000 分 | **GOLD 用户还不是顾问**（官方文章 8361844494359：10000 分仅是邀请资格之一） |
 | 顾问 | 10000 分 + Gold + 完整申请流程 | 见下方顾问路径 |
 
 - `is_consultant = consultant is not None or geniusLevel is not None`——与 level 正交

@@ -12,7 +12,7 @@ def _cmd_reset(paths: QaPaths, yes: bool = False) -> int:
 
     清除：qa.db、audit/、candidates/、reports/daily/、pending_submits.json、
     playbook/failures 的沉淀段落（恢复模板）。
-    保留：secrets/ 下 cookie 与 account_info（登录凭证）、knowledge/ 静态知识库。
+    保留：secrets/ 下 cookie 与 account_info（登录凭证）、document/ 公开知识库。
     """
     targets = {
         "qa.db（模拟/提交/经验全部记录）": paths.DB,
@@ -33,7 +33,7 @@ def _cmd_reset(paths: QaPaths, yes: bool = False) -> int:
         "[reset] 同时恢复：experience/playbook.md、failures.md 为模板（本地经验沉淀）"
     )
     print(
-        "[reset] 保留：secrets/ 登录凭证、knowledge/ 公开知识库、"
+        "[reset] 保留：secrets/ 登录凭证、document/ 公开知识库、"
         "experience/fields/ 账户字段知识、qa/ 代码"
     )
 

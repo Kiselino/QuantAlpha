@@ -32,7 +32,7 @@ from qa.validate import (
 
 
 def _load_operators() -> set[str]:
-    """算子白名单：平台官方 67 算子全集（与公开 knowledge/operators.md 一致，2026-08-14 API 实测）。"""
+    """算子白名单：平台官方 67 算子全集（与公开 document/reference/operators.md 一致（API 实测））。"""
     return {
         # 算术
         "abs",
@@ -62,7 +62,7 @@ def _load_operators() -> set[str]:
         "less_equal",
         "equal",
         "not_equal",
-        # 时间序列（与 knowledge/operators.md 一致）
+        # 时间序列（与 document/reference/operators.md 一致）
         "ts_rank",
         "ts_mean",
         "ts_delta",
@@ -516,7 +516,7 @@ def cmd_run(
     except FileNotFoundError as e:
         print(f"[run] 错误: {e}")
         print(
-            "[run] 提示：请先由 agent 根据 knowledge/ 生成候选并写入 "
+            "[run] 提示：请先由 agent 根据 document/ 生成候选并写入 "
             "data/candidates/YYYY-MM-DD.json（或使用 --candidates-file 指定文件）。"
         )
         return 1

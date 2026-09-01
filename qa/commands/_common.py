@@ -10,7 +10,7 @@ from qa import knowledge
 from qa.paths import QaPaths
 from qa.store import Store
 
-# 失败→修复建议映射（来源 knowledge/pitfalls.md「常见失败与修复」表）
+# 失败→修复建议映射（来源 document/reference/pitfalls.md「常见失败与修复」表）
 _FAILURE_FIX_SUGGESTIONS = {
     "LOW_SHARPE": "延长 lookback / 换基本面字段 / 黄金组合",
     "HIGH_TURNOVER": "增大 decay（技术 10-30）或 ts_rank 平滑",

@@ -1,6 +1,6 @@
 """候选读入（agent 生成的候选 JSON → 项目数据结构）。
 
-生成由对话层 agent 完成：agent 读 knowledge/ 后写 `data/candidates/YYYY-MM-DD.json`，
+生成由对话层 agent 完成：agent 读 document/ 后写 `data/candidates/YYYY-MM-DD.json`，
 本项目只读入并执行后续流程（预检/模拟/筛选/报告）。项目内不调用 LLM API。
 """
 

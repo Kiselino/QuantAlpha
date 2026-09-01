@@ -1,7 +1,7 @@
 """本地知识库管理（账户专属，gitignored，不上传公开仓库）。
 
 知识库拆分（v1.4）：
-- 公开（knowledge/）：operators / rules / pitfalls —— 平台公开文档，随仓库分发
+- 公开（document/）：operators / rules / pitfalls —— 平台公开文档，随仓库分发
 - 本地（experience/）：字段元数据 + playbook / failures —— 按账户权限生成、
   经验沉淀，全部位于 gitignored 的 experience/，克隆者不会拿到。
 

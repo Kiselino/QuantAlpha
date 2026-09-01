@@ -386,7 +386,7 @@ QuantAlpha/
 
 | 优先级 | 事项 | 说明 |
 |---|---|---|
-| P1 | 算子白名单不一致 | API 官方确认 67 算子，validate 白名单缺 14 个（trade_when/bucket/ts_regression/vector_neut/signed_power/reverse/densify/kth_element/ts_step/days_from_last_change/ts_count_nans/ts_covariance/ts_product/last_diff_value）→ agent 按文档生成被预检误拒。修复 = validate 白名单补 14 字符串 |
+| ~~P1~~ | ~~算子白名单不一致~~ | ✅ **已解决（2026-09-01 核对）**：`qa/commands/run.py:_load_operators` 67/67 与官方 API 完全一致（trade_when/bucket/ts_regression/vector_neut 等 14 个已补） |
 | P1 | D0 路径未走通 | config 已定义 D0 阈值从未使用；screener 只走 D1；delay 固定 1、候选 settings 无法指定 delay=0；ATOM 规则无代码（对话层） |
 | P2 | 已提交簇聚合查询 | 组合视角"生成前避开饱和簇"无 store 查询接口，`qa suggest` 不带已提交信号簇信息 |
 | P2 | 顾问阶段并发上限 | 未确认平台分钟限流是否随顾问提高；--concurrency 已参数化，成为顾问后实测 x-ratelimit-limit-minute 再决定 |

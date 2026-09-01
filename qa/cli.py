@@ -1,6 +1,6 @@
 """QuantAlpha CLI：argparse 分发入口（命令实现在 qa/commands/ 子包）。
 
-生成由对话层 agent 完成（agent 读 knowledge/ 后写候选到 data/candidates/）。
+生成由对话层 agent 完成（agent 读 document/ 后写候选到 data/candidates/）。
 本项目只执行：读入候选 → 预检 → 模拟 → 筛选 → 报告 →（确认后）提交。
 合规：提交/清除必须等待用户显式确认（--yes 仅限用户对话中确认后由 agent 代执行）。
 

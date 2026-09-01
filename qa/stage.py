@@ -40,7 +40,7 @@ class StageInfo:
 
     level 与 is_consultant 正交，勿混淆：
     - level：分数段位（BRONZE/SILVER/GOLD），非顾问资格；GOLD 用户 ≠ 顾问
-      （顾问 = 10000 分 + Gold + 完整流程，见 rules.md）。
+      （顾问 = 10000 分 + Gold + 完整流程，见 document/reference/rules.md）。
     - is_consultant：顾问资格（geniusLevel/consultant 字段非空），
       解锁 12 区域 / PYTHON+ML / D0 等；顾问后 level 是否继续更新未确认。
     """

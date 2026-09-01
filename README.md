@@ -98,7 +98,7 @@ qa update-knowledge      # 按账户阶段抓取字段元数据 → 写入 exper
 qa login                                              # 账号密码登录（写入会话 cookie；也可 --username/--password）
 qa status                                             # 启动首查：阶段检测 + 五项环境检查 + 本地知识库状态
 qa update-knowledge [--regions USA,KOR] [--force]     # 首次运行必做：按账户生成本地字段知识库（24h 内已生成默认跳过，--force 强制刷新）
-# agent 读 knowledge/（公开）+ experience/（本地字段/playbook/failures）→ 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
+# agent 读 document/（公开）+ experience/（本地字段/playbook/failures）→ 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
 qa run [--concurrency N]                              # 读入候选 → 预检 → 模拟 → 筛选 → 报告（默认 3 并发可调；中断后重跑同一候选文件自动续查未完成的模拟；PASS 候选自动暂存待提交）
 qa report --daily                                     # 查看每日达标汇总
 qa report --pending                                   # 预览待提交暂存清单（含指标；提交仍逐个人工确认）
@@ -115,9 +115,9 @@ qa reset [--yes]                                      # 清除积累的经验，
 
 这个仓库是公开的：**工具 + 公开知识库（平台文档）** 随仓库分发；你的私有数据（cookie、账号密码、本地字段知识、个人经验、个人成果）已被 gitignore 隔离，其他使用者克隆后不会看到。
 
-知识库拆分（v1.4）：
+知识库拆分（v1.7 文档驱动重构）：
 
-- **公开 `knowledge/`**：operators（FASTEXPR 算子）、rules（平台规则）、pitfalls（量化陷阱）、字段策略说明、generation-guide（alpha 生成指南）、community（外部经验库）——平台公开文档，随仓库分发
+- **公开 `document/`**：分层组织——`document/flows/`（流程控制文档：startup 启动/generation 生成/submission 提交/experience 沉淀/access 权限/update-knowledge 调研/learning 学习）、`document/reference/`（知识参考：operators 算子/rules 规则/pitfalls 陷阱/fields 字段策略/community 外部经验/templates 模版库）——平台公开文档，随仓库分发。agent 按流程走到相关步骤才读对应文档（`AGENTS.md` 导航表）
 - **本地 `experience/`**（gitignored）：字段元数据（`qa update-knowledge` 按账户权限生成）、playbook/failures（个人经验沉淀）——**账户专属，不上传**，因为字段可用范围随账户权限变化，且表达式/字段研究属于个人数据
 
 使用者需要：
@@ -134,23 +134,25 @@ qa reset [--yes]                                      # 清除积累的经验，
 
 ```
 QuantAlpha/
-├── AGENTS.md              # agent 工作流入口（agent 打开先读这个）
+├── AGENTS.md              # agent 工作流入口 + 流程→文档导航表（agent 打开先读这个）
 ├── README.md              # 本文件：安装、认证配置、快速开始
-├── quantalpha-design.md   # 权威设计（系统设计/模块/数据模型）
-├── qa/                    # Python 工具库（auth/stage/brain_client/knowledge/...）
-├── knowledge/             # 公开知识库（算子/规则/陷阱/字段策略/生成指南/社区经验——平台公开文档）
+├── document/              # ✅ 公开文档（仓库核心）：quantalpha-design.md + flows/ + reference/
+├── qa/                    # Python 工具库（auth/stage/brain_client/validate/commands/...）
 ├── pyrightconfig.json     # LSP 配置（basedpyright）
 ├── experience/            # 🔒 本地账户知识库：fields/ + playbook.md + failures.md（gitignored）
 ├── data/                  # 🔒 私有：qa.db + audit + candidates（gitignored）
 ├── reports/               # 🔒 私有：个人成果（gitignored）
 ├── secrets/               # 🔒 私有：cookie、account_info.json（gitignored）
+├── docs/                  # 🔒 skill 产物：设计/计划存档（gitignored）
 ```
 
 ## 文档
 
-- `quantalpha-design.md` — 系统设计（模块/数据模型/错误处理/MVP）
-- `AGENTS.md` — agent 工作流入口与关键知识速查
-- `knowledge/` — 平台规则、算子参考、字段策略说明、生成指南（generation-guide）、外部经验库（community）（公开）；本地字段/经验见 `experience/`（`qa update-knowledge` 生成）
+- `document/quantalpha-design.md` — 权威系统设计（模块/数据模型/错误处理/MVP，v1.7）
+- `document/flows/` — 流程控制文档：startup（会话启动/模式询问）、generation（生成三模式）、submission（提交检查/人工确认）、experience（经验沉淀/模版总结）、access（用户 vs 顾问权限矩阵）、update-knowledge（知识库更新/平台调研）、learning（人机交互学习）
+- `document/reference/` — 知识参考：operators（67 算子）、rules（平台规则/门槛/计分/风控）、pitfalls（量化陷阱）、fields（字段策略）、community（外部经验库）、templates（有效模版库）
+- `AGENTS.md` — agent 工作流入口（导航表 + 合规红线 + 命令清单）
+- 本地字段/经验见 `experience/`（`qa update-knowledge` 生成）
 
 ## 免责声明
 

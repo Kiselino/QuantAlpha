@@ -7,6 +7,7 @@ audit/
 
 # 中间态/skill 产物（不提交）
 design/
+docs/
 
 # Python
 __pycache__/

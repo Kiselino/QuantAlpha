@@ -1,9 +1,11 @@
 # QuantAlpha — 系统设计文档（项目职能说明书）
 
-**版本:** v1.6 · **日期:** 2026-08-16 · **状态:** v1.5 基础上叠加流程深化批次（登录/status 增强 + commands/ 子包 + 生成指南与学习机制 + 语言字段 + 限流以平台提示为准（无主动配额检查） + 中断恢复 + 失败优化闭环 + 外部经验通道）
+**版本:** v1.7 · **日期:** 2026-09-01 · **状态:** v1.6 基础上完成文档驱动重构（文档体系重组：knowledge/ 迁入 document/ 分层 + todo-design 终结合并 + 三模式体系 + 人机交互学习定位 + 模版机制；代码行为不变）
 
 > 本文档是 QuantAlpha 系统的唯一权威设计来源。实现、修改、扩展均以本文为准。
 > 本仓库公开分发：工具 + 公开知识库（平台文档）；私有数据（cookie、账号密码、本地字段知识、个人经验、个人成果）gitignore 隔离。
+>
+> **v1.7 更新（文档驱动重构批次，决议来源 docs/superpowers/specs/2026-09-01-document-restructure-design.md）：** ① **文档体系重组**：`knowledge/` 迁入 `document/` 并按"agent 读取时机"分层——`document/flows/`（流程控制，7 份：startup/generation/submission/experience/access/update-knowledge/learning）+ `document/reference/`（知识参考，6 份：operators/rules/pitfalls/fields/community/templates）+ 本文档置于 `document/` 根；`AGENTS.md` 瘦身为"流程→文档导航表" ② **三模式体系**：教学模式（人机交互学习核心）/随机模式（随机主题+穿插教学）/快速模式（历史高价值复用三引擎：主题深挖/失败优化/模版生成）取代原详细/简易二选一 ③ **人机交互学习定位**：新增 `document/flows/learning.md`——以帮助人掌握相关知识为主，四大学习方向对齐官方学习指南；素材仅限官方公开材料 + 仓库脱敏经验，严禁收集/传播面试材料 ④ **模版机制**：`document/reference/templates.md` 模版库（脱敏结构模式），经验沉淀时总结、调研时收集网络模版，快速模式引擎 c 直接读取 ⑤ **权限差距文档**：`document/flows/access.md` 能力矩阵（用户 vs 顾问），顾问路径按官方帖子更新（10K→排行榜→笔试→面谈→Workday→背调→合同→银行卡）⑥ **todo-design 终结合并**：全部已实现决议归档本附录，未实现项入 Backlog，临时文档删除。
 >
 > **v1.6 更新（流程深化批次，决议来源 data/todo-design.md）：** ① **登录/status 增强**：`qa status` 升级为会话级环境检查（五项输出：新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存）；入口双轨检查（run/submit/update-knowledge 各验一次 + 批处理 401 中断，幂等重跑）② **结构拆分**：cli.py 瘦身为 argparse 分发，命令迁入 `qa/commands/` 子包（login/status/run/submit/reset/update_knowledge/suggest/report_cmd/_common）③ **生成环节**：新增 `knowledge/generation-guide.md` 生成指南（六环节）+ 学习机制（候选报告展示设计逻辑、submit 展示 hypothesis、今日学习要点、playbook 双读者化）④ **语言阶段感知**：候选 JSON 增加可选 `language` 字段（默认 FASTEXPR），validate 对非 FASTEXPR fail-closed 拒绝 ⑤ **删本地每日预算与每日配额检查**：status 不展示配额、run 不做每日截断——模拟时平台 429/THROTTLED 提示后处理（429 退避、THROTTLED 暂停），分钟限流批间等待保留，本地 2000 兜底删除 ⑥ **并发参数化**：固定 3 + `--concurrency` ⑦ **中断恢复**：simulations 表落库平台 sim_id，重跑有 sim_id 续查 / 404 回退重提 ⑧ **失败→优化**：优化并入下一个生成批次（agent 自主决策 + 止损报告），failures 按 failure_reason 归因统计（模拟/提交归因分离）⑨ **外部经验通道**：新增 `knowledge/community.md`，update-knowledge 时询问用户是否同步更新 ⑩ **提交边界**：相关门被拒即弃不重试、`qa report --pending` 批量预览、run 报告补 corr 展示。**每周复盘取消**（并入学习要点）。
 >
@@ -116,7 +118,7 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 |---|---|---|---|
 | 0 | **启动：阶段检测 + cookie 验证 + 本地知识库检查** | stage / brain_client / knowledge | 自动 |
 | 1 | **生成前询问主题来源三选一**：① `qa suggest`/agent 随机抽取 ② agent 网络调研热门主题 ③ 用户指定方向 | 对话 | 人工 |
-| 2 | **agent（对话层自身）读 `knowledge/generation-guide.md`（生成指南 v1.6）→ 按六环节执行（固化输入 → 加载知识 → 字段/表达式 → 设置三层决策 → 输出候选 → 质量自检）→ 生成 10-20 个候选 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM；候选格式含可选 `language`，设计逻辑三件套写进 hypothesis，见指南） | 对话层 + candidates | 自动 |
+| 2 | **agent（对话层自身）读 `document/flows/generation.md`（生成指南 v1.6，三模式体系见 §三）→ 按六环节执行（固化输入 → 加载知识 → 字段/表达式 → 设置三层决策 → 输出候选 → 质量自检）→ 生成 10-20 个候选 → 写入 `data/candidates/YYYY-MM-DD.json`**（项目不调 LLM；候选格式含可选 `language`，设计逻辑三件套写进 hypothesis，见指南） | 对话层 + candidates | 自动 |
 | 3 | **validate 前置预检**（AST 语法 lint + 字段白名单（读本地 experience/fields/）+ 哈希去重 + 复杂度控制 + settings/language 校验） | validate | 自动 |
 | 4 | 批量云端模拟（默认 3 并发 / `--concurrency` 可调 / 分钟限流管理 / 429 区分处理 / JSONL 审计 / 中断恢复续查） | brain_client | 自动 |
 | 5 | 门槛过滤（用平台 `is.checks` 结果）+ PASS 免费相关门排序（corr 低者优先）+ PASS 自动暂存待提交 + run 报告补 corr 排序值展示 | screener | 自动 |
@@ -372,3 +374,29 @@ QuantAlpha/
 | **计分策略** | 每日集中提交 1-2 个高质量（美东 3AM 日界） | 官方计分规则：每日 2000 分封顶、相对分 |
 | **知识库本地化（v1.4）** | 字段/经验本地生成，公开仓库只留平台文档 | 用户拍板：账户权限差异 + 敏感数据不上传；首次运行 `qa update-knowledge` 生成 |
 | **经验自动沉淀（v1.4）** | run/submit 后 PASS→lessons、FAIL→failures 自动写 SQLite + experience/ markdown（幂等去重） | 沉淀闭环指导后续生成；省人工整理 |
+
+---
+
+## 附：todo-design 终结合并记录（v1.7）
+
+> `data/todo-design.md` 临时决议文档已终结（2026-09-01）。已实现决议全部落库（git log 与正文可查），
+> 未实现项整理为下方 Backlog；身份差异备忘已并入 `document/flows/access.md`。
+
+### Backlog（未实现，按优先级）
+
+| 优先级 | 事项 | 说明 |
+|---|---|---|
+| P1 | 算子白名单不一致 | API 官方确认 67 算子，validate 白名单缺 14 个（trade_when/bucket/ts_regression/vector_neut/signed_power/reverse/densify/kth_element/ts_step/days_from_last_change/ts_count_nans/ts_covariance/ts_product/last_diff_value）→ agent 按文档生成被预检误拒。修复 = validate 白名单补 14 字符串 |
+| P1 | D0 路径未走通 | config 已定义 D0 阈值从未使用；screener 只走 D1；delay 固定 1、候选 settings 无法指定 delay=0；ATOM 规则无代码（对话层） |
+| P2 | 已提交簇聚合查询 | 组合视角"生成前避开饱和簇"无 store 查询接口，`qa suggest` 不带已提交信号簇信息 |
+| P2 | 顾问阶段并发上限 | 未确认平台分钟限流是否随顾问提高；--concurrency 已参数化，成为顾问后实测 x-ratelimit-limit-minute 再决定 |
+| P3 | 生成侧代码未强制规则 | dataset_ids 与表达式字段归属一致性、保留字冲突、规模乘子禁忌（rank(-assets)） |
+| P3 | PYTHON/ML 语法 | stage 已检测但 validate 不支持；language 字段 + fail-closed 已落地，完整校验留待顾问阶段 |
+| P3 | 学习模式 qa teach | 顾问冲刺前可选；与 document/flows/learning.md（人机交互学习）定位衔接，届时设计 |
+
+### 身份差异事实备忘（已核实，已并入 access.md）
+
+- `is_consultant = consultant is not None or geniusLevel is not None`——与 level 正交
+- level（BRONZE/SILVER/GOLD）= 分数段位（>1000/>5000/>10000）；顾问 = 10000 分 + Gold + 完整流程——GOLD 用户还不是顾问
+- D0 解锁：`d0_available = is_consultant or level in ("SILVER","GOLD")`（5000 分解锁）
+- 顾问后变化清单：区域 USA→12、字段库扩大、语言 +PYTHON/ML、D0 可用、门槛 D1→D0、模拟 delay 1→0、计分规则（提交 3+ 封顶）

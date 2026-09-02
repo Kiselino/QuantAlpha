@@ -176,7 +176,7 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 | `qa run [--candidates-file ...] [--concurrency N]` | 完整闭环：读入候选→预检→模拟→筛选→报告 ✅ | **候选由 agent 写入 `data/candidates/` 后项目读入**（默认读当日文件）；字段白名单读本地知识库（缺失报错引导首跑）；并发模拟（默认 3，v1.6 `--concurrency` 可调）；结果落库（save_alpha + save_simulation + 审计）；经验自动沉淀；入口快验 + 批处理 401 中断 + 中断恢复续查（v1.6） |
 | `qa report [--daily] [--pending]` | 查看报告 ✅ | 当日候选清单 / 每日累计汇总；**v1.6 `--pending` 批量展示待提交暂存清单（含指标 + 相关门排序，提交仍逐个人工确认）**；候选清单含设计逻辑 hypothesis 与 corr 排序值展示 |
 | `qa submit <alpha_id> [--yes]` | 人工确认后提交 ✅ | 展示全部检查 + **hypothesis（v1.6 知情确认）** + 免费相关门 → 交互确认（或 --yes agent 代提交）→ `POST /alphas/{id}/submit` → **轮询回查 ACTIVE**（平台状态更新有延迟）；**相关门被拒即弃不重试（v1.6）**；写 submissions 表 + 审计；相关门饱和/失败/ACTIVE 沉淀经验 |
-| `qa reset [--yes]` | **清除经验，回到初始状态** ✅ | 删除 qa.db/audit/candidates/reports/pending_submits.json + experience/playbook/failures 恢复模板；**保留** secrets/ 凭证、knowledge/ 公开库与 experience/fields/ 字段知识；执行前展示清单 + 确认（合规） |
+| `qa reset [--yes]` | **清除经验，回到初始状态** ✅ | 删除 qa.db/audit/candidates/reports/daily/ + secrets/pending_submits.json + experience/playbook/failures 恢复模板；**保留** secrets/ 凭证、document/ 公开库与 experience/fields/ 字段知识；执行前展示清单 + 确认（合规） |
 | `qa update-knowledge [--regions ...] [--force]` | **按账户抓取字段知识 → 写本地 experience/fields/** ✅ v1.4（v1.5 加 --force） | 首次运行必做；按账户阶段抓区域（用户=USA / 顾问=12 区域）；`--regions USA,KOR` 限定；限流节流 ~2s/请求；**24h 内已生成默认跳过，`--force` 强制刷新（v1.5）**；数据 gitignored 不上传；**v1.6：agent 在会话中询问"是否同时更新外部经验"（CLI 不弹交互）** |
 | `qa suggest` | 随机建议研究方向 ✅ v1.4 | 本地知识库随机数据集+top 字段+主题模板，供 agent 生成候选时作主题来源 |
 

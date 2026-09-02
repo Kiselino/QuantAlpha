@@ -86,7 +86,8 @@
 
 - **Vector 字段（nws/scl 等）**：需 `vec_*` 算子转矩阵；原始 turnover 可达 130-200%，必须加 `ts_rank`/`ts_decay` 降频
 - **不流动 50% 测试**：交易成本后最不流动 50% 的 Sharpe ≥ **52.5%** 原始 Sharpe；修复：提高不流动部分权重、分开 decay、`group_neutralize()`/`vector_neut()` 对规模/流动性因子中性化
-- **权重测试细节**：单股 ≤10% book size（truncation 0.1 即 10% 上限）；长/短边 <10 只或总数 <20 只易失败；低覆盖率：`group_count(is_nan(a),market)>40?a:nan`、`ts_backfill(a,2)`（日数据）、`ts_backfill(a,60)`（季频基本面）
+- **子宇宙测试计算细节**（官方教程 how-pass-sub-universe-test）：cutoff = `0.75·√(sub/alpha)·alpha_sharpe`；子宇宙 Sharpe 计算过程 = pasteurize 到目标宇宙（非子宇宙股票置 NaN）→ 市场中性化（去均值）→ 缩放到原规模 → 算 PnL 的 Sharpe。官方示例：TOP3000 alpha 的 cutoff=1.18（0.75·√(1000/3000)·2.73），在 TOP1000 上 Sharpe 降到 1.17 即失败——**只看不流动 50% 表现对 TOP3000 大宇宙是常见失败点**
+- **权重测试细节**：单股 ≤10% book size（truncation 0.1 即 10% 上限）；长/短边 <10 只或总数 <20 只易失败；低覆盖率：`group_count(is_nan(a),market)>40?a:nan`、`ts_backfill(a,2)`（日数据）、`ts_backfill(a,60)`（季频基本面）；**一年中显著天数分配的股票数过少也失败**（最小股票数随 universe 变化，模拟起始全零权重不触发）
 - **算子族饱和**：每个算子族 3-5 个 ACTIVE 后 SELF_CORRELATION 拦截（社区经验）——跟踪已提交信号簇分布，**换簇不换参**
 
 ## 已证伪概念（勿再投入）

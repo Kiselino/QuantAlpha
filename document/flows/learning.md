@@ -35,10 +35,13 @@
   FASTEXPR 语言支持的语法结构
 - 素材：官方 How BRAIN Works / Simulation Settings（`document/flows/update-knowledge.md` §2 访问方式）
   + 项目实操（本批候选的 settings 为什么这么选）
-- 讲解要点：simulation 是平台评分器不是回测；settings 各参数（decay/neutralization/truncation）
-  影响什么指标；**Alpha 定义（官方 5971767795479）**：数学预测模型 = 数据字段 × 算子的组合，
-  输出为宇宙内每只股票的权重向量；**论文实现方法（官方 5971656020503）**：学术结果只是指引，
-  用最简形式实现，再按平台机制改进
+- 讲解要点：
+  - simulation 是平台评分器不是回测；settings 各参数（decay/neutralization/truncation）影响什么指标
+  - **Alpha 定义（官方 5971767795479）**：数学预测模型 = 数据字段 × 算子的组合，输出为宇宙内每只股票的权重向量
+  - **平台七步操作（官方教程 how-brain-platform-works）**：市场数据视为矩阵（行=日期，列=股票）→ 按表达式逐日评估 → 每只股票取多/空仓位 → 生成 PnL 图。理解这七步帮助你判断表达式在模拟中的行为
+  - **Delay 概念（官方教程 simulation-settings）**：delay = 数据可用性与交易时间的假设——D1 用昨日数据（收盘后交易），D0 用当日盘中最新数据
+  - **D0 vs D1（官方教程 D0）**：D0 更快捕捉短期事件（财报惊喜/新产品公告/宏观新闻）；PnL 分解为交易 PnL + 持仓 PnL，D0 目标是捕捉更多持仓 PnL（更长持有期）与隔夜收益现象
+  - **论文实现方法（官方 5971656020503）**：学术结果只是指引，用最简形式实现，再按平台机制改进
 
 ### 方向 3：数据探索与操作符
 
@@ -69,6 +72,10 @@
 4. **复杂度自适应**：用户理解后进阶（如从"分组归一化是什么"到"为什么 group_rank
    比 rank 稳"）
 5. **结束回到流程**：教学不是独立环节——讲完回到生成/模拟/提交的主流程
+6. **推荐官方自学路径**（社区帖 22863075241623 整理的官方材料顺序）：Introduction to Alphas →
+   How BRAIN platform works → BRAIN Expression Language → Understanding Data →
+   Data Explorer → Operators → Vector/Group Data Fields → 模拟设置与提交测试——
+   与下方四大方向一致，用户可自选入口
 
 ## 4. 常见问题锚点（FAQ 索引）
 

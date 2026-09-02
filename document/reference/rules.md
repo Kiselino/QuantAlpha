@@ -80,6 +80,8 @@ delay=1、universe=TOP3000、truncation=0.08、decay=0、neutralization=INDUSTRY
 ## 组合视角（alpha 非独立）
 
 - 提交检查 `SELF_CORRELATION`：与已提交全部 alpha 日收益 max Pearson <0.7
+- **Sharpe 相关豁免通道**（官方教程 alpha-submission）：若新 alpha 的 Sharpe 比**与其相关度高于 cutoff 的所有已提交 alpha** 的 Sharpe 高 ≥10%，仍可提交——例：已提交 X Sharpe 3.18，高度相关的 Y 需 Sharpe ≥3.5。这是**改进已有 alpha 的合法通道**（对比基准值在模拟结果的 correlation summary 表中可见）
+- **相关窗口**（官方教程）：Self correlation 用 **4 年窗口**；inner correlation 用两个 alpha PnL 时间段的交集
 - **相关门范围随阶段变化**（官方 5973662104599）：**用户阶段只与自己已提交的 alpha 比相关**；
   成为顾问后改用整个 BRAIN alpha 池度量相关 → 顾问阶段相关门显著更严，生成时必须更强调
   信号独特性（低相关要靠**不同数据来源/经济逻辑**，不是调参）
@@ -121,6 +123,11 @@ delay=1、universe=TOP3000、truncation=0.08、decay=0、neutralization=INDUSTRY
 - 冒用他人身份信息注册/参与、替他人面试或研究
 - **传播、分享、整理、出售或交换笔试和面试题目、答案、记录、题库、面经及相关材料**（零容忍）
 - 黑灰产组织注册大量账户、AI 换脸等蒙混面试手段
+
+**Consultant 项目定位与行为边界**（官方帖 40373406402455）：
+- Consultant 是**围绕 BRAIN 平台开展研究和成果提交的兼职工作**（用平台数据/工具/回测框架做 alpha research），**不是投资课程、不是投资培训、不是投资建议服务**
+- 期望的是愿意长期学习、持续研究、独立思考、对结果负责的人
+- 违规后果分级：风控面试 → 账户限制 → 账户冻结 → 顾问合同中止；冒用身份/盗用信息还可能承担法律后果
 
 **面试与风控机制**：
 - 面试目的：确认本人实际参与、了解真实研究能力、识别投机取巧——平台重视"真实、独立、可持续的研究能力"

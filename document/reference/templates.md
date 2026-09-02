@@ -101,6 +101,39 @@
 - **来源**：网络-https://support.worldquantbrain.com/hc/en-us/community/posts/38337681301143 + 官方 6425949726487（中可信度）
 - **实证**：黄金组合（T1）即 group_rank 型；多空平衡要求见 rules.md（官方 13306223024151）
 
+## T10 基本面历史对比（官方示例）
+
+- **结构**：`ts_rank(fund_x, N)`（fund_x = 基本面指标，N=250 左右 1 年窗口）
+- **适用**：operating_income 类基本面字段——"当前 vs 自身 1 年历史"的相对位置
+- **参数经验**：N≈250（1 年）；改进提示：考虑包含市场波动的比率（如除以市值）
+- **来源**：官方教程 Alpha Examples for Beginners（19-alpha-examples）
+- **实证**：官方入门示例，结构简洁稳定
+
+## T11 杠杆策略（负债比率 + 行业调整）
+
+- **结构**：`group_rank(ts_zscore(liabilities/assets 相关比率, N), subindustry)` 类结构
+- **适用**：高杠杆公司（排除财务恶化者）的成长性信号；比率类因子
+- **参数经验**：比率跨行业差异大 → 必须行业中性化/分组处理
+- **来源**：官方教程 Alpha Examples（负债增长做空 / 杠杆成长做多）
+- **实证**：官方提示"比率行业差异显著，考虑替代中性化设置"
+
+## T12 盈利收益率（EPS/价格 + 行业对比）
+
+- **结构**：`group_rank(ts_rank(eps/price 比率, N), industry)`；配合 NAN HANDLING 预处理
+- **适用**：earnings yield 类估值信号（低估 → 做多）
+- **参数经验**：先 ts_rank 自身历史，再 group_rank 行业内比较；nanHandling 可提升表现
+- **来源**：官方教程 Alpha Examples for Beginners
+- **实证**：官方入门示例（含"使用 NAN HANDLING 预处理提升表现"提示）
+
+## T13 分析师预期协同（双预期因子相关）
+
+- **结构**：`ts_corr(est_x, est_y, N)`（est = 分析师预期字段，如价格目标/现金流预期）
+- **适用**：两个预期因子高度同步（高相关）可能意味着市场已充分定价——反向信号
+- **参数经验**：窗口 N 不宜过长（1 年太长，试更短窗口）
+- **来源**：官方教程 Alpha Examples for Bronze（sample-alpha-concepts）
+- **实证**：官方示例：est_ptp 与 est_fcf 高相关 → 上行空间小；另含 Parkinson 波动率 vs 隐含波动率
+  情绪判断示例（高 IV + 低历史波动 → 看涨）
+
 ---
 
 ## 网络模版收集区（预留）

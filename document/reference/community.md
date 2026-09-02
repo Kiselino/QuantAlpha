@@ -32,6 +32,8 @@
 | 日期 | 方向 | 结论 | 来源 URL | 可信度 | 备注 |
 |---|---|---|---|---|---|
 | 2026-09-01 | 模拟设置 | 设置三角（decay/truncation/neutralization）相互影响；仅调 decay 5→10 即可让 Fitness 0.70→1.02（零代码改动）；decay 分级：1-3→TO 40-60%、4-7→25-40%、8-15→15-25%、15+→<15% | https://support.worldquantbrain.com/hc/en-us/community/posts/40205054470295 | 中 | 社区 Masterclass 帖；与自有实证（decay 8 期权簇）一致 |
+| 2026-09-01 | Prod 检测自动化 | 社区分享本地 Prod/自相关检测代码（24h 检测 600 个、SELF_ONLY 或 PPA_AND_SELF 双阈值模式）——可作为提交前自动筛选参考 | https://support.worldquantbrain.com/hc/en-us/community/posts/36947868698519 | 低 | 未验证；L4 代码技巧，仅方向灵感 |
+| 2026-09-01 | 失败 alpha 价值 | 失败 alpha 的真正价值在于分析失败原因（Sharpe 分解/ladder/换手/相关），而非成败本身——结构化归因是成长路径 | https://support.worldquantbrain.com/hc/en-us/community/posts/38186475692311 | 中 | 与项目 failures 归因机制理念一致 |
 | 2026-09-01 | 算子序列 | 时序→截面（ts_rank 后 rank/group_rank）：去个股自身基线偏差、保留历史上下文；截面→时序（rank 后 ts_rank(rank(x),N)）：衡量相对地位改善/恶化 | https://support.worldquantbrain.com/hc/en-us/community/posts/42801563919895 | 中 | Deep Dive 帖；序列选择影响信号分布，生成时须有意识 |
 | 2026-09-01 | decay 参数 | 反转类 alpha decay 5-8 合适、动量类 10+（效应数月）；原则=用能保持 TO<70% 的最小 decay，从低开始逐步加 | https://support.worldquantbrain.com/hc/en-us/community/posts/40782573762583 | 中 | 与自有 decay 经验值（技术 10-30）互补 |
 | 2026-09-01 | 中性化 | 中性化剥离市场噪声/风险因子；sub-industry vs industry 分组选择影响相关性与 Fitness | https://support.worldquantbrain.com/hc/en-us/community/posts/38706536824855 | 中 | 社区帖；与黄金组合 subindustry 分组一致 |

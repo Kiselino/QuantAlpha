@@ -41,7 +41,9 @@
 2. 提取**可复用结构模式**：算子组合骨架 + 适用场景（数据集类型/字段族）+ 参数经验值
    （decay/中性化/截断）
 3. 与 `document/reference/templates.md` 现有条目比对：同构合并（保留更多案例数）、
-   新结构新增条目
+   新结构新增条目；**同时对照官方 Alpha Examples**（templates.md T10-T13 及素材库
+   `docs/superpowers/research/tutorial_pages.json` 的 19-alpha-examples/sample-alpha-concepts 页）
+   检查是否已有官方更优结构
 4. **脱敏检查**：只写结构模式，不写真实 alpha 表达式/字段依赖/账号数据
 5. 追加/更新条目 → 提交时随 `document/` 一起入库
 

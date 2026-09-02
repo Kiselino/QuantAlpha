@@ -135,6 +135,9 @@
    高频信号（快反转/新闻）长 backfill 会虚高 Sharpe 且错过 regime 切换（pitfalls.md 实测警告）
 3. **合法边界**（第三层）：以 `validate_settings` 白名单为准（decay 0-63 整数、
    neutralization 枚举、truncation 0-1、未知键拦截），超界即被预检拒绝
+4. **设置三角参考**（第四层，T7）：decay/truncation/neutralization 相互影响——
+   Fitness 卡壳（0.7-1.0）时先调设置再改代码（decay 分级：1-3→TO 40-60%、4-7→25-40%、
+   8-15→15-25%、15+→<15%；反转类 5-8、动量类 10+），见 `document/reference/templates.md` T7
 
 ### e. 输出：候选 JSON
 
@@ -162,6 +165,7 @@
 - [ ] 类型合规：VECTOR 需 `vec_*` 包裹、GROUP 仅作 `group_*` 的 group_by、UNIVERSE/SYMBOL 禁用
 - [ ] 复杂度 ≤30 算子 / ≤8 深度
 - [ ] 避开 failures 死路（不与已证伪方向重复）
+- [ ] **多空平衡**（官方 13306223024151）：非 INDUSTRY/SUBINDUSTRY 中性化的候选，检查表达式是否含分组中性化收尾（`group_neutralize`/`group_normalize`），避免长空失衡引入市场风险
 - [ ] **dataset_ids 与表达式字段归属一致**（validate 不查，agent 必须自查）
 - [ ] 无保留字冲突（保留字作字段名会被平台拒绝）
 - [ ] 避免规模乘子（`rank(-assets)` / `1-rank(cap)`——易挂子宇宙测试）
@@ -195,8 +199,11 @@
 由用户拍板；**不自动停止，但必须报告**。
 
 **归因分离**：模拟失败（`f_*`）→ 优化表达式；提交被拒（`sub_*`）→ 避开饱和簇；
-相关门被拒（`corr_*`）→ **直接放弃不重试**（已提交集不会缩小，重试无意义且会撞
-ALREADY_SUBMITTED）——生成侧靠"避开已提交信号簇"从源头减少此类被拒。
+相关门被拒（`corr_*`）→ **先查 Sharpe 豁免通道，再决定放弃**：
+- 若本 alpha 的 Sharpe 比**与其相关度高于 cutoff 的所有已提交 alpha** 的 Sharpe 高 ≥10%
+  → 仍可提交（官方教程 alpha-submission：改进已有 alpha 的合法通道）
+- 否则**直接放弃不重试**（已提交集不会缩小，等待无意义，重试会撞 ALREADY_SUBMITTED）
+  → 生成侧靠"避开已提交信号簇"从源头减少此类被拒
 
 **合规红线**：优化后 PASS 仍走暂存 + 人工确认，不新增自动提交路径。
 

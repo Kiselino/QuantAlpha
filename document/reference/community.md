@@ -38,3 +38,6 @@
 | 2026-09-01 | decay 参数 | 反转类 alpha decay 5-8 合适、动量类 10+（效应数月）；原则=用能保持 TO<70% 的最小 decay，从低开始逐步加 | https://support.worldquantbrain.com/hc/en-us/community/posts/40782573762583 | 中 | 与自有 decay 经验值（技术 10-30）互补 |
 | 2026-09-01 | 中性化 | 中性化剥离市场噪声/风险因子；sub-industry vs industry 分组选择影响相关性与 Fitness | https://support.worldquantbrain.com/hc/en-us/community/posts/38706536824855 | 中 | 社区帖；与黄金组合 subindustry 分组一致 |
 | 2026-09-01 | 信号拥挤 | 热门信号随参与者增加性能衰减（Signal Crowding）——需持续寻找低拥挤信号源 | https://support.worldquantbrain.com/hc/en-us/community/posts/38706522115735 | 中 | 与"避开已提交饱和簇"策略一致 |
+| 2026-09-03 | 提交时机策略 | 用户阶段的 alpha 不影响顾问 base 但影响 IQC 排名；官方课建议：一般因子先在用户阶段提交（解锁 sub-universe 等功能），优质因子留到顾问后提交赚 base | 官方课《零基础学量化》答疑（2026-04） | 高 | 官方讲师口径；顾问后相关门改为全平台池，先发优势明显 |
+| 2026-09-03 | 平台机制杂项 | "隐藏 alpha"无实际意义（记录仍在，提交相关性照算）；已提交 alpha 不可删除——提交前想清楚 | 官方课《零基础学量化》答疑（2026-04） | 高 | 官方讲师口径 |
+| 2026-09-03 | 学习路径 | 官方建议新手"先抄"：Learn section + 论坛模板 → 大量模仿 → 培养分辨好坏的品味 → 自然产生自己的想法；不追求一步原创 | 官方课《零基础学量化》答疑（2026-04） | 高 | 背书仓库 templates.md 方法论 |

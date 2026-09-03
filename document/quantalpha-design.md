@@ -1,11 +1,12 @@
 # QuantAlpha — 系统设计文档（项目职能说明书）
 
-**版本:** v1.7 · **日期:** 2026-09-01 · **状态:** v1.6 基础上完成文档驱动重构（文档体系重组：knowledge/ 迁入 document/ 分层 + todo-design 终结合并 + 三模式体系 + 人机交互学习定位 + 模版机制；代码行为不变）
+**版本:** v1.8 · **日期:** 2026-09-03 · **状态:** v1.7 基础上落地教程学习体系（六项检查 + bootcamp + courses/）与快速模式调整；代码行为不变
 
 > 本文档是 QuantAlpha 系统的唯一权威设计来源。实现、修改、扩展均以本文为准。
 > 本仓库公开分发：工具 + 公开知识库（平台文档）；私有数据（cookie、账号密码、本地字段知识、个人经验、个人成果）gitignore 隔离。
 >
-> **v1.7 更新（文档驱动重构批次，决议来源 docs/superpowers/specs/2026-09-01-document-restructure-design.md）：** ① **文档体系重组**：`knowledge/` 迁入 `document/` 并按"agent 读取时机"分层——`document/flows/`（流程控制，7 份：startup/generation/submission/experience/access/update-knowledge/learning）+ `document/reference/`（知识参考，6 份：operators/rules/pitfalls/fields/community/templates）+ 本文档置于 `document/` 根；`AGENTS.md` 瘦身为"流程→文档导航表" ② **三模式体系**：教学模式（人机交互学习核心）/随机模式（随机主题+穿插教学）/快速模式（历史高价值复用三引擎：主题深挖/失败优化/模版生成）取代原详细/简易二选一 ③ **人机交互学习定位**：新增 `document/flows/learning.md`——以帮助人掌握相关知识为主，四大学习方向对齐官方学习指南；素材仅限官方公开材料 + 仓库脱敏经验，严禁收集/传播面试材料 ④ **模版机制**：`document/reference/templates.md` 模版库（脱敏结构模式），经验沉淀时总结、调研时收集网络模版，快速模式引擎 c 直接读取 ⑤ **权限差距文档**：`document/flows/access.md` 能力矩阵（用户 vs 顾问），顾问路径按官方帖子更新（10K→排行榜→笔试→面谈→Workday→背调→合同→银行卡）⑥ **todo-design 终结合并**：全部已实现决议归档本附录，未实现项入 Backlog，临时文档删除。
+> **v1.8 更新（教程学习体系批次，决议来源 docs/superpowers/specs/2026-09-03-bootcamp-design.md）：** ① **新形势定位**：平台收紧顾问审核（笔试+面试考察基本知识，打击批量化薅羊毛）——系统目标从"自动产出"升级为"产出 + 知识掌握"双轮（知识不足通不过面试则系统无后续价值）；教程未通过者在生成前先完成当日学习段（startup.md §4）② **启动检查 5→6 项**：新增"教程进度"（读本地 `docs/bootcamp/mastery.json` 掌握度 ≥80% 或用户声明跳过；agent 层检查，qa status 代码不查）③ **快速模式三引擎→两引擎**：删"失败优化"（已并入常规迭代 generation.md §4），保留主题深挖 + 模版生成 ④ **公开教材 `document/courses/`**：官方公开课《零基础学量化》四节新手课笔记 + 官方 /learn 教程 13 页提取 + 官方作业题 3 份（全部官方公开材料，答疑内容不单独保留、增量归并入 reference/ 既有文档）⑤ **本地学习闭环 `docs/bootcamp/`**（gitignored）：RLHF 式闭环协议 + 60 考点 mastery 档案 + 1 周速考/2 周新人双计划 + 摸底诊断/模拟笔试面试（个人学习状态，不进提交）⑥ 旧路径清理：正文遗留 knowledge/ 引用修正为 document/。
+> **v1.7 更新（文档驱动重构批次，决议来源 docs/superpowers/specs/2026-09-01-document-restructure-design.md）：** ① **文档体系重组**：`knowledge/` 迁入 `document/` 并按"agent 读取时机"分层——`document/flows/`（流程控制，7 份：startup/generation/submission/experience/access/update-knowledge/learning）+ `document/reference/`（知识参考，6 份：operators/rules/pitfalls/fields/community/templates）+ 本文档置于 `document/` 根；`AGENTS.md` 瘦身为"流程→文档导航表" ② **三模式体系**：教学模式（人机交互学习核心）/随机模式（随机主题+穿插教学）/快速模式（历史高价值复用三引擎：主题深挖/失败优化/模版生成——**v1.8 起失败优化并入常规迭代，快速模式为两引擎**）取代原详细/简易二选一 ③ **人机交互学习定位**：新增 `document/flows/learning.md`——以帮助人掌握相关知识为主，四大学习方向对齐官方学习指南；素材仅限官方公开材料 + 仓库脱敏经验，严禁收集/传播面试材料 ④ **模版机制**：`document/reference/templates.md` 模版库（脱敏结构模式），经验沉淀时总结、调研时收集网络模版，快速模式引擎 c 直接读取 ⑤ **权限差距文档**：`document/flows/access.md` 能力矩阵（用户 vs 顾问），顾问路径按官方帖子更新（10K→排行榜→笔试→面谈→Workday→背调→合同→银行卡）⑥ **todo-design 终结合并**：全部已实现决议归档本附录，未实现项入 Backlog，临时文档删除。
 >
 > **v1.6 更新（流程深化批次，决议来源 data/todo-design.md）：** ① **登录/status 增强**：`qa status` 升级为会话级环境检查（五项输出：新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存）；入口双轨检查（run/submit/update-knowledge 各验一次 + 批处理 401 中断，幂等重跑）② **结构拆分**：cli.py 瘦身为 argparse 分发，命令迁入 `qa/commands/` 子包（login/status/run/submit/reset/update_knowledge/suggest/report_cmd/_common）③ **生成环节**：新增 `knowledge/generation-guide.md` 生成指南（六环节）+ 学习机制（候选报告展示设计逻辑、submit 展示 hypothesis、今日学习要点、playbook 双读者化）④ **语言阶段感知**：候选 JSON 增加可选 `language` 字段（默认 FASTEXPR），validate 对非 FASTEXPR fail-closed 拒绝 ⑤ **删本地每日预算与每日配额检查**：status 不展示配额、run 不做每日截断——模拟时平台 429/THROTTLED 提示后处理（429 退避、THROTTLED 暂停），分钟限流批间等待保留，本地 2000 兜底删除 ⑥ **并发参数化**：固定 3 + `--concurrency` ⑦ **中断恢复**：simulations 表落库平台 sim_id，重跑有 sim_id 续查 / 404 回退重提 ⑧ **失败→优化**：优化并入下一个生成批次（agent 自主决策 + 止损报告），failures 按 failure_reason 归因统计（模拟/提交归因分离）⑨ **外部经验通道**：新增 `knowledge/community.md`，update-knowledge 时询问用户是否同步更新 ⑩ **提交边界**：相关门被拒即弃不重试、`qa report --pending` 批量预览、run 报告补 corr 展示。**每周复盘取消**（并入学习要点）。
 >
@@ -54,7 +55,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。用户通过对话�
 ┌─────────────────────────────────────────────────────────┐
 │  对话层：opencode / claude code / codex 等 agent          │
 │  （用户 ↔ agent 自然语言；agent 读 AGENTS.md 后执行）     │
-│  （**agent 自身 = 生成引擎**：读 knowledge/ → 生成候选） │
+│  （**agent 自身 = 生成引擎**：读 document/ → 生成候选） │
 │  （**项目内不调用任何 LLM API**）                         │
 └──────────────────────┬──────────────────────────────────┘
                        │ 写入候选文件 / 调用 CLI
@@ -86,8 +87,8 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。用户通过对话�
 ### 3.0 启动流程（agent 每次会话的第一步）
 
 ```
-agent 启动 → `qa status`（会话级环境检查，五项输出：
-  新用户判定 / 知识库就绪 / cookie 有效 / 账号阶段 / 待提交暂存，
+agent 启动 → `qa status`（会话级环境检查，六项输出：
+  新用户判定 / 知识库就绪 / cookie 有效 / 账号阶段 / 待提交暂存 / 教程进度，
   每项给引导动作；只提示不代做登录——输出"请运行 qa login 或提供 Copy as cURL"）
   ├─ 读 cookie（secrets/worldquant_cookies.txt）
   ├─ cookie 缺失/过期 → 认证双选：
@@ -104,6 +105,9 @@ agent 启动 → `qa status`（会话级环境检查，五项输出：
   ├─ 检查待提交暂存 secrets/pending_submits.json（跨会话接力）：
   │    有内容 → 告知用户"有 N 个达标 alpha 暂存待提交"，用户确认后逐个
   │    `qa submit <local_id> --yes`，提交成功从文件删除对应条目
+  ├─ 教程进度检查（v1.8，agent 层执行）：读 docs/bootcamp/mastery.json：
+  │    未建/达标率 <80% 且用户未声明跳过 → 进入生成前先完成当日学习段
+  │    （教材 document/courses/，闭环协议 docs/bootcamp/protocol.md——本地 gitignored）
   └─ 阶段判定 → 动态配置系统变量（见 §4 stage.py）
 
 入口双轨检查（v1.6）：run / submit / update-knowledge 入口各验一次
@@ -134,7 +138,7 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
     → 决策（调参 / 变体 / 换方向 / 止损）→ 执行（写 YYYY-MM-DD-opt.json，不覆盖原批）→ 输出决策理由
   → 止损纪律：连续 2 批无 PASS → 主动报告建议换方向，由用户拍板，不自动停
   → 合规红线：优化后 PASS 仍走暂存 + 人工确认
-（原独立 optimizer.py 规划取消；操作细节见 knowledge/generation-guide.md §3）
+（原独立 optimizer.py 规划取消；操作细节见 `document/flows/generation.md` §4）
 ```
 
 ---
@@ -164,7 +168,7 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 | `commands/suggest.py` | 建议命令 | `cmd_suggest` + `_signal_fields`/`_theme_for_dataset`/`_THEMES_BY_CATEGORY` |
 | `commands/report_cmd.py` | 报告命令 | 命名避让 `qa/report.py`；`--daily` / `--pending`（批量预览待提交清单） |
 | `cli.py` | 命令入口（v1.6 瘦身） | 仅 argparse 分发；历史能力：`qa login`/`qa status`/`qa run`/`qa report`/`qa submit`/`qa reset`/`qa update-knowledge`/`qa suggest` 命令本体已迁至 `qa/commands/`。run 历史实现含并发模拟（ThreadPoolExecutor 分批，写库回主线程避免 sqlite 跨线程）+ 批间主动限速 + 候选级 settings 合并 + 字段集簇去重 + PASS 免费相关门排序 + 待提交自动暂存 + 经验沉淀（`_sediment_lesson/_sediment_failure`） |
-| `optimizer.py` | 优化循环 | **已取消（v1.6）**——优化并入下一个生成批次循环（agent 自主决策 + 止损报告，见 generation-guide.md §3），无独立代码优化器 |
+| `optimizer.py` | 优化循环 | **已取消（v1.6）**——优化并入下一个生成批次循环（agent 自主决策 + 止损报告，见 `document/flows/generation.md` §4），无独立代码优化器 |
 | `knowledge.py` | **本地知识库管理（v1.4 实现）** | 按账户阶段抓取字段（`/data-sets` + `/data-fields`，分页 + 限流节流 ~2s/请求）→ 写 `experience/fields/{fields,top_fields,meta}.json`（全量白名单/top 参考/状态 meta）；读取接口 `load_field_ids`/`load_top_fields`/`knowledge_status`；经验沉淀 `append_experience`（playbook/failures 自动追加，按 entry_id 幂等去重；v1.6 失败条目按失败名补一句修复建议——查 rules.md 失败→修复映射表）/`restore_experience_templates`（reset 用） |
 
 ### 4.1 命令清单（agent 工作流接口）
@@ -232,7 +236,7 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 
 ```
 QuantAlpha/
-├── AGENTS.md                    # ⭐ 跨 agent 工作流入口（目标/启动流程/九步闭环/命令/合规红线）
+├── AGENTS.md                    # ⭐ 跨 agent 工作流入口（目标/启动流程/命令/合规红线）
 ├── README.md                    # 人类说明：安装、认证配置（双选）、快速开始、使用者上手指南
 ├── quantalpha-design.md         # ⭐ 本文件：设计文档（智能体职能说明书）
 ├── qa/                          # Python 工具库
@@ -240,13 +244,13 @@ QuantAlpha/
 │   │    screener, report, store, paths, knowledge).py
 │   └── commands/                # v1.6 命令子包（login/status/run/submit/reset/
 │                                #      update_knowledge/suggest/report_cmd/_common）
-├── knowledge/                   # ✅ 公开知识库（平台公开文档 + 生成指南，随仓库分发）
-│   ├── operators.md             # 67 算子参考
-│   ├── fields/README.md         # 字段策略要点（公开机制说明；字段数据本地化）
-│   ├── rules.md                 # 平台规则/提交门槛/收入机制/计分规则
-│   ├── pitfalls.md              # 量化陷阱/反过拟合
-│   ├── generation-guide.md      # ✅ v1.6 alpha 生成与优化操作指南（agent 生成前必读）
-│   └── community.md             # ✅ v1.6 外部渠道经验库（L4 传闻层，入库需用户确认）
+├── document/                    # ✅ 公开文档（仓库核心，随仓库分发）
+│   ├── quantalpha-design.md     # 本文档（权威设计）
+│   ├── flows/                   # 流程控制（startup/generation/submission/experience/access/update-knowledge/learning）
+│   ├── courses/                 # 教程教材（v1.8）：四节新手课笔记 + 官方教程提取 + 官方作业题
+│   └── reference/               # 知识参考（operators/rules/pitfalls/fields/community/templates）
+├── docs/                        # 🔒 gitignored：skill 产物（spec/plan 存档）+ bootcamp 个人学习状态
+│   └── bootcamp/                #   RLHF 闭环协议/mastery 档案/双计划/摸底与答题记录
 ├── experience/                  # 🔒 gitignored：本地账户知识库（字段元数据 + playbook + failures）
 │   ├── fields/                  #   qa update-knowledge 生成：fields.json/top_fields.json/meta.json
 │   ├── playbook.md              #   经验沉淀（自动追加）
@@ -299,7 +303,7 @@ QuantAlpha/
 - ✅ v1.4 完成：update-knowledge（按账户抓字段→本地）+ suggest（随机主题）+ 经验自动沉淀接线（run/submit → SQLite + experience/playbook/failures）+ 知识库本地化拆分
 - ✅ v1.4.1 完成：validate 字段类型检查 + suggest 过滤无效类型字段/主题按类别匹配 + run 批间主动限速 + 设计备忘补 instrumentType
 - ✅ v1.5 完成：候选级 settings + 字段集簇去重 + 相关门排序 + 待提交自动暂存 + 每日配额预算（2000+平台头动态截断）+ fail-closed 修复 + update-knowledge --force + 死代码清理与重复抽取（85→106 测试）
-- ✅ v1.6 完成（流程深化批次）：status 六项环境检查 + 入口双轨检查 + 批处理 401 中断；commands/ 子包拆分；generation-guide.md / community.md 新建；language 字段 + fail-closed；删本地每日预算；--concurrency；sim_id 中断恢复；失败归因统计（模拟/提交分离）；提交边界（相关门被拒即弃、report --pending、corr 展示）
+- ✅ v1.6 完成（流程深化批次）：status 五项环境检查 + 入口双轨检查 + 批处理 401 中断；commands/ 子包拆分；generation-guide.md / community.md 新建；language 字段 + fail-closed；删本地每日预算；--concurrency；sim_id 中断恢复；失败归因统计（模拟/提交分离）；提交边界（相关门被拒即弃、report --pending、corr 展示）
 - ⏳ 顾问冲刺前可选：qa teach 学习模式（每周复盘已取消）
 - 明确不做（现阶段）：向量检索（RAG 开关预留）、Web UI、多用户、定时任务、D0、复杂组合优化、独立 optimizer（并入生成循环）、顾问专属功能（PYTHON/ML、12 区域——由阶段检测启用但 MVP 不实现）、**项目内 LLM 调用（生成在 agent 侧）**
 
@@ -315,13 +319,18 @@ QuantAlpha/
 
 ---
 
-## 12. 知识库（v1.4 已落地：账户专属字段知识本地生成）
+## 12. 知识库分层（v1.4 落地，v1.8 增教程层）
 
-**拆分原则（用户拍板）：** 公开 `knowledge/`（operators/rules/pitfalls/字段策略说明——平台公开文档；v1.6 新增 generation-guide.md 生成指南 + community.md 外部经验库）随仓库分发；本地 `experience/`（字段元数据 + playbook/failures——账户专属）gitignored 不上传。
+**公开 `document/`（随仓库分发）分三类：**
+- `document/flows/` —— 流程控制（7 份：startup/generation/submission/experience/access/update-knowledge/learning）
+- `document/courses/`（v1.8 新增）—— **教程教材**：官方公开课《零基础学量化》四节新手课笔记（官方公开课转录清洗，来源标注）+ 官方 /learn 教程 13 页提取 + 官方课程作业题 3 份；答疑内容不单独保留，知识增量归并入 reference/（去重后补充，见 courses/README"答疑内容去向"）
+- `document/reference/` —— 知识参考（operators/rules/pitfalls/fields/community/templates，平台公开文档 + 脱敏方法论）
 
-**公开知识库 v1.6 新增：**
-- `knowledge/generation-guide.md` —— alpha 生成与优化操作指南（六环节 + 顾问差异 + 失败优化 + 用户覆盖 + 四层可靠性 + 外部经验更新 + 调研访问规则），任何 agent 工具通用，生成候选前必读
-- `knowledge/community.md` —— 外部渠道经验库（L4 传闻层），条目含来源 URL + 日期 + 可信度，入库前用户确认；禁止掺入个人私有表达式/账号信息
+**本地（gitignored）：**
+- `experience/` —— 账户专属：字段元数据（qa update-knowledge 生成）+ playbook/failures（个人经验）
+- `docs/bootcamp/`（v1.8）—— 个人学习状态：mastery 档案/计划/摸底与答题记录/模拟卷（RLHF 闭环协议，见 `document/flows/startup.md` §4 与 `docs/bootcamp/protocol.md`）
+
+**学习与产出的配合**：教程未通过者（六项检查第 6 项）→ 生成前先完成当日学习段；教学模式 = 学习与生成自然融合；参考官方示例作候选灵感合规（官方公开材料）。
 
 **`qa update-knowledge` 已实现：** 按账户阶段（用户=USA / 顾问=12 区域）抓取字段元数据 → 写：
 
@@ -360,12 +369,12 @@ QuantAlpha/
 | 测试位置 | 仅平台模拟（本地零回测） | 本地无真实数据（P1） |
 | 知识分享 | 公开平台文档随仓库分发；**字段元数据/playbook/failures 本地化不上传（v1.4 用户拍板）** | 字段可用范围随账户权限变化；表达式/字段研究属个人数据，分享价值低且敏感 |
 | 优化循环 | 仅 MARGINAL ≤2 轮轻调 + 止损式触发 | 省配额（用户要求"简单优化"） |
-| **优化循环（v1.6）** | 取消独立代码优化器——优化 = 下一个生成批次（agent 自主决策循环 + 止损报告，见 generation-guide.md §3） | 调参重试是下一批候选的自然组成，无独立代码路径 |
+| **优化循环（v1.6）** | 取消独立代码优化器——优化 = 下一个生成批次（agent 自主决策循环 + 止损报告，见 `document/flows/generation.md` §4） | 调参重试是下一批候选的自然组成，无独立代码路径 |
 | **配额管理（v1.6）** | 删本地每日预算，以平台每日配额头（x-ratelimit-remaining）为准 | 平台保护链完整；本地保守值反而浪费可用配额 |
 | **外部经验通道（v1.6）** | 新建 knowledge/community.md，update-knowledge 时询问用户是否同步更新 | L4 传闻层入库需用户确认，防掺私有数据 |
 | 检索 | TF-IDF 起步，RAG 可开关 | YAGNI，后期可升 RAG |
 | 生成批次 | 10-20 个/轮 | 非顾问每日 1-2 个成功即可；省配额 |
-| **LLM 调用** | **项目内不调用 LLM**——生成由对话层 agent 完成（读 knowledge/ 写候选文件） | 用户拍板：agent 读项目文件后直接生成 alpha 写入项目，项目跑后续流程 |
+| **LLM 调用** | **项目内不调用 LLM**——生成由对话层 agent 完成（读 document/ 写候选文件） | 用户拍板：agent 读项目文件后直接生成 alpha 写入项目，项目跑后续流程 |
 | **账号阶段检测** | 启动时 users/self 判定 → 动态配置 | 非顾问/顾问变量差异大（并发/区域/字段/语言） |
 | **认证方式（v1.2）** | 双选：`qa login` 账号密码（推荐，可自动续期）或浏览器复制 cURL（敏感用户） | 账号密码不落盘/不进审计；会话 ~4h，长时间模拟需重登 |
 | **并发模拟（v1.2）** | `qa run` 内 ThreadPoolExecutor，并发数取阶段检测值；写库回主线程 | API 允许 3 并发；sqlite 连接跨线程不安全 |
@@ -374,6 +383,9 @@ QuantAlpha/
 | **计分策略** | 每日集中提交 1-2 个高质量（美东 3AM 日界） | 官方计分规则：每日 2000 分封顶、相对分 |
 | **知识库本地化（v1.4）** | 字段/经验本地生成，公开仓库只留平台文档 | 用户拍板：账户权限差异 + 敏感数据不上传；首次运行 `qa update-knowledge` 生成 |
 | **经验自动沉淀（v1.4）** | run/submit 后 PASS→lessons、FAIL→failures 自动写 SQLite + experience/ markdown（幂等去重） | 沉淀闭环指导后续生成；省人工整理 |
+| **学习定位（v1.8）** | 产出 + 知识掌握双轮：教程未通过（六项检查第 6 项）→ 生成前先完成当日学习段；教学模式 = 学习与生成融合 | 平台收紧审核（笔试+面试考察基本知识）；知识不足则无法通过面试，系统无后续价值 |
+| **快速模式引擎（v1.8）** | 三引擎 → 两引擎（删失败优化——已并入常规迭代 §4，避免重复路径） | 失败优化 = 下一个生成批次的自然组成，无独立引擎必要 |
+| **教材分层（v1.8）** | 通用教材 `document/courses/`（官方公开材料，随仓库分发）；个人学习状态 `docs/bootcamp/`（mastery/摸底/答题记录，gitignored） | 公开知识可分享（符合 P5）；个性化安排属个人数据（账号/进度），隔离在本地上传之外 |
 
 ---
 
@@ -381,6 +393,9 @@ QuantAlpha/
 
 > `data/todo-design.md` 临时决议文档已终结（2026-09-01）。已实现决议全部落库（git log 与正文可查），
 > 未实现项整理为下方 Backlog；身份差异备忘已并入 `document/flows/access.md`。
+>
+> **v1.8 追加**：教程学习体系（bootcamp）决议见 `docs/superpowers/specs/2026-09-03-bootcamp-design.md`；
+> 通用教材已入 `document/courses/`（公开），个人学习状态在 `docs/bootcamp/`（gitignored）。
 
 ### Backlog（未实现，按优先级）
 
@@ -392,7 +407,8 @@ QuantAlpha/
 | P2 | 顾问阶段并发上限 | 未确认平台分钟限流是否随顾问提高；--concurrency 已参数化，成为顾问后实测 x-ratelimit-limit-minute 再决定 |
 | P3 | 生成侧代码未强制规则 | dataset_ids 与表达式字段归属一致性、保留字冲突、规模乘子禁忌（rank(-assets)） |
 | P3 | PYTHON/ML 语法 | stage 已检测但 validate 不支持；language 字段 + fail-closed 已落地，完整校验留待顾问阶段 |
-| P3 | 学习模式 qa teach | 顾问冲刺前可选；与 document/flows/learning.md（人机交互学习）定位衔接，届时设计 |
+| P3 | 学习模式 qa teach | 顾问冲刺前可选；bootcamp 学习闭环（docs/bootcamp/，v1.8 已落地于对话层）验证后，如需代码化（CLI 管理 mastery/摸底卷）届时设计 |
+| P3 | 教程进度代码化 | 六项检查第 6 项目前由 agent 读 `docs/bootcamp/mastery.json` 执行；若需 `qa status` 直接输出（含教程进度），代码化后并入 status |
 
 ### 身份差异事实备忘（已核实，已并入 access.md）
 

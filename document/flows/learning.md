@@ -94,5 +94,6 @@
 
 官方材料通过 `document/flows/update-knowledge.md` §2 调研规则获取
 （cookie 验证 → Zendesk API 抓取 help center 文章 → 本地化讲解）。
+**课程向渠道**：官方公开课《零基础学量化》（免费训练营制，关注公众号"Brain 智能助手"可获取录播/新手村社群）；平台小铃铛推送 "research paper for users"（官方精选论文 + 可用数据字段清单，合规论文源）。
 外部素材源（官方推荐，5968002400663）：SSRN 论文库、stockcharts.com 技术指标入门、
 零基础学量化系列——作为方向性启发，具体有效性以平台模拟为准（论文实现要义见方向 2）。

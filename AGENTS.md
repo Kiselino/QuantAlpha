@@ -14,8 +14,9 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 | 流程环节 | 何时读 | 读取文档 |
 |---|---|---|
-| 会话启动 | 每次会话第一步 | `document/flows/startup.md`（五项检查/模式询问/主题来源） |
+| 会话启动 | 每次会话第一步 | `document/flows/startup.md`（六项检查/模式询问/主题来源） |
 | 生成（三模式） | 进入生成环节前 | `document/flows/generation.md`（教学/随机/快速） |
+| 系统学习（bootcamp） | 教程未通过时（启动检查第 6 项） | 教材 `document/courses/`（官方课笔记+教程提取）；学习闭环协议 `docs/bootcamp/protocol.md`（本地，gitignored） |
 | 权限决策 | 决定可用功能时 | `document/flows/access.md`（用户 vs 顾问能力矩阵） |
 | 提交 | 有 PASS 待提交时 | `document/flows/submission.md`（检查清单/人工确认） |
 | 经验沉淀 | run/submit 结束后 | `document/flows/experience.md`（playbook/failures/模版总结） |
@@ -26,17 +27,18 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 ## 启动流程（简述，细节见 startup.md）
 
-1. `qa status` → 五项检查（新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存）→ 动态配置
+1. `qa status` → 六项检查（新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存/**教程进度**）→ 动态配置
 2. 有 PASS 暂存 → 先报告等确认提交（不叠加新循环）
-3. 询问**运行模式三选一**：① 教学模式 ② 随机模式 ③ 快速模式（定义见 generation.md）
-4. 教学模式/随机模式：询问主题来源三选一（随机/网络热门/用户指定）
+3. **教程未通过**（检查第 6 项）→ 进入生成前先完成当日学习段（教材 `document/courses/`，闭环协议 `docs/bootcamp/`）
+4. 询问**运行模式三选一**：① 教学模式 ② 随机模式 ③ 快速模式（定义见 generation.md）
+5. 教学模式/随机模式：询问主题来源三选一（随机/网络热门/用户指定）
 
 ## 命令清单
 
 | 命令 | 功能 | 状态 |
 |---|---|---|
 | `qa login [--username ...] [--password ...]` | 账号密码登录 → 写 cookie（凭据不落盘；Persona 人机验证会提示） | ✅ 已实现 |
-| `qa status` | 阶段检测 + cookie 验证 + 本地知识库状态（五项检查） | ✅ 已实现（第一批） |
+| `qa status` | 阶段检测 + cookie 验证 + 本地知识库状态（六项检查，含教程进度提示） | ✅ 已实现（第一批） |
 | `qa run [--candidates-file ...] [--concurrency N]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。候选文件由 agent 先写入 `data/candidates/`；PASS 自动暂存（v1.5）；并发可调（v1.6）；中断恢复续查（v1.6） | ✅ 已实现（第一批） |
 | `qa report [--daily] [--pending]` | 当日候选清单 / 每日累计汇总；`--pending` 批量预览待提交清单 | ✅ 已实现（第一批） |
 | `qa submit <alpha_id> [--yes]` | 人工确认后提交（展示全部检查 + 免费相关门，回查 ACTIVE） | ✅ 已实现 |
@@ -82,9 +84,10 @@ QuantAlpha/
 ├── document/                    # ✅ 公开文档（仓库核心，随仓库分发）
 │   ├── quantalpha-design.md     # ⭐ 权威设计 v1.7
 │   ├── flows/                   # 流程控制文档（startup/generation/submission/experience/access/update-knowledge/learning）
+│   ├── courses/                 # 官方课程与学习素材（零基础学量化课程笔记 + 官方教程/作业提取）
 │   └── reference/               # 知识参考（operators/rules/pitfalls/fields/community/templates）
 ├── qa/                          # Python 工具库（auth/stage/brain_client/validate/commands/...）
-├── docs/                        # 🔒 gitignored：skill 产物（设计/计划存档）
+├── docs/                        # 🔒 gitignored：skill 产物（设计/计划存档）+ bootcamp 本地学习状态（mastery/计划/错题本）
 ├── experience/                  # 🔒 gitignored：本地账户知识库（fields/ + playbook.md + failures.md）
 ├── data/                        # 🔒 gitignored：qa.db + audit/ + candidates/
 ├── reports/                     # 🔒 gitignored：个人成果

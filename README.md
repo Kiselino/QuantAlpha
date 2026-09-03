@@ -96,7 +96,7 @@ qa update-knowledge      # 按账户阶段抓取字段元数据 → 写入 exper
 
 ```bash
 qa login                                              # 账号密码登录（写入会话 cookie；也可 --username/--password）
-qa status                                             # 启动首查：阶段检测 + 五项环境检查 + 本地知识库状态
+qa status                                             # 启动首查：阶段检测 + 六项环境检查（含教程进度）+ 本地知识库状态
 qa update-knowledge [--regions USA,KOR] [--force]     # 首次运行必做：按账户生成本地字段知识库（24h 内已生成默认跳过，--force 强制刷新）
 # agent 读 document/（公开）+ experience/（本地字段/playbook/failures）→ 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
 qa run [--concurrency N]                              # 读入候选 → 预检 → 模拟 → 筛选 → 报告（默认 3 并发可调；中断后重跑同一候选文件自动续查未完成的模拟；PASS 候选自动暂存待提交）
@@ -136,23 +136,24 @@ qa reset [--yes]                                      # 清除积累的经验，
 QuantAlpha/
 ├── AGENTS.md              # agent 工作流入口 + 流程→文档导航表（agent 打开先读这个）
 ├── README.md              # 本文件：安装、认证配置、快速开始
-├── document/              # ✅ 公开文档（仓库核心）：quantalpha-design.md + flows/ + reference/
+├── document/              # ✅ 公开文档（仓库核心）：quantalpha-design.md + flows/ + courses/ + reference/
 ├── qa/                    # Python 工具库（auth/stage/brain_client/validate/commands/...）
 ├── pyrightconfig.json     # LSP 配置（basedpyright）
 ├── experience/            # 🔒 本地账户知识库：fields/ + playbook.md + failures.md（gitignored）
 ├── data/                  # 🔒 私有：qa.db + audit + candidates（gitignored）
 ├── reports/               # 🔒 私有：个人成果（gitignored）
 ├── secrets/               # 🔒 私有：cookie、account_info.json（gitignored）
-├── docs/                  # 🔒 skill 产物：设计/计划存档（gitignored）
+├── docs/                  # 🔒 skill 产物 + bootcamp 学习状态（gitignored）
 ```
 
 ## 文档
 
 - `document/quantalpha-design.md` — 权威系统设计（模块/数据模型/错误处理/MVP，v1.7）
 - `document/flows/` — 流程控制文档：startup（会话启动/模式询问）、generation（生成三模式）、submission（提交检查/人工确认）、experience（经验沉淀/模版总结）、access（用户 vs 顾问权限矩阵）、update-knowledge（知识库更新/平台调研）、learning（人机交互学习）
+- `document/courses/` — 官方课程与学习素材：零基础学量化课程笔记（4 节新手课）+ 官方教程/作业提取（备考 bootcamp 教材源）
 - `document/reference/` — 知识参考：operators（67 算子）、rules（平台规则/门槛/计分/风控）、pitfalls（量化陷阱）、fields（字段策略）、community（外部经验库）、templates（有效模版库）
 - `AGENTS.md` — agent 工作流入口（导航表 + 合规红线 + 命令清单）
-- 本地字段/经验见 `experience/`（`qa update-knowledge` 生成）
+- 本地字段/经验见 `experience/`（`qa update-knowledge` 生成）；个人学习状态与闭环见 `docs/bootcamp/`（gitignored）
 
 ## 免责声明
 

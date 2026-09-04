@@ -4,8 +4,8 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
-> 当前状态：v1.6 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
-> v1.6 要点：`qa run --concurrency` 可调并发 / `qa report --pending` 待提交预览 / 中断恢复续查 / 候选 `language` 字段 / PASS 自动暂存待提交 / `qa status` 五项环境检查。
+> 当前状态：v1.8 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
+> v1.8 要点：启动六项环境检查（含教程进度门）/ 学习闭环公开化（教材 `document/courses/` + 协议模板 `document/courses/bootcamp/`，个人档案本地隔离）/ 快速模式两引擎 / 官方学习指南入库。
 > 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---
@@ -148,12 +148,13 @@ QuantAlpha/
 
 ## 文档
 
-- `document/quantalpha-design.md` — 权威系统设计（模块/数据模型/错误处理/MVP，v1.7）
+- `document/quantalpha-design.md` — 权威系统设计（模块/数据模型/错误处理/MVP，v1.8）
 - `document/flows/` — 流程控制文档：startup（会话启动/模式询问）、generation（生成三模式）、submission（提交检查/人工确认）、experience（经验沉淀/模版总结）、access（用户 vs 顾问权限矩阵）、update-knowledge（知识库更新/平台调研）、learning（人机交互学习）
-- `document/courses/` — 官方课程与学习素材：零基础学量化课程笔记（4 节新手课）+ 官方教程/作业提取（备考 bootcamp 教材源）
+- `document/courses/` — 官方课程与学习素材：零基础学量化课程笔记（4 节新手课）+ 官方教程/作业提取 + 官方学习指南（备考 bootcamp 教材源）
+- `document/courses/bootcamp/` — 学习闭环协议与模板（五步闭环/评分标准/60 考点 mastery 模板/1 周速考与 2 周新人双计划）——新使用者复制到本地 `docs/bootcamp/` 后按协议学习
 - `document/reference/` — 知识参考：operators（67 算子）、rules（平台规则/门槛/计分/风控）、pitfalls（量化陷阱）、fields（字段策略）、community（外部经验库）、templates（有效模版库）
 - `AGENTS.md` — agent 工作流入口（导航表 + 合规红线 + 命令清单）
-- 本地字段/经验见 `experience/`（`qa update-knowledge` 生成）；个人学习状态与闭环见 `docs/bootcamp/`（gitignored）
+- 本地字段/经验见 `experience/`（`qa update-knowledge` 生成）；bootcamp 个人学习档案（mastery/错题本/摸底卷）见本地 `docs/bootcamp/`（gitignored，协议与模板见上方公开目录）
 
 ## 免责声明
 

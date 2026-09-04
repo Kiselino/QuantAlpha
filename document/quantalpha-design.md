@@ -1,11 +1,12 @@
 # QuantAlpha — 系统设计文档（项目职能说明书）
 
-**版本:** v1.8 · **日期:** 2026-09-03 · **状态:** v1.7 基础上落地教程学习体系（六项检查 + bootcamp + courses/）与快速模式调整；代码行为不变
+**版本:** v1.8.1 · **日期:** 2026-09-04 · **状态:** v1.8 基础上公开 bootcamp 协议/模板（新用户可起步）+ 官方学习指南入库 + 调研访问规则补强；代码行为不变
 
 > 本文档是 QuantAlpha 系统的唯一权威设计来源。实现、修改、扩展均以本文为准。
 > 本仓库公开分发：工具 + 公开知识库（平台文档）；私有数据（cookie、账号密码、本地字段知识、个人经验、个人成果）gitignore 隔离。
 >
-> **v1.8 更新（教程学习体系批次，决议来源 docs/superpowers/specs/2026-09-03-bootcamp-design.md）：** ① **新形势定位**：平台收紧顾问审核（笔试+面试考察基本知识，打击批量化薅羊毛）——系统目标从"自动产出"升级为"产出 + 知识掌握"双轮（知识不足通不过面试则系统无后续价值）；教程未通过者在生成前先完成当日学习段（startup.md §4）② **启动检查 5→6 项**：新增"教程进度"（读本地 `docs/bootcamp/mastery.json` 掌握度 ≥80% 或用户声明跳过；agent 层检查，qa status 代码不查）③ **快速模式三引擎→两引擎**：删"失败优化"（已并入常规迭代 generation.md §4），保留主题深挖 + 模版生成 ④ **公开教材 `document/courses/`**：官方公开课《零基础学量化》四节新手课笔记 + 官方 /learn 教程 13 页提取 + 官方作业题 3 份（全部官方公开材料，答疑内容不单独保留、增量归并入 reference/ 既有文档）⑤ **本地学习闭环 `docs/bootcamp/`**（gitignored）：RLHF 式闭环协议 + 60 考点 mastery 档案 + 1 周速考/2 周新人双计划 + 摸底诊断/模拟笔试面试（个人学习状态，不进提交）⑥ 旧路径清理：正文遗留 knowledge/ 引用修正为 document/。
+> **v1.8.1 更新（bootcamp 公开化批次）：** ① **学习闭环协议公开化**：protocol/rubric/mastery 考点模板/双计划自 gitignored `docs/bootcamp/` 迁至 `document/courses/bootcamp/`（公开模板，随仓库分发）——新使用者 clone 即可按协议起步学习；个人档案（mastery.json/摸底卷/错题本/答题记录）仍留本地 `docs/bootcamp/`（gitignored）② **官方学习指南入库**：`document/courses/official_quiz-guide.md`（WQ BRAIN CHINA 官方帖，四方向 + 备考建议 = bootcamp 主线依据）③ **调研访问规则补强**：网页/论坛（help center/社区）需浏览器 Copy as cURL 完整会话凭据，遇墙不反复死磕（update-knowledge.md §2）。
+> **v1.8 更新（教程学习体系批次，决议来源 docs/superpowers/specs/2026-09-03-bootcamp-design.md）：** ① **新形势定位**：平台收紧顾问审核（笔试+面试考察基本知识，打击批量化薅羊毛）——系统目标从"自动产出"升级为"产出 + 知识掌握"双轮（知识不足通不过面试则系统无后续价值）；教程未通过者在生成前先完成当日学习段（startup.md §4）② **启动检查 5→6 项**：新增"教程进度"（读本地 `docs/bootcamp/mastery.json` 掌握度 ≥80% 或用户声明跳过；agent 层检查，qa status 代码不查）③ **快速模式三引擎→两引擎**：删"失败优化"（已并入常规迭代 generation.md §4），保留主题深挖 + 模版生成 ④ **公开教材 `document/courses/`**：官方公开课《零基础学量化》四节新手课笔记 + 官方 /learn 教程 13 页提取 + 官方作业题 3 份（全部官方公开材料，答疑内容不单独保留、增量归并入 reference/ 既有文档）⑤ **本地学习闭环 `docs/bootcamp/`**（gitignored）：RLHF 式闭环协议 + 60 考点 mastery 档案 + 1 周速考/2 周新人双计划 + 摸底诊断/模拟笔试面试（个人学习状态，不进提交——v1.8.1 起协议与模板公开于 `document/courses/bootcamp/`）⑥ 旧路径清理：正文遗留 knowledge/ 引用修正为 document/。
 > **v1.7 更新（文档驱动重构批次，决议来源 docs/superpowers/specs/2026-09-01-document-restructure-design.md）：** ① **文档体系重组**：`knowledge/` 迁入 `document/` 并按"agent 读取时机"分层——`document/flows/`（流程控制，7 份：startup/generation/submission/experience/access/update-knowledge/learning）+ `document/reference/`（知识参考，6 份：operators/rules/pitfalls/fields/community/templates）+ 本文档置于 `document/` 根；`AGENTS.md` 瘦身为"流程→文档导航表" ② **三模式体系**：教学模式（人机交互学习核心）/随机模式（随机主题+穿插教学）/快速模式（历史高价值复用三引擎：主题深挖/失败优化/模版生成——**v1.8 起失败优化并入常规迭代，快速模式为两引擎**）取代原详细/简易二选一 ③ **人机交互学习定位**：新增 `document/flows/learning.md`——以帮助人掌握相关知识为主，四大学习方向对齐官方学习指南；素材仅限官方公开材料 + 仓库脱敏经验，严禁收集/传播面试材料 ④ **模版机制**：`document/reference/templates.md` 模版库（脱敏结构模式），经验沉淀时总结、调研时收集网络模版，快速模式引擎 c 直接读取 ⑤ **权限差距文档**：`document/flows/access.md` 能力矩阵（用户 vs 顾问），顾问路径按官方帖子更新（10K→排行榜→笔试→面谈→Workday→背调→合同→银行卡）⑥ **todo-design 终结合并**：全部已实现决议归档本附录，未实现项入 Backlog，临时文档删除。
 >
 > **v1.6 更新（流程深化批次，决议来源 data/todo-design.md）：** ① **登录/status 增强**：`qa status` 升级为会话级环境检查（五项输出：新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存）；入口双轨检查（run/submit/update-knowledge 各验一次 + 批处理 401 中断，幂等重跑）② **结构拆分**：cli.py 瘦身为 argparse 分发，命令迁入 `qa/commands/` 子包（login/status/run/submit/reset/update_knowledge/suggest/report_cmd/_common）③ **生成环节**：新增 `knowledge/generation-guide.md` 生成指南（六环节）+ 学习机制（候选报告展示设计逻辑、submit 展示 hypothesis、今日学习要点、playbook 双读者化）④ **语言阶段感知**：候选 JSON 增加可选 `language` 字段（默认 FASTEXPR），validate 对非 FASTEXPR fail-closed 拒绝 ⑤ **删本地每日预算与每日配额检查**：status 不展示配额、run 不做每日截断——模拟时平台 429/THROTTLED 提示后处理（429 退避、THROTTLED 暂停），分钟限流批间等待保留，本地 2000 兜底删除 ⑥ **并发参数化**：固定 3 + `--concurrency` ⑦ **中断恢复**：simulations 表落库平台 sim_id，重跑有 sim_id 续查 / 404 回退重提 ⑧ **失败→优化**：优化并入下一个生成批次（agent 自主决策 + 止损报告），failures 按 failure_reason 归因统计（模拟/提交归因分离）⑨ **外部经验通道**：新增 `knowledge/community.md`，update-knowledge 时询问用户是否同步更新 ⑩ **提交边界**：相关门被拒即弃不重试、`qa report --pending` 批量预览、run 报告补 corr 展示。**每周复盘取消**（并入学习要点）。
@@ -105,9 +106,10 @@ agent 启动 → `qa status`（会话级环境检查，六项输出：
   ├─ 检查待提交暂存 secrets/pending_submits.json（跨会话接力）：
   │    有内容 → 告知用户"有 N 个达标 alpha 暂存待提交"，用户确认后逐个
   │    `qa submit <local_id> --yes`，提交成功从文件删除对应条目
-  ├─ 教程进度检查（v1.8，agent 层执行）：读 docs/bootcamp/mastery.json：
+  ├─ 教程进度检查（v1.8，agent 层执行）：读本地档案 docs/bootcamp/mastery.json：
   │    未建/达标率 <80% 且用户未声明跳过 → 进入生成前先完成当日学习段
-  │    （教材 document/courses/，闭环协议 docs/bootcamp/protocol.md——本地 gitignored）
+  │    （教材 document/courses/，闭环协议 document/courses/bootcamp/protocol.md——
+  │     个人执行副本与档案在本地 docs/bootcamp/，gitignored）
   └─ 阶段判定 → 动态配置系统变量（见 §4 stage.py）
 
 入口双轨检查（v1.6）：run / submit / update-knowledge 入口各验一次
@@ -247,10 +249,11 @@ QuantAlpha/
 ├── document/                    # ✅ 公开文档（仓库核心，随仓库分发）
 │   ├── quantalpha-design.md     # 本文档（权威设计）
 │   ├── flows/                   # 流程控制（startup/generation/submission/experience/access/update-knowledge/learning）
-│   ├── courses/                 # 教程教材（v1.8）：四节新手课笔记 + 官方教程提取 + 官方作业题
+│   ├── courses/                 # 教程教材（v1.8）：四节新手课笔记 + 官方教程提取 + 官方作业题 + 官方学习指南
+│   │   └── bootcamp/            #   学习闭环协议/评分/考点模板/双计划（v1.8.1 公开模板）
 │   └── reference/               # 知识参考（operators/rules/pitfalls/fields/community/templates）
-├── docs/                        # 🔒 gitignored：skill 产物（spec/plan 存档）+ bootcamp 个人学习状态
-│   └── bootcamp/                #   RLHF 闭环协议/mastery 档案/双计划/摸底与答题记录
+├── docs/                        # 🔒 gitignored：skill 产物（spec/plan 存档）+ bootcamp 个人执行副本与档案
+│   └── bootcamp/                #   mastery 档案/摸底与答题记录/模拟卷（协议与模板的运行副本）
 ├── experience/                  # 🔒 gitignored：本地账户知识库（字段元数据 + playbook + failures）
 │   ├── fields/                  #   qa update-knowledge 生成：fields.json/top_fields.json/meta.json
 │   ├── playbook.md              #   经验沉淀（自动追加）
@@ -323,12 +326,13 @@ QuantAlpha/
 
 **公开 `document/`（随仓库分发）分三类：**
 - `document/flows/` —— 流程控制（7 份：startup/generation/submission/experience/access/update-knowledge/learning）
-- `document/courses/`（v1.8 新增）—— **教程教材**：官方公开课《零基础学量化》四节新手课笔记（官方公开课转录清洗，来源标注）+ 官方 /learn 教程 13 页提取 + 官方课程作业题 3 份；答疑内容不单独保留，知识增量归并入 reference/（去重后补充，见 courses/README"答疑内容去向"）
+- `document/courses/`（v1.8 新增）—— **教程教材**：官方公开课《零基础学量化》四节新手课笔记（官方公开课转录清洗，来源标注）+ 官方 /learn 教程 13 页提取 + 官方课程作业题 3 份 + 官方学习指南（official_quiz-guide.md，bootcamp 主线依据）；答疑内容不单独保留，知识增量归并入 reference/（去重后补充，见 courses/README"答疑内容去向"）
+- `document/courses/bootcamp/`（v1.8.1）—— **学习闭环协议/模板**（公开）：protocol 五步闭环 + rubric 评分标准 + 60 考点 mastery.template + 1 周/2 周双计划——新使用者复制到本地 `docs/bootcamp/` 运行
 - `document/reference/` —— 知识参考（operators/rules/pitfalls/fields/community/templates，平台公开文档 + 脱敏方法论）
 
 **本地（gitignored）：**
 - `experience/` —— 账户专属：字段元数据（qa update-knowledge 生成）+ playbook/failures（个人经验）
-- `docs/bootcamp/`（v1.8）—— 个人学习状态：mastery 档案/计划/摸底与答题记录/模拟卷（RLHF 闭环协议，见 `document/flows/startup.md` §4 与 `docs/bootcamp/protocol.md`）
+- `docs/bootcamp/`（v1.8，v1.8.1 起为个人运行层）—— 个人执行副本与档案：mastery 档案/摸底与答题记录/模拟卷（协议与模板从 `document/courses/bootcamp/` 复制，个人记录只留本地，见 `document/flows/startup.md` §4）
 
 **学习与产出的配合**：教程未通过者（六项检查第 6 项）→ 生成前先完成当日学习段；教学模式 = 学习与生成自然融合；参考官方示例作候选灵感合规（官方公开材料）。
 
@@ -385,7 +389,7 @@ QuantAlpha/
 | **经验自动沉淀（v1.4）** | run/submit 后 PASS→lessons、FAIL→failures 自动写 SQLite + experience/ markdown（幂等去重） | 沉淀闭环指导后续生成；省人工整理 |
 | **学习定位（v1.8）** | 产出 + 知识掌握双轮：教程未通过（六项检查第 6 项）→ 生成前先完成当日学习段；教学模式 = 学习与生成融合 | 平台收紧审核（笔试+面试考察基本知识）；知识不足则无法通过面试，系统无后续价值 |
 | **快速模式引擎（v1.8）** | 三引擎 → 两引擎（删失败优化——已并入常规迭代 §4，避免重复路径） | 失败优化 = 下一个生成批次的自然组成，无独立引擎必要 |
-| **教材分层（v1.8）** | 通用教材 `document/courses/`（官方公开材料，随仓库分发）；个人学习状态 `docs/bootcamp/`（mastery/摸底/答题记录，gitignored） | 公开知识可分享（符合 P5）；个性化安排属个人数据（账号/进度），隔离在本地上传之外 |
+| **教材分层（v1.8，v1.8.1 修订）** | 通用教材 + 学习闭环协议/模板公开（`document/courses/` + `document/courses/bootcamp/`，随仓库分发）；个人执行档案（mastery/摸底/答题记录）留在本地 `docs/bootcamp/`（gitignored） | 公开知识可分享（符合 P5）；新使用者 clone 即能起步学习（v1.8.1 修复原全私有的断链）；个性化进度属个人数据，隔离在本地上传之外 |
 
 ---
 
@@ -395,7 +399,8 @@ QuantAlpha/
 > 未实现项整理为下方 Backlog；身份差异备忘已并入 `document/flows/access.md`。
 >
 > **v1.8 追加**：教程学习体系（bootcamp）决议见 `docs/superpowers/specs/2026-09-03-bootcamp-design.md`；
-> 通用教材已入 `document/courses/`（公开），个人学习状态在 `docs/bootcamp/`（gitignored）。
+> 通用教材已入 `document/courses/`（公开）；**v1.8.1 起学习闭环协议/模板公开于 `document/courses/bootcamp/`**，
+> 个人学习档案（mastery/摸底/答题记录）在本地 `docs/bootcamp/`（gitignored）。
 
 ### Backlog（未实现，按优先级）
 

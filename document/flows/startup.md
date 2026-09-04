@@ -12,7 +12,7 @@
 | 3 | cookie 有效 | 有效 | 不存在/过期 → `qa login` 或提供 Copy as cURL；网络异常 → 提示网络不可达 |
 | 4 | 账号阶段（level/资格/区域/语言） | 输出阶段配置 | 知识库与资格不一致 → 建议 `qa update-knowledge --force` |
 | 5 | 待提交暂存（`secrets/pending_submits.json`） | 无 | 有 PASS 暂存 → **先报告等确认提交，不叠加新循环** |
-| 6 | **教程进度**（`docs/bootcamp/mastery.json` 掌握度） | 已通过（达标率 ≥80% 或用户明确声明跳过） | 未建/未达标 → 进入生成环节前先完成当日 bootcamp 学习段（教材 `document/courses/`，闭环协议 `docs/bootcamp/protocol.md`） |
+| 6 | **教程进度**（本地 `docs/bootcamp/mastery.json` 掌握度） | 已通过（达标率 ≥80% 或用户明确声明跳过） | 未建/未达标 → 进入生成环节前先完成当日 bootcamp 学习段（教材 `document/courses/`，闭环协议 `document/courses/bootcamp/protocol.md`——个人执行副本与档案在本地 gitignored `docs/bootcamp/`） |
 
 > 检查 6 说明：mastery.json 为本地个人学习档案（gitignored）。达标判定 = 达标+熟练考点数 / 总数 ≥ 80%；用户声明"不考顾问/跳过学习"可视为通过（对话层确认即可）。`qa status` 代码不检查该项——由 agent 按本表执行。
 
@@ -25,7 +25,8 @@
 
 ## 3. 调研访问规则
 
-BRAIN 平台匿名访问是登录墙（返回 JS 空壳页面）。agent 做官网/API 调研（算子文档、字段、模拟示例等）前，**先确认 cookie 有效**（`qa status` 验证 / 失效则 `qa login` 刷新），再携带 cookie（`secrets/worldquant_cookies.txt`）访问；遇到官网墙异常时**优先怀疑 cookie 过期**——更新登录状态后重试，不要盲目换信息来源。完整规则见 `document/flows/update-knowledge.md`。
+BRAIN 平台匿名访问是登录墙（返回 JS 空壳页面）。agent 做官网/API 调研（算子文档、字段、模拟示例等）前，**先确认 cookie 有效**（`qa status` 验证 / 失效则 `qa login` 刷新）。
+**区分两类访问**：API 场景 `qa login`（账号密码）即可；**网页/论坛场景（help center/社区）需用户浏览器 Copy as cURL 提供完整会话凭据**——只有账号密码时不要死磕网页墙，直接请用户 Copy as cURL 或改用 API 源。遇到官网墙异常时优先怀疑 cookie 过期（API 场景）。完整规则见 `document/flows/update-knowledge.md` §2。
 
 ## 4. 教程状态对流程的影响（检查 6 的后续动作）
 

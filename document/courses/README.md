@@ -50,5 +50,6 @@
 
 ## 使用方式
 
-- 学习流程见 `docs/bootcamp/`（本地个性化学习闭环：摸底/精学/自测/评分/复习）
+- 学习闭环协议与模板（公开）：`document/courses/bootcamp/`（protocol 五步闭环 / rubric 评分 / mastery 考点模板 / 1 周速考与 2 周新人双计划）——**新使用者**：复制该目录到本地 `docs/bootcamp/` 并初始化 `mastery.json`（复制 `mastery.template.json`），agent 按协议执行摸底/精学/自测/评分/复习
+- 个人执行状态（mastery 档案/摸底卷/错题本/答题记录）留在本地 `docs/bootcamp/`（gitignored 不上传）
 - 本目录文件随仓库公开分发；`docs/bootcamp/` 为个人学习状态（gitignored 不上传）

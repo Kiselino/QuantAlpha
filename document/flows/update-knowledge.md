@@ -18,11 +18,18 @@
 ## 2. 平台调研访问规则（实测教训）
 
 1. **先确认 cookie 有效**：`qa status` 验证；失效则 `qa login` 刷新
-2. BRAIN 平台匿名访问是登录墙（返回 JS 空壳页面）——**必须携带 cookie**
-   （`secrets/worldquant_cookies.txt`，`t=<JWT>`）访问
-3. 遇到官网墙返回异常时**优先怀疑 cookie 过期**——更新登录状态后重试，
-   不要盲目换信息来源
-4. 优质官方参考源：
+2. **API 访问**：携带 `secrets/worldquant_cookies.txt`（`t=<JWT>`，`qa login` 生成）——API 场景账号密码即可
+3. **网页/论坛访问（help center、support 社区、官网页面）≠ API**：
+   - 匿名访问是登录墙（JS 空壳 / Cloudflare），**API cookie 进不了网页**——账号密码登录只解决 API，
+     网页会话需要浏览器侧完整凭据
+   - **正确姿势（优先）**：让用户浏览器 **Copy as cURL**——登录平台后 F12 → Network → 刷新 →
+     找 `api.worldquantbrain.com` 或 `support.worldquantbrain.com` 请求 → 右键 Copy as cURL →
+     整段粘贴给 agent（含 `_help_center_session`/`_zendesk_*` 等完整浏览器会话 cookie，一次到位）
+4. **墙/登录页处理（不死磕）**：遇到 Cloudflare / 登录页 / JS 空壳 → **停止重试**，
+   直接提示用户提供 Copy as cURL，或改用 API 可覆盖的源（`/operators`、`/data-sets`）；
+   不要反复换信息来源死磕（重试不解决凭据问题，只浪费轮次）
+5. 官网 API 返回异常时**优先怀疑 cookie 过期**——`qa login` 刷新后重试（API 场景；网页场景走第 3 条）
+6. 优质官方参考源：
    - `GET /operators`（API，带 cookie）——官方算子清单；`/operators/{name}` 详情页
      含官方 SIMULATION_EXAMPLE（完整 settings 含 language）
    - `GET /data-sets`（API，带 cookie）——官方数据集清单（区域/字段数/delay/universe）
@@ -30,7 +37,7 @@
      走 Zendesk API（`/api/v2/community/posts/{id}.json`）需浏览器会话 cookie
      （`_help_center_session`/`_zendesk_session`/`_zendesk_shared_session`）；
      可让用户浏览器 Copy as cURL 提供完整凭据
-5. **合规边界**：调研仅限官方公开材料 + 方法论；**严禁收集/整理/传播面试真题、答案、题库、面经**
+7. **合规边界**：调研仅限官方公开材料 + 方法论；**严禁收集/整理/传播面试真题、答案、题库、面经**
 
 ## 3. 外部经验通道（community.md 写入流程）
 

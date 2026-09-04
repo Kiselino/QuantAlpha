@@ -11,7 +11,7 @@
 ## 1. 三模式执行细则（启动时三选一）
 
 > 启动流程 `document/flows/startup.md` §5 询问运行模式；会话中可随时口头切换。
-> **教程未通过者**（startup.md §4 检查 6）：进入生成前先完成当日 bootcamp 学习段；教学模式与学习闭环自然融合（讲概念即补知识），随机/快速模式在批次间隔插入学习段。教材 `document/courses/`、闭环协议 `docs/bootcamp/protocol.md`（本地）。
+> **教程未通过者**（startup.md §4 检查 6）：进入生成前先完成当日 bootcamp 学习段；教学模式与学习闭环自然融合（讲概念即补知识），随机/快速模式在批次间隔插入学习段。教材 `document/courses/`、闭环协议 `document/courses/bootcamp/protocol.md`（个人档案在本地 gitignored `docs/bootcamp/`）。
 
 ### 1.1 教学模式（人机交互学习核心）
 

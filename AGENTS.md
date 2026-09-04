@@ -16,7 +16,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 |---|---|---|
 | 会话启动 | 每次会话第一步 | `document/flows/startup.md`（六项检查/模式询问/主题来源） |
 | 生成（三模式） | 进入生成环节前 | `document/flows/generation.md`（教学/随机/快速） |
-| 系统学习（bootcamp） | 教程未通过时（启动检查第 6 项） | 教材 `document/courses/`（官方课笔记+教程提取）；学习闭环协议 `docs/bootcamp/protocol.md`（本地，gitignored） |
+| 系统学习（bootcamp） | 教程未通过时（启动检查第 6 项） | 教材 `document/courses/`（官方课笔记 + 教程/作业提取 + 官方学习指南）；学习闭环协议 `docs/bootcamp/protocol.md`（本地，gitignored） |
 | 权限决策 | 决定可用功能时 | `document/flows/access.md`（用户 vs 顾问能力矩阵） |
 | 提交 | 有 PASS 待提交时 | `document/flows/submission.md`（检查清单/人工确认） |
 | 经验沉淀 | run/submit 结束后 | `document/flows/experience.md`（playbook/failures/模版总结） |
@@ -84,7 +84,7 @@ QuantAlpha/
 ├── document/                    # ✅ 公开文档（仓库核心，随仓库分发）
 │   ├── quantalpha-design.md     # ⭐ 权威设计 v1.7
 │   ├── flows/                   # 流程控制文档（startup/generation/submission/experience/access/update-knowledge/learning）
-│   ├── courses/                 # 官方课程与学习素材（零基础学量化课程笔记 + 官方教程/作业提取）
+│   ├── courses/                 # 官方课程与学习素材（零基础学量化课程笔记 + 官方教程/作业提取 + 官方学习指南）
 │   └── reference/               # 知识参考（operators/rules/pitfalls/fields/community/templates）
 ├── qa/                          # Python 工具库（auth/stage/brain_client/validate/commands/...）
 ├── docs/                        # 🔒 gitignored：skill 产物（设计/计划存档）+ bootcamp 本地学习状态（mastery/计划/错题本）

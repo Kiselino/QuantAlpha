@@ -6,7 +6,7 @@
 
 ## 合规边界
 
-- 题源仅限官方公开材料（官方公开课、help center、/learn 教程、官方课程作业帖）
+- 题源仅限官方公开材料（官方公开课、help center、/learn 教程、官方课程作业帖、官方社区帖 WQ BRAIN CHINA）
 - **严禁收集/整理/传播面试真题、答案、题库、面经**——本目录不含此类内容；使用本目录出题练习时同样不得引入
 - 课程笔记中时间敏感信息保留口径日期标注（平台政策会变化，如 2026-06 起新增面试环节）
 
@@ -24,6 +24,7 @@
 | `official_running-your-first-alpha.md` | 首次模拟操作 | M2 | 同上 |
 | `official_test-period.md` | Test Period（train/test 划分） | M2 | 同上 |
 | `official_read-first-starter-pack.md` | Starter Pack 总览（顾问/平台概览） | M1/M2 | 同上 |
+| `official_quiz-guide.md` | **官方研究能力笔试与面试学习指南**（四方向 + 备考建议——bootcamp 主线依据） | M1-M4 | 官方社区帖（WQ BRAIN CHINA） |
 | `official_data.md` | Understanding Data 关键概念 | M3 | 同上 |
 | `official_how-use-data-explorer.md` | Data Explorer 用法与指标 | M3 | 同上 |
 | `official_vector-datafields.md` | Vector 数据字段 | M3 | 同上 |
@@ -35,7 +36,7 @@
 | `homework_course2.md` | 官方 Course2 作业（v3 2026-07） | 练习 | 官方课程作业帖 |
 | `homework_course3.md` | 官方 Course3 作业（V3 2026-07） | 练习 | 官方课程作业帖 |
 
-> 模块归属：M1=WorldQuant 与顾问项目；M2=BRAIN 平台基础；M3=数据探索与操作符；M4=回测结果与提交（对齐官方学习指南四大方向与 bootcamp 考纲映射）。
+> 模块归属：M1=WorldQuant 与顾问项目；M2=BRAIN 平台基础；M3=数据探索与操作符；M4=回测结果与提交（对齐 [官方学习指南四方向](official_quiz-guide.md) 与 bootcamp 考纲映射）。
 
 ## 答疑内容去向说明
 

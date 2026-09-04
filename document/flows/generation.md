@@ -36,7 +36,7 @@
 
 **执行要点**：
 
-1. 主题来源：`qa suggest` 随机抽取（启动时已询问，见 startup.md §5）
+1. 主题来源：`qa suggest` 随机抽取（启动时已询问，见 startup.md §6）
 2. 按六环节（§2）正常生成，**每批开头与结尾各给 1-2 句要点讲解**（主题思路 +
    本批学到了什么），不逐候选讲解
 3. 用户追问时同样转 `document/flows/learning.md` 深入教学
@@ -63,6 +63,7 @@
      → 写入 data/candidates/YYYY-MM-DD-quick-N.json → qa run
 ```
 
+- **批文件读取**：`qa run` 默认只读当天主批文件 `data/candidates/YYYY-MM-DD.json`；每轮写入的是分轮文件 `YYYY-MM-DD-quick-N.json`——写入后须用 `qa run --candidates-file data/candidates/YYYY-MM-DD-quick-N.json` 显式指定读取
 - **输出纪律**：每轮只输出一行进度：
   `[轮次 N/10] 引擎：c(模版 T1) | 模拟 M 个 | PASS K | 最佳 Fitness/S`
 - **主题止损**（引擎 a 每主题最多两批）：
@@ -194,7 +195,7 @@
 1. 读本批失败（failures 表 / `experience/failures.md`；`qa report` 可看归因统计）
 2. **归因分类**：方向性（假设证伪）/ 参数可修（LOW_SHARPE、HIGH_TURNOVER 等）/ 相关门饱和
 3. **决策**：调参 / 同方向变体 / 换方向 / 止损
-4. **执行**：生成下一批 → `data/candidates/YYYY-MM-DD-opt.json`（不覆盖原批，保留对比）
+4. **执行**：生成下一批 → `data/candidates/YYYY-MM-DD-opt.json`（不覆盖原批，保留对比）；写入后运行须 `qa run --candidates-file data/candidates/YYYY-MM-DD-opt.json` 指定读取（`qa run` 默认只读当天主批文件 YYYY-MM-DD.json）
 5. **输出决策理由**：明确"为什么这样调"（例："上批 LOW_SHARPE → 延长窗口"），衔接学习机制
 
 **止损纪律**：连续 2 批无 PASS → agent 主动报告"该方向连续 N 批无达标，建议换方向/止损"，

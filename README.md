@@ -4,8 +4,8 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **生成候选 alpha → 本地预检 → 平台 API 云端模拟 → 门槛筛选 → 人工确认提交 → 经验沉淀**
 
-> 当前状态：v1.8 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
-> v1.8 要点：启动六项环境检查（含教程进度门）/ 学习闭环公开化（教材 `document/courses/` + 协议模板 `document/courses/bootcamp/`，个人档案本地隔离）/ 快速模式两引擎 / 官方学习指南入库。
+> 当前状态：v1.8.1 · 已实现（`qa login` / `qa status` / `qa run` / `qa report` / `qa submit` / `qa reset` / `qa update-knowledge` / `qa suggest`）。
+> v1.8 要点：启动六项检查（CLI 输出前五项，教程进度第 6 项由 agent 层执行）/ 学习闭环公开化（教材 `document/courses/`，v1.8.1 起协议模板 `document/courses/bootcamp/` 同步公开，个人档案本地隔离）/ 快速模式两引擎 / 官方学习指南入库。
 > 权威设计见 `quantalpha-design.md`；agent 工作流见 `AGENTS.md`。
 
 ---
@@ -96,7 +96,7 @@ qa update-knowledge      # 按账户阶段抓取字段元数据 → 写入 exper
 
 ```bash
 qa login                                              # 账号密码登录（写入会话 cookie；也可 --username/--password）
-qa status                                             # 启动首查：阶段检测 + 六项环境检查（含教程进度）+ 本地知识库状态
+qa status                                             # 启动首查：阶段检测 + CLI 前五项环境检查 + 本地知识库状态（教程进度第 6 项由 agent 按 document/flows/startup.md 检查）
 qa update-knowledge [--regions USA,KOR] [--force]     # 首次运行必做：按账户生成本地字段知识库（24h 内已生成默认跳过，--force 强制刷新）
 # agent 读 document/（公开）+ experience/（本地字段/playbook/failures）→ 生成候选 → 写入 data/candidates/YYYY-MM-DD.json
 qa run [--concurrency N]                              # 读入候选 → 预检 → 模拟 → 筛选 → 报告（默认 3 并发可调；中断后重跑同一候选文件自动续查未完成的模拟；PASS 候选自动暂存待提交）
@@ -115,7 +115,7 @@ qa reset [--yes]                                      # 清除积累的经验，
 
 这个仓库是公开的：**工具 + 公开知识库（平台文档）** 随仓库分发；你的私有数据（cookie、账号密码、本地字段知识、个人经验、个人成果）已被 gitignore 隔离，其他使用者克隆后不会看到。
 
-知识库拆分（v1.7 文档驱动重构）：
+知识库拆分（文档驱动重构）：
 
 - **公开 `document/`**：分层组织——`document/flows/`（流程控制文档：startup 启动/generation 生成/submission 提交/experience 沉淀/access 权限/update-knowledge 调研/learning 学习）、`document/reference/`（知识参考：operators 算子/rules 规则/pitfalls 陷阱/fields 字段策略/community 外部经验/templates 模版库）——平台公开文档，随仓库分发。agent 按流程走到相关步骤才读对应文档（`AGENTS.md` 导航表）
 - **本地 `experience/`**（gitignored）：字段元数据（`qa update-knowledge` 按账户权限生成）、playbook/failures（个人经验沉淀）——**账户专属，不上传**，因为字段可用范围随账户权限变化，且表达式/字段研究属于个人数据
@@ -148,7 +148,7 @@ QuantAlpha/
 
 ## 文档
 
-- `document/quantalpha-design.md` — 权威系统设计（模块/数据模型/错误处理/MVP，v1.8）
+- `document/quantalpha-design.md` — 权威系统设计（模块/数据模型/错误处理/MVP，v1.8.1）
 - `document/flows/` — 流程控制文档：startup（会话启动/模式询问）、generation（生成三模式）、submission（提交检查/人工确认）、experience（经验沉淀/模版总结）、access（用户 vs 顾问权限矩阵）、update-knowledge（知识库更新/平台调研）、learning（人机交互学习）
 - `document/courses/` — 官方课程与学习素材：零基础学量化课程笔记（4 节新手课）+ 官方教程/作业提取 + 官方学习指南（备考 bootcamp 教材源）
 - `document/courses/bootcamp/` — 学习闭环协议与模板（五步闭环/评分标准/60 考点 mastery 模板/1 周速考与 2 周新人双计划）——新使用者复制到本地 `docs/bootcamp/` 后按协议学习

@@ -88,9 +88,11 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。用户通过对话�
 ### 3.0 启动流程（agent 每次会话的第一步）
 
 ```
-agent 启动 → `qa status`（会话级环境检查，六项输出：
-  新用户判定 / 知识库就绪 / cookie 有效 / 账号阶段 / 待提交暂存 / 教程进度，
-  每项给引导动作；只提示不代做登录——输出"请运行 qa login 或提供 Copy as cURL"）
+agent 启动 → `qa status`（会话级环境检查，CLI 输出五项：
+  新用户判定 / 知识库就绪 / cookie 有效 / 账号阶段 / 待提交暂存，
+  每项给引导动作；教程进度（六项检查第 6 项）不在 CLI 输出，
+  由 agent 按下文"教程进度检查"分支执行；
+  只提示不代做登录——输出"请运行 qa login 或提供 Copy as cURL"）
   ├─ 读 cookie（secrets/worldquant_cookies.txt）
   ├─ cookie 缺失/过期 → 认证双选：
   │    ① `qa login --username ... --password ...`（账号密码，凭据不落盘）
@@ -149,21 +151,21 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 
 | 文件 | 职责 | 关键实现 |
 |---|---|---|
-| `config.py` | 配置 | 阈值（Sharpe/TO/自相关）、region/universe/delay 默认值；**阶段相关变量**（并发/区域/字段/语言由 stage.py 动态注入）。**无 LLM 配置——项目不调用 LLM**。v1.6：本地每日预算 `daily_sim_budget` 已删；配额不主动查询（平台 429/THROTTLED 提示后处理） |
+| `config.py` | 配置 | 阈值（Sharpe/Fitness/TO 仅 D1，见 Thresholds；D0 与自相关不在本地 config——由平台 checks 覆盖）、region/universe/delay 默认值；**阶段相关变量**（并发/区域/字段/语言由 stage.py 动态注入）。**无 LLM 配置——项目不调用 LLM**。v1.6：本地每日预算 `daily_sim_budget` 已删；配额不主动查询（平台 429/THROTTLED 提示后处理） |
 | `paths.py` | 路径单点定义 | 仓库内私有文件路径集中管理（COOKIE/ACCOUNT_INFO/DB/AUDIT_DIR/REPORTS_DIR/CANDIDATES_DIR + experience/ 本地知识库路径：KNOWLEDGE_FIELDS_DIR/PLAYBOOK/FAILURES 等）；根目录可注入（测试用 tmp 仓库根） |
 | `stage.py` | **账号阶段检测** | 读 cookie → `GET /users/self` → 解析 level/geniusLevel/consultant → 输出阶段配置（并发/区域/字段/语言）。**v1.6：`fetch_self` 401/403 → PermissionError 转换（与 brain_client 约定统一）；status 环境检查 `_env_checks`/`_env_verdict`（返回 new_user/partial/reset/ready）；`StageInfo` 注释 level（分数段位）与 is_consultant（资格）正交** |
 | `auth.py` | **账号密码登录** ✅ v1.2 | `POST /authentication`（HTTP Basic Auth）→ 提取 Set-Cookie 的 `t=` JWT 写入 cookie 文件；凭据不落盘、不进审计；401 凭据错误/Persona 人机验证（`WWW-Authenticate: persona`）分别抛异常提示；替代/补充浏览器复制 cURL 方式。v1.6：登录成功写阶段摘要（level/资格/区域/时间，不含密码与分数明细）到 `secrets/account_info.json` |
 | `brain_client.py` | BRAIN API 封装 | 认证（读 `secrets/worldquant_cookies.txt`）；模拟 POST+轮询+结果（含 is.checks，实测状态值 `COMPLETE`）；`/correlations/self` 相关门；提交 `submit()` + 回查 `get_alpha()`；**429 区分处理（常规 Retry-After 退避 vs THROTTLED 抛错）**；**空响应/非 JSON body 重试防御**（实测偶发）；分钟限流头读取；`get_json()` 批量读端点（知识库抓取用）；401/403 抛 PermissionError 提示重登 |
 | `validate.py` | **本地预检层（省配额核心）** | 语法 lint（括号配对/未知算子）+ **字段白名单校验（读本地 `experience/fields/fields.json`，v1.4；缺失抛 KnowledgeMissingError 引导 `qa update-knowledge`）+ 字段类型检查（v1.4.1：VECTOR 需 vec_* 算子包裹、GROUP 仅限 group_* 的 group_by、UNIVERSE/SYMBOL 禁用）** + **候选级 settings 值域校验（v1.5：decay 0-63/neutralization 枚举/truncation 0-1/未知键拦截）** + **language 校验（v1.6：非 FASTEXPR 直接拒绝并提示"PYTHON 暂不支持本地预检"）** + `expression_fields` 字段提取（v1.5，供簇去重）+ 表达式 SHA-256 哈希去重 + 复杂度控制（算子 ≤30、嵌套 ≤8） |
 | `candidates.py` | **候选读入** | 读取 agent 写入的 `data/candidates/YYYY-MM-DD.json`（格式：`[{description, hypothesis, expression, dataset_ids, settings?, language?}]`，v1.5 支持可选 settings 覆盖模拟参数；**v1.6：可选 language 默认 `"FASTEXPR"` + hypothesis 非空校验**）→ 供 validate/screener 处理。**项目内不生成、不调用 LLM**——生成由对话层 agent 完成 |
-| `screener.py` | 门槛过滤 + 去重 | 硬门槛：Fitness≥1.0(D1)/1.3(D0)、Sharpe>1.25(D1)/2.0(D0)、TO 1-70%（本地兜底）；平台 `is.checks` 为权威（P1）：FAIL 直接采信、全 PASS 不降级；MARGINAL（距门槛 10% 内）仅当平台 checks 缺失时使用；**同字段集簇去重（v1.5：`dedupe_by_fields`，同信号簇只模拟最简者，省配额）** |
+| `screener.py` | 门槛过滤 + 去重 | 硬门槛（本地兜底，仅 D1 阈值，对照 qa/config.py Thresholds:38-42：Fitness≥1.0/Sharpe>1.25/TO 1-70%；D0/自相关等由平台 `is.checks` 覆盖）；平台 `is.checks` 为权威（P1）：FAIL 直接采信、全 PASS 不降级；MARGINAL（距门槛 10% 内）仅当平台 checks 缺失时使用；**同字段集簇去重（v1.5：`dedupe_by_fields`，同信号簇只模拟最简者，省配额）** |
 | `store.py` | 持久化 | SQLite（alphas/simulations/submissions/lessons/failures 表）+ JSONL 审计（`append_audit` 返回时间戳关联 simulations.audit_path）；幂等（INSERT OR REPLACE）、中断后重跑跳过已完成项（靠 alphas.ast_hash 去重）。**v1.6：simulations 落库平台 sim_id（模拟成功立即写 PENDING 行，poll 完成 UPDATE 同一条，供中断续查）；`failure_stats` 按 failure_reason 归因聚合（模拟/提交归因分离）；`daily_sim_count` 删除** |
 | `report.py` | 报告 | 候选清单 markdown（指标/说明/建议排序 + **v1.6 加设计逻辑 hypothesis 展示 + corr 排序值展示（标注"提交前需复查"）**）；每日达标汇总文档（`reports/daily/YYYY-MM-DD.md` 追加 + 去重） |
 | `commands/`（v1.6 新增子包） | **命令实现拆分** | cli.py 仅保留 argparse 分发（~80 行）与 `qa.cli:main` 入口；命令迁入子包，统一签名 `main(paths, cfg, args) -> int`；pyproject 零改动（`include=["qa*"]` 通配覆盖） |
 | `commands/_common.py` | run/submit 共用工具 | `_sediment_lesson` / `_sediment_failure` / `_append_pending` / `_remove_pending` |
 | `commands/login.py` | 登录命令 | `_cmd_login`（账号密码 → cookie + 阶段摘要写入 account_info.json） |
 | `commands/status.py` | 状态命令 | `cmd_status` 增强版（五项环境检查输出，每项带引导动作） |
-| `commands/run.py` | 闭环命令 | `cmd_run` + `_simulate`/`_settings`/`_score`/`_load_operators`/`_load_fields`；`--concurrency` 参数化、批处理 401 中断、中断恢复续查 |
+| `commands/run.py` | 闭环命令 | `cmd_run`（编排 `_prepare_run`/`_run_batches`/`_finalize_results`）+ `_start_phase`/`_poll_phase`/`_settings`/`_score`/`_load_operators`；`--concurrency` 参数化、批处理 401 中断、中断恢复续查、会话过期中断返回非 0 |
 | `commands/submit.py` | 提交命令 | `_cmd_submit` + `_wait_for_active`；展示 hypothesis（知情确认）；相关门被拒即弃不重试 |
 | `commands/reset.py` | 重置命令 | `_cmd_reset` |
 | `commands/update_knowledge.py` | 知识库命令 | 命名避让 `qa/knowledge.py`；外部经验更新由 agent 会话询问（CLI 本身不弹交互） |
@@ -171,7 +173,7 @@ run 批处理中途 401 → 中断并提示"会话已过期，剩余 N 个候选
 | `commands/report_cmd.py` | 报告命令 | 命名避让 `qa/report.py`；`--daily` / `--pending`（批量预览待提交清单） |
 | `cli.py` | 命令入口（v1.6 瘦身） | 仅 argparse 分发；历史能力：`qa login`/`qa status`/`qa run`/`qa report`/`qa submit`/`qa reset`/`qa update-knowledge`/`qa suggest` 命令本体已迁至 `qa/commands/`。run 历史实现含并发模拟（ThreadPoolExecutor 分批，写库回主线程避免 sqlite 跨线程）+ 批间主动限速 + 候选级 settings 合并 + 字段集簇去重 + PASS 免费相关门排序 + 待提交自动暂存 + 经验沉淀（`_sediment_lesson/_sediment_failure`） |
 | `optimizer.py` | 优化循环 | **已取消（v1.6）**——优化并入下一个生成批次循环（agent 自主决策 + 止损报告，见 `document/flows/generation.md` §4），无独立代码优化器 |
-| `knowledge.py` | **本地知识库管理（v1.4 实现）** | 按账户阶段抓取字段（`/data-sets` + `/data-fields`，分页 + 限流节流 ~2s/请求）→ 写 `experience/fields/{fields,top_fields,meta}.json`（全量白名单/top 参考/状态 meta）；读取接口 `load_field_ids`/`load_top_fields`/`knowledge_status`；经验沉淀 `append_experience`（playbook/failures 自动追加，按 entry_id 幂等去重；v1.6 失败条目按失败名补一句修复建议——查 rules.md 失败→修复映射表）/`restore_experience_templates`（reset 用） |
+| `knowledge.py` | **本地知识库管理（v1.4 实现）** | 按账户阶段抓取字段（`/data-sets` + `/data-fields`，分页 + 限流节流 ~2s/请求）→ 写 `experience/fields/{fields,top_fields,meta}.json`（全量白名单/top 参考/状态 meta）；读取接口 `load_field_ids`/`load_top_fields`/`knowledge_status`；经验沉淀 `append_experience`（playbook/failures 自动追加，按 entry_id 幂等去重；v1.6 失败条目按失败名补一句修复建议——查 `document/reference/pitfalls.md`「常见失败与修复」映射表）/`restore_experience_templates`（reset 用） |
 
 ### 4.1 命令清单（agent 工作流接口）
 
@@ -274,7 +276,7 @@ QuantAlpha/
 | 场景 | 处理 |
 |---|---|
 | cookie 过期（~4h JWT 会话） | brain_client/stage 检测 401/403 → PermissionError → 报告"请重新认证"（`qa login` 账号密码，或浏览器复制 Cookie）→ 暂停流程等待。**v1.6 分支输出**：cookie 不存在 → "请运行 qa login 或提供 Copy as cURL"；PermissionError → "cookie 已过期：请运行 qa login"；网络异常 → "cookie 有效性未验证" |
-| **批处理中途 401**（v1.6） | `_simulate` 单独捕获 PermissionError → 中断标志 → chunk 循环 break → 提示"会话已过期，剩余 N 个候选未模拟。已模拟结果已保存（重跑自动跳过），请 qa login 后重试"；幂等保证重跑不重复耗配额。submit/update-knowledge 报错修正为"登录失效：请 qa login" |
+| **批处理中途 401**（v1.6） | `_start_sim`/`_poll_sim` 捕获 PermissionError → `ctx.session_lost` 置位 → `_session_lost_prompt` 检测后 chunk 循环 break → 提示"会话已过期，剩余 N 个候选未模拟。已模拟结果已保存（重跑自动跳过），请 qa login 后重试"；幂等保证重跑不重复耗配额。submit/update-knowledge 报错修正为"登录失效：请 qa login" |
 | **429 常规限流** | GET/POST 均按 `Retry-After`（float，clamp [1s,120s]）退避重试 3 次；仍失败抛 TimeoutError 中止该候选 |
 | **429 + `THROTTLED`**（平台相关性子系统卡死） | 非普通限流 → 提示"平台故障，稍后重试"，暂停批处理 |
 | **分钟限流（实测 30 req/min）** | `rate_limits()` 读取 `x-ratelimit-remaining-minute`；**批处理主动限速已接入（v1.4.1：run 批间剩余 ≤3 时等待窗口重置；v1.5：无 reset 头时按窗口消耗比例估算等待；update-knowledge 固定节流 ~2s/请求）** |
@@ -407,7 +409,7 @@ QuantAlpha/
 | 优先级 | 事项 | 说明 |
 |---|---|---|
 | ~~P1~~ | ~~算子白名单不一致~~ | ✅ **已解决（2026-09-01 核对）**：`qa/commands/run.py:_load_operators` 67/67 与官方 API 完全一致（trade_when/bucket/ts_regression/vector_neut 等 14 个已补） |
-| P1 | D0 路径未走通 | config 已定义 D0 阈值从未使用；screener 只走 D1；delay 固定 1、候选 settings 无法指定 delay=0；ATOM 规则无代码（对话层） |
+| P1 | D0 路径未走通 | config 只定义 D1 阈值（`Thresholds` 无 D0 项），screener 本地硬门槛仅 D1、D0/自相关由平台 checks 覆盖；delay 固定 1、候选 settings 无法指定 delay=0；ATOM 规则无代码（对话层）。D0 本地阈值如需要可加 |
 | P2 | 已提交簇聚合查询 | 组合视角"生成前避开饱和簇"无 store 查询接口，`qa suggest` 不带已提交信号簇信息 |
 | P2 | 顾问阶段并发上限 | 未确认平台分钟限流是否随顾问提高；--concurrency 已参数化，成为顾问后实测 x-ratelimit-limit-minute 再决定 |
 | P3 | 生成侧代码未强制规则 | dataset_ids 与表达式字段归属一致性、保留字冲突、规模乘子禁忌（rank(-assets)） |

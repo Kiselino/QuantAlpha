@@ -26,7 +26,8 @@
 
 ## 3. failures 写入规则（自动）
 
-- 模拟 FAIL → `_sediment_failure`：按失败名给**一句修复建议**（查 rules.md 失败→修复映射表：
+- 模拟 FAIL → `_sediment_failure`：按失败名给**一句修复建议**（失败→修复映射见
+  `document/reference/pitfalls.md` "常见失败与修复"小节：
   LOW_SHARPE → 延长 lookback/换基本面；HIGH_TURNOVER → 增大 decay；
   CONCENTRATED_WEIGHT → 降 truncation/ts_backfill）
 - 提交被拒 → 前缀区分（`corr_`/`sub_` vs `f_`），归因统计分离

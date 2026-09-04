@@ -2,7 +2,7 @@
 
 > 任何 AI agent（opencode / claude code / codex）打开本仓库后的**第一读取文件**。
 > 本文档只做导航与约束：**流程细节全部在 `document/flows/`，按环节到点才读**。
-> 权威系统设计见 `document/quantalpha-design.md`（v1.7）。
+> 权威系统设计见 `document/quantalpha-design.md`（v1.8.1）。
 
 ## 项目是什么
 
@@ -27,7 +27,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 ## 启动流程（简述，细节见 startup.md）
 
-1. `qa status` → 六项检查（新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存/**教程进度**）→ 动态配置
+1. 启动六项检查：`qa status` 输出前五项（新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存）；**第 6 项教程进度**由 agent 依据 `document/flows/startup.md` 检查 → 动态配置
 2. 有 PASS 暂存 → 先报告等确认提交（不叠加新循环）
 3. **教程未通过**（检查第 6 项）→ 进入生成前先完成当日学习段（教材 `document/courses/`，闭环协议 `document/courses/bootcamp/protocol.md`；个人执行副本与档案在本地 `docs/bootcamp/`）
 4. 询问**运行模式三选一**：① 教学模式 ② 随机模式 ③ 快速模式（定义见 generation.md）
@@ -38,7 +38,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 | 命令 | 功能 | 状态 |
 |---|---|---|
 | `qa login [--username ...] [--password ...]` | 账号密码登录 → 写 cookie（凭据不落盘；Persona 人机验证会提示） | ✅ 已实现 |
-| `qa status` | 阶段检测 + cookie 验证 + 本地知识库状态（六项检查，含教程进度提示） | ✅ 已实现（第一批） |
+| `qa status` | 阶段检测 + cookie 验证 + 本地知识库状态（CLI 输出前五项检查；教程进度为第 6 项，由 agent 依据 startup.md 检查） | ✅ 已实现（第一批） |
 | `qa run [--candidates-file ...] [--concurrency N]` | 完整闭环（读入候选→预检→模拟→筛选→报告）。候选文件由 agent 先写入 `data/candidates/`；PASS 自动暂存（v1.5）；并发可调（v1.6）；中断恢复续查（v1.6） | ✅ 已实现（第一批） |
 | `qa report [--daily] [--pending]` | 当日候选清单 / 每日累计汇总；`--pending` 批量预览待提交清单 | ✅ 已实现（第一批） |
 | `qa submit <alpha_id> [--yes]` | 人工确认后提交（展示全部检查 + 免费相关门，回查 ACTIVE） | ✅ 已实现 |
@@ -50,7 +50,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 **清除（经验积累）：** `data/qa.db`、`data/audit/`、`data/candidates/`、`reports/daily/`、`secrets/pending_submits.json`（⚠️ 含未提交 alpha 时清除前必须警告用户）、`experience/playbook.md` + `failures.md`（恢复为模板）
 
-**保留（非经验）：** `secrets/`（cookie 与 account_info.json）、`document/`（公开文档）、`experience/fields/`（账户字段知识）、`qa/` 代码与配置
+**保留（非经验）：** `secrets/` **目录整体**（cookie 与 account_info.json；仅其中的 `pending_submits.json` 被清除，见上）、`document/`（公开文档）、`experience/fields/`（账户字段知识）、`qa/` 代码与配置
 
 > `qa reset` 执行前必须展示将清除的清单 + 等待用户确认；`--yes` 仅限用户已显式确认后使用。
 
@@ -82,7 +82,7 @@ QuantAlpha/
 ├── AGENTS.md                    # 本文件（工作流入口 + 导航表）
 ├── README.md                    # 人类说明：安装、认证配置、快速开始
 ├── document/                    # ✅ 公开文档（仓库核心，随仓库分发）
-│   ├── quantalpha-design.md     # ⭐ 权威设计 v1.8
+│   ├── quantalpha-design.md     # ⭐ 权威设计 v1.8.1
 │   ├── flows/                   # 流程控制文档（startup/generation/submission/experience/access/update-knowledge/learning）
 │   ├── courses/                 # 官方课程与学习素材（零基础学量化课程笔记 + 官方教程/作业提取 + 官方学习指南）
 │   │   └── bootcamp/            # 学习闭环协议/评分/考点模板/双计划（公开模板，随仓库分发）
@@ -99,7 +99,7 @@ QuantAlpha/
 ## COMMANDS
 
 - 实现后：`qa login` / `qa status` / `qa run` / `qa submit` / `qa report` / `qa reset` / `qa update-knowledge` / `qa suggest`
-- 测试：`pytest qa/tests/`（设计 v1.7 §10）
+- 测试：`pytest qa/tests/`（设计 v1.8.1 §10）
 - 开发节奏：每 2-3 功能更新再提交
 
 ## 最终提交范围（用户约定，提交时遵守）

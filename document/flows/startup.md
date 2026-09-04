@@ -43,9 +43,9 @@ BRAIN 平台匿名访问是登录墙（返回 JS 空壳页面）。agent 做官�
 
 | 模式 | 定位 | 适用场景 | 详情 |
 |---|---|---|---|
-| ① 教学模式 | 人机交互学习核心 | 想边做边学，理解每一步为什么 | `document/flows/generation.md` §2.1 |
-| ② 随机模式 | 快速探索 + 顺带教学 | 想看看随机方向能出什么，顺便学点 | `document/flows/generation.md` §2.2 |
-| ③ 快速模式 | 高价值复用 | 有正事，让 agent 后台跑（历史主题深挖/模版生成） | `document/flows/generation.md` §2.3 |
+| ① 教学模式 | 人机交互学习核心 | 想边做边学，理解每一步为什么 | `document/flows/generation.md` §1.1 |
+| ② 随机模式 | 快速探索 + 顺带教学 | 想看看随机方向能出什么，顺便学点 | `document/flows/generation.md` §1.2 |
+| ③ 快速模式 | 高价值复用 | 有正事，让 agent 后台跑（历史主题深挖/模版生成） | `document/flows/generation.md` §1.3 |
 
 用户也可在会话中随时口头切换模式。
 

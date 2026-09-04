@@ -97,7 +97,7 @@ class Store:
         self._conn.commit()
 
     # ---- alphas ----
-    def save_alpha(self, alpha: dict[str, Any]) -> int:
+    def save_alpha(self, alpha: dict[str, Any]) -> None:
         """保存/更新 alpha 记录（幂等，按 id 覆盖）。"""
         self._conn.execute(
             "INSERT OR REPLACE INTO alphas "
@@ -117,7 +117,6 @@ class Store:
             ),
         )
         self._conn.commit()
-        return self._conn.total_changes
 
     def alpha_hash_exists(self, expr_hash: str) -> bool:
         """按表达式哈希查重（预检阶段用，防止重复模拟消耗配额）。"""
@@ -160,7 +159,7 @@ class Store:
         return out
 
     # ---- simulations ----
-    def save_simulation(self, sim: dict[str, Any]) -> int:
+    def save_simulation(self, sim: dict[str, Any]) -> None:
         """保存/更新一次模拟记录（幂等，按 id 覆盖）。
 
         id 为平台 sim_id（v1.6 中断恢复）；旧记录 id=sim_{expr_hash} 保留兼容
@@ -190,7 +189,6 @@ class Store:
             ),
         )
         self._conn.commit()
-        return self._conn.total_changes
 
     def find_pending_sim_id(self, expr_hash: str) -> str | None:
         """查可续查的模拟记录（PENDING/TIMEOUT），返回平台 sim_id（simulations.id）。
@@ -232,7 +230,7 @@ class Store:
         return out
 
     # ---- submissions ----
-    def save_submission(self, sub: dict[str, Any]) -> int:
+    def save_submission(self, sub: dict[str, Any]) -> None:
         """保存一条提交记录（幂等，按 id 覆盖；供 ACTIVE 回查）。"""
         self._conn.execute(
             "INSERT OR REPLACE INTO submissions "
@@ -249,10 +247,9 @@ class Store:
             ),
         )
         self._conn.commit()
-        return self._conn.total_changes
 
     # ---- lessons / failures ----
-    def save_lesson(self, lesson: dict[str, Any]) -> int:
+    def save_lesson(self, lesson: dict[str, Any]) -> None:
         """保存一条经验教训（幂等，脱敏后写入 playbook 的数据源）。"""
         self._conn.execute(
             "INSERT OR REPLACE INTO lessons "
@@ -269,9 +266,8 @@ class Store:
             ),
         )
         self._conn.commit()
-        return self._conn.total_changes
 
-    def save_failure(self, failure: dict[str, Any]) -> int:
+    def save_failure(self, failure: dict[str, Any]) -> None:
         """保存一条证伪记录（幂等；记录已证伪路径，避免重复走死路）。"""
         self._conn.execute(
             "INSERT OR REPLACE INTO failures "
@@ -284,7 +280,6 @@ class Store:
             ),
         )
         self._conn.commit()
-        return self._conn.total_changes
 
     def failure_stats(
         self, limit: int = 20, category: str | None = None

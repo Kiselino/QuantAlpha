@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import requests
 
-BASE_URL = "https://api.worldquantbrain.com"
+from qa.transport import BASE_URL
 
 
 class AuthError(RuntimeError):

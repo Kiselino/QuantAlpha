@@ -179,6 +179,15 @@ def test_load_fields_corrupt_json_raises_with_guidance(tmp_path):
         knowledge.load_fields(paths)
 
 
+def test_load_top_fields_corrupt_json_raises_with_guidance(tmp_path):
+    """top_fields.json 损坏 → 抛含"已损坏"+修复引导的 KnowledgeMissingError（不再裸抛）。"""
+    paths = QaPaths(tmp_path)
+    paths.KNOWLEDGE_FIELDS_DIR.mkdir(parents=True, exist_ok=True)
+    paths.KNOWLEDGE_TOP_FIELDS_JSON.write_text("{broken json", encoding="utf-8")
+    with pytest.raises(KnowledgeMissingError, match="update-knowledge --force"):
+        knowledge.load_top_fields(paths)
+
+
 def test_load_fields_returns_ids_and_types(seeded):
     """v1.4.1：字段白名单 + 类型映射（validate 类型检查的数据源）。"""
     paths, _, _ = seeded
@@ -192,6 +201,15 @@ def test_knowledge_status_meta_or_none(seeded, tmp_path):
     paths, _, _ = seeded
     assert knowledge.knowledge_status(paths) is not None
     assert knowledge.knowledge_status(QaPaths(tmp_path / "empty")) is None
+
+
+def test_knowledge_status_corrupt_json_raises(tmp_path):
+    """meta.json 损坏 → 抛 KnowledgeMissingError（status 命令捕获后打印损坏提示）。"""
+    paths = QaPaths(tmp_path)
+    paths.KNOWLEDGE_FIELDS_DIR.mkdir(parents=True, exist_ok=True)
+    paths.KNOWLEDGE_META_JSON.write_text("{broken json", encoding="utf-8")
+    with pytest.raises(KnowledgeMissingError, match="已损坏"):
+        knowledge.knowledge_status(paths)
 
 
 # ---- 经验沉淀 ----

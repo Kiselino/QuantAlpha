@@ -25,12 +25,16 @@ class Candidate:
 
 
 def load_candidates(path: Path) -> list[Candidate]:
-    """读取候选 JSON 文件（容错：跳过非法条目）。"""
+    """读取候选 JSON 文件（根须为数组；容错：跳过非法条目）。"""
     if not path.exists():
         raise FileNotFoundError(f"候选文件不存在: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, list):
-        return []
+        raise ValueError(
+            f"候选文件结构错误（根元素须为 JSON 数组）: {path}\n"
+            "正确格式: [{description, hypothesis, expression, dataset_ids, ...}, ...]，"
+            "示例见 data/candidates/YYYY-MM-DD.json。"
+        )
     cands: list[Candidate] = []
     for it in data:
         if not isinstance(it, dict):

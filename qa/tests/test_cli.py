@@ -602,6 +602,97 @@ def test_run_resume_fallback_on_404(tmp_qa, monkeypatch, capsys):
     assert store.find_pending_sim_id(h) is None
 
 
+def test_run_timeout_recorded_then_resumes_on_rerun(tmp_qa, monkeypatch, capsys):
+    """轮询 TIMEOUT → 落 TIMEOUT 记录；重跑走 find_pending_sim_id 续查并成功。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.brain_client import RateLimits
+    from qa.store import Store
+    from qa.validate import expression_hash
+    from qa.commands import run as run_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    expr = "rank(close)"
+    h = expression_hash(expr)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="动量", hypothesis="h", expression=expr, dataset_ids=["pv1"]
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        run_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+    monkeypatch.setattr(
+        run_mod.BrainClient,
+        "rate_limits",
+        lambda self: RateLimits(remaining_minute=30, limit_minute=30),
+    )
+
+    # 第一次运行：发起成功但轮询超时 → _record_poll_error 落 TIMEOUT 记录
+    monkeypatch.setattr(
+        run_mod.BrainClient, "simulate", lambda self, c, s: "plat_sim_timeout"
+    )
+    monkeypatch.setattr(
+        run_mod.BrainClient,
+        "poll_simulation",
+        lambda self, sid, max_wait=600.0: (_ for _ in ()).throw(
+            TimeoutError("timeout")
+        ),
+    )
+    monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
+
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
+    out = capsys.readouterr().out
+    assert rc == 0  # 超时是已处理的失败终态，不是会话中断
+    assert "✗ 模拟失败" in out
+    store = Store(paths.DB)
+    sims = store.list_simulations(h)
+    assert len(sims) == 1
+    assert sims[0]["id"] == "plat_sim_timeout"
+    assert sims[0]["status"] == "TIMEOUT"
+
+    # 重跑：TIMEOUT 记录被 find_pending_sim_id 命中 → 续查不重新 simulate
+    simulated: list[str] = []
+    monkeypatch.setattr(
+        run_mod.BrainClient,
+        "simulate",
+        lambda self, c, s: simulated.append(c) or "never",
+    )
+    polled: list[str] = []
+    monkeypatch.setattr(
+        run_mod.BrainClient,
+        "poll_simulation",
+        lambda self, sid, max_wait=600.0: (
+            polled.append(sid)
+            or run_mod.SimulationResult(
+                sim_id=sid,
+                status="COMPLETED",
+                alpha_id="a1",
+                checks=[],
+                metrics={"sharpe": 1.5, "fitness": 1.1, "turnover": 0.2},
+            )
+        ),
+    )
+
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert simulated == []  # 续查路径不重新 simulate
+    assert polled == ["plat_sim_timeout"]
+    assert "PASS" in out
+    sims = store.list_simulations(h)
+    assert len(sims) == 1
+    assert sims[0]["status"] == "COMPLETED"
+    assert store.find_pending_sim_id(h) is None
+
+
 def test_main_status_missing_cookie(tmp_qa, monkeypatch, capsys):
     import qa.cli as cli_mod
 
@@ -1113,6 +1204,8 @@ def test_cmd_submit_verify_failure_keeps_pending_removed(tmp_qa, monkeypatch, ca
     failures = store._conn.execute("SELECT * FROM failures").fetchall()
     assert [f["id"] for f in failures] == []
 
+
+def test_cmd_update_knowledge_skips_recent(tmp_qa, monkeypatch, capsys):
     """24h 内已生成的知识库默认跳过抓取；--force 强制刷新。"""
     from datetime import datetime, timedelta, timezone
 
@@ -1158,6 +1251,35 @@ def test_cmd_submit_verify_failure_keeps_pending_removed(tmp_qa, monkeypatch, ca
     out = capsys.readouterr().out
     assert rc == 0
     assert called
+
+
+def test_cmd_update_knowledge_corrupt_meta_rebuilds(tmp_qa, monkeypatch, capsys):
+    """meta.json 损坏（knowledge 抛错契约）→ update-knowledge 不崩溃，重新抓取重建。"""
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.commands import update_knowledge as uk_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    paths.KNOWLEDGE_META_JSON.write_text("{corrupt", encoding="utf-8")
+    monkeypatch.setattr(
+        uk_mod,
+        "get_stage",
+        lambda p: StageInfo(level="BRONZE", is_consultant=False, regions=["USA"]),
+    )
+    called = []
+    monkeypatch.setattr(
+        uk_mod.knowledge,
+        "build_local_knowledge",
+        lambda *a, **k: called.append(True) or {"field_count": 0, "dataset_count": 0},
+    )
+
+    rc = uk_mod.cmd_update_knowledge(paths, None, pace=0.0)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert called  # 损坏视为未生成 → 重抓自愈（不误判 24h 跳过）
+    assert "meta 已损坏" in out
 
 
 def test_cmd_update_knowledge_end_to_end(tmp_qa, monkeypatch, capsys):
@@ -1546,6 +1668,29 @@ def test_cmd_status_level_mismatch_no_warning(tmp_qa, monkeypatch, capsys):
     assert "知识库一致性" not in out
 
 
+def test_cmd_status_knowledge_corrupt_meta_warns_rebuild(tmp_qa, monkeypatch, capsys):
+    """status：meta.json 损坏（knowledge 抛错契约）→ 提示重建并继续，不崩溃。"""
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.commands import status as status_mod
+
+    paths = QaPaths(tmp_qa)
+    _seed_knowledge(paths)
+    paths.KNOWLEDGE_META_JSON.write_text("{corrupt", encoding="utf-8")
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    monkeypatch.setattr(
+        status_mod,
+        "get_stage",
+        lambda p: StageInfo(level="BRONZE", is_consultant=False),
+    )
+    assert status_mod.cmd_status(paths) == 0
+    out = capsys.readouterr().out
+    assert "已损坏" in out
+    assert "update-knowledge --force" in out
+    # 损坏时读不到 stage 快照：不误报"资格不一致"
+    assert "知识库一致性" not in out
+
+
 def test_cmd_status_splits_level_and_consultant(tmp_qa, monkeypatch, capsys):
     """status：等级与资格分离展示（level 是分数段位，非顾问资格）。"""
     from qa.paths import QaPaths
@@ -1642,10 +1787,93 @@ def test_cmd_run_interrupts_on_session_expired(tmp_qa, monkeypatch, capsys):
 
     rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
     out = capsys.readouterr().out
-    assert rc == 0
+    assert rc == 1  # 半程中断不得报成功：调用方（agent）据此知道闭环未完整
     assert "会话已过期" in out
     assert "剩余 4 个候选未模拟" in out
     assert "qa login 后重试" in out
+    assert "已中断" in out  # 末尾中断提示替换"完成"措辞
+
+
+def test_cmd_run_session_expired_keeps_completed_results(tmp_qa, monkeypatch, capsys):
+    """中断保留：会话在轮询中过期 → 已成功的模拟仍写 alpha/pending/报告，但 rc=1。"""
+    from qa.candidates import Candidate
+    from qa.paths import QaPaths
+    from qa.stage import StageInfo
+    from qa.brain_client import RateLimits, SimulationResult
+    from qa.store import Store
+    from qa.validate import expression_hash
+    from qa.commands import run as run_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+    _seed_knowledge(paths)
+    expr_ok = "rank(close)"
+    expr_lost = "rank(volume)"
+    h_ok = expression_hash(expr_ok)
+    cand_path = paths.CANDIDATES_DIR / "2026-08-14.json"
+    _dump_cands(
+        cand_path,
+        [
+            Candidate(
+                description="先完成的动量",
+                hypothesis="h",
+                expression=expr_ok,
+                dataset_ids=["pv1"],
+            ),
+            Candidate(
+                description="遇会话过期的量能",
+                hypothesis="h",
+                expression=expr_lost,
+                dataset_ids=["pv1"],
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        run_mod, "get_stage", lambda p: StageInfo(level="TEST", is_consultant=False)
+    )
+    monkeypatch.setattr(
+        run_mod.BrainClient,
+        "rate_limits",
+        lambda self: RateLimits(remaining_minute=30, limit_minute=30),
+    )
+    monkeypatch.setattr(
+        run_mod.BrainClient,
+        "simulate",
+        lambda self, c, s: f"sim_{expression_hash(c)}",
+    )
+
+    def fake_poll(self, sim_id, max_wait=600.0):
+        if sim_id == f"sim_{expression_hash(expr_lost)}":
+            raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
+        return SimulationResult(
+            sim_id=sim_id,
+            status="COMPLETED",
+            alpha_id="a1",
+            checks=[{"name": "SHARPE", "result": "PASS", "value": 1.5}],
+            metrics={"sharpe": 1.5, "fitness": 1.2, "turnover": 0.2},
+        )
+
+    monkeypatch.setattr(run_mod.BrainClient, "poll_simulation", fake_poll)
+    monkeypatch.setattr(run_mod.BrainClient, "correlations_self", lambda self, aid: 0.1)
+
+    rc = run_mod.cmd_run(paths, run_mod.AppConfig(), str(cand_path))
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "已中断" in out
+    assert "PASS" in out
+
+    # 已成功的模拟保留：alpha COMPLETE + pending 暂存 + 每日报告均写入
+    store = Store(paths.DB)
+    alphas = store.list_alphas()
+    assert [a["id"] for a in alphas] == [h_ok]
+    assert alphas[0]["status"] == "COMPLETE"
+    pending = json.loads(paths.PENDING_SUBMITS.read_text(encoding="utf-8"))
+    assert [e["id"] for e in pending] == [h_ok]
+    from datetime import datetime
+
+    daily = paths.REPORTS_DIR / "daily" / f"{datetime.now().strftime('%Y-%m-%d')}.md"
+    assert daily.exists()
+    assert expr_ok in daily.read_text(encoding="utf-8")
 
 
 def test_cmd_submit_permission_error_reports_login(tmp_qa, monkeypatch, capsys):
@@ -1681,6 +1909,35 @@ def test_cmd_submit_permission_error_reports_login(tmp_qa, monkeypatch, capsys):
     assert "登录失效" in out
     assert "qa login" in out
     assert "相关门查询失败" not in out
+
+
+def test_cmd_submit_missing_alpha_or_simulation_records(tmp_qa, capsys):
+    """submit 前置分支：alpha 不存在 / 尚无模拟记录 → 明确提示且 return 1。"""
+    from qa.paths import QaPaths
+    from qa.store import Store
+    from qa.validate import expression_hash
+    from qa.commands import submit as submit_mod
+
+    paths = QaPaths(tmp_qa)
+    paths.COOKIE.write_text("t=abc", encoding="utf-8")
+
+    # 分支 1：alpha 不存在（本地 alphas 表无记录）
+    rc = submit_mod._cmd_submit(paths, "h_ghost", yes=True)
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "未找到 alpha" in out
+    assert "qa report" in out
+
+    # 分支 2：alpha 在但尚无模拟记录
+    h = expression_hash("rank(close)")
+    Store(paths.DB).save_alpha(
+        {"id": h, "expression": "rank(close)", "ast_hash": h, "status": "COMPLETE"}
+    )
+    rc = submit_mod._cmd_submit(paths, h, yes=True)
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "尚无模拟记录" in out
+    assert "qa run" in out
 
 
 def test_update_knowledge_permission_error_reports_login(tmp_qa, monkeypatch, capsys):

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from typing import Any
 
 from qa import knowledge
+from qa.commands._common import _load_pending
 from qa.config import AppConfig
+from qa.knowledge import KnowledgeMissingError
 from qa.paths import QaPaths
-from qa.stage import StageInfo, get_stage
+from qa.stage import get_stage
 
 
 def _env_checks(paths: QaPaths) -> dict[str, bool]:
@@ -63,25 +64,6 @@ def _show_cached_stage(paths: QaPaths) -> None:
         )
 
 
-def _save_account_info(paths: QaPaths, stage: StageInfo) -> None:
-    """登录成功后写账户阶段摘要到 secrets/account_info.json。
-
-    只存阶段摘要（level/资格/区域/语言/时间），不含密码与分数明细；
-    status 在 cookie 失效时读作离线阶段缓存。
-    """
-    info = {
-        "level": stage.level,
-        "is_consultant": stage.is_consultant,
-        "regions": list(stage.regions),
-        "languages": list(stage.expression_languages),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-    paths.ACCOUNT_INFO.parent.mkdir(parents=True, exist_ok=True)
-    paths.ACCOUNT_INFO.write_text(
-        json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-
-
 def cmd_status(paths: QaPaths) -> int:
     """启动首查：本地环境判定 + cookie 验证 + 阶段检测 + 知识库一致性。
 
@@ -98,25 +80,32 @@ def cmd_status(paths: QaPaths) -> int:
     }
     print(f"[status] {guides[verdict]}")
 
+    meta_ok = False
     if not checks["meta"]:
         print(
             "  知识库: ❌ 未生成 → 请运行 `qa update-knowledge` "
             "按账户抓取字段知识（首次必做，数据仅存本地不上传）"
         )
     else:
-        meta = knowledge.knowledge_status(paths)
-        if meta is None or not checks["fields"]:
-            print(
-                "  知识库: ⚠️ meta 存在但 fields.json 缺失 → "
-                "请运行 `qa update-knowledge --force` 重建"
-            )
+        try:
+            meta = knowledge.knowledge_status(paths)
+        except KnowledgeMissingError:
+            # meta.json 损坏（knowledge 统一抛错契约，见 qa/knowledge.py）
+            print("  知识库: ⚠️ 已损坏（建议 qa update-knowledge --force 重建）")
         else:
-            print(
-                f"  知识库: ✅ {meta.get('field_count', '?')} 字段 / "
-                f"{meta.get('dataset_count', '?')} 数据集 / "
-                f"区域 {', '.join(meta.get('regions', []))} "
-                f"（生成于 {str(meta.get('generated_at', ''))[:10]}）"
-            )
+            meta_ok = True
+            if meta is None or not checks["fields"]:
+                print(
+                    "  知识库: ⚠️ meta 存在但 fields.json 缺失 → "
+                    "请运行 `qa update-knowledge --force` 重建"
+                )
+            else:
+                print(
+                    f"  知识库: ✅ {meta.get('field_count', '?')} 字段 / "
+                    f"{meta.get('dataset_count', '?')} 数据集 / "
+                    f"区域 {', '.join(meta.get('regions', []))} "
+                    f"（生成于 {str(meta.get('generated_at', ''))[:10]}）"
+                )
 
     if not checks["cookie"]:
         print("  cookie: ❌ cookie 不存在：请运行 qa login 或提供 Copy as cURL")
@@ -144,23 +133,17 @@ def cmd_status(paths: QaPaths) -> int:
     # 知识库一致性：fields meta 的资格快照 vs 当前资格，不符提示刷新。
     # 只比 is_consultant（决定字段/区域可用性的维度）——用户阶段内 BRONZE/SILVER/GOLD
     # 只是分数段位，不改变字段可用性，等级变化无需刷新知识库。
-    if checks["meta"]:
-        meta = knowledge.knowledge_status(paths) or {}
-        meta_stage = meta.get("stage") or {}
+    # meta 损坏时上面已提示重建，此处不重复读/不误报资格不符。
+    if checks["meta"] and meta_ok:
+        meta_stage = (meta or {}).get("stage") or {}
         if bool(meta_stage.get("is_consultant")) != stage.is_consultant:
             print(
                 "  知识库一致性: ⚠️ 与当前账号资格不符 → 建议 `qa update-knowledge --force` 刷新"
             )
 
-    if paths.PENDING_SUBMITS.exists():
-        try:
-            n_pending = len(
-                json.loads(paths.PENDING_SUBMITS.read_text(encoding="utf-8"))
-            )
-        except ValueError:
-            n_pending = 0
-        if n_pending:
-            print(f"  待提交暂存: ⚠️ 有 {n_pending} 个已达标 alpha 暂存待提交")
+    pending = _load_pending(paths, "status")
+    if pending:
+        print(f"  待提交暂存: ⚠️ 有 {len(pending)} 个已达标 alpha 暂存待提交")
     return 0
 
 

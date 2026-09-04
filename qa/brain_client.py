@@ -11,7 +11,12 @@ from typing import Any
 
 import requests
 
-BASE_URL = "https://api.worldquantbrain.com"
+from qa.transport import (
+    BASE_URL,
+    SESSION_EXPIRED_MESSAGE,
+    retry_get,
+    sleep_on_429 as _sleep_on_429,
+)
 
 
 @dataclass
@@ -30,12 +35,12 @@ class RateLimits:
 class SimulationResult:
     """一次模拟的最终结果（轮询完成后组装）。
 
-    status：平台状态值（实测为 COMPLETE，非 COMPLETED）。
+    status：平台状态值（实测为 COMPLETE，非 COMPLETED；兼容保留旧值 COMPLETED）。
     alpha_id：COMPLETE 后存在，用于拉取 alpha 详情（is 数据）。
     """
 
     sim_id: str
-    status: str  # PENDING / COMPLETE / ERROR / FAILED
+    status: str  # PENDING / COMPLETE / COMPLETED / ERROR / FAILED
     alpha_id: str | None = None
     checks: list[dict[str, Any]] = field(default_factory=list)
     metrics: dict[str, float | None] = field(default_factory=dict)
@@ -51,7 +56,7 @@ class SubmissionRejected(Exception):
 
 
 class BrainClient:
-    """BRAIN API 封装。cookie 读自 secrets/worldquant_cookies.txt。"""
+    """BRAIN API 封装。cookie 由调用方传入（读自 secrets/worldquant_cookies.txt）。"""
 
     def __init__(
         self,
@@ -78,29 +83,16 @@ class BrainClient:
     def _retry_get(
         self, path: str, params: dict[str, Any] | None = None, attempts: int = 3
     ) -> tuple[int, dict[str, Any] | list[Any], dict[str, Any]]:
-        """带 429 退避的 GET（区分常规限流与 THROTTLED）。
-
-        空响应/非 JSON body 视为平台瞬时异常，重试而非抛 JSONDecodeError
-        （实测：相关门等端点偶发空 body，直接调用正常）。
-        """
-        for attempt in range(attempts):
-            resp = self.session.get(
-                f"{self.base_url}{path}", params=params, timeout=self.timeout
-            )
-            if resp.status_code == 429:
-                _sleep_on_429(resp)
-                continue
-            if resp.status_code in (401, 403):
-                raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
-            resp.raise_for_status()
-            if not resp.content:
-                time.sleep(self.poll_interval)
-                continue
-            try:
-                return resp.status_code, resp.json(), dict(resp.headers)
-            except ValueError:
-                time.sleep(self.poll_interval)
-        raise TimeoutError(f"GET {path} 重试 {attempts} 次后仍失败")
+        """带 429 退避的 GET（实现单点见 qa.transport.retry_get）。"""
+        return retry_get(
+            self.session.get,
+            path,
+            base_url=self.base_url,
+            params=params,
+            attempts=attempts,
+            timeout=self.timeout,
+            retry_delay=self.poll_interval,
+        )
 
     # ---- 模拟 ----
     def _post_with_retry(
@@ -126,7 +118,7 @@ class BrainClient:
             if resp.status_code in (401, 403):
                 if rejection_ok and resp.status_code == 403 and _has_is_checks(resp):
                     return resp
-                raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
+                raise PermissionError(SESSION_EXPIRED_MESSAGE)
             return resp
         raise TimeoutError(f"POST {path} 重试 3 次后仍被限流")
 
@@ -142,6 +134,11 @@ class BrainClient:
             raise ValueError(f"模拟参数被平台拒绝: {resp.text[:300]}")
         resp.raise_for_status()
         location = resp.headers.get("Location", "")
+        if not location:
+            raise RuntimeError(
+                f"模拟响应缺少 Location 头（HTTP {resp.status_code}，无法取得 sim_id）。"
+                f"疑似平台异常或会话异常，表达式前 80 字符: {code[:80]!r}"
+            )
         return location.rsplit("/", 1)[-1]
 
     def poll_simulation(self, sim_id: str, max_wait: float = 600.0) -> SimulationResult:
@@ -249,26 +246,6 @@ def _has_is_checks(resp: requests.Response) -> bool:
         return False
     checks = (body.get("is") or {}) if isinstance(body, dict) else None
     return isinstance(checks, dict) and "checks" in checks
-
-
-def _sleep_on_429(resp: requests.Response) -> None:
-    """429 限流处理（GET/POST 共用）：THROTTLED 抛错，常规限流按 Retry-After 退避。
-
-    实测区分：平台相关性子系统卡死时响应体含 THROTTLED → 非普通限流，暂停批处理。
-    """
-    if "THROTTLED" in resp.text:
-        raise RuntimeError("平台相关性子系统繁忙（THROTTLED），请稍后重试。")
-    time.sleep(min(_parse_retry_after(resp.headers.get("Retry-After")), 120.0))
-
-
-def _parse_retry_after(value: str | None) -> float:
-    """Retry-After 可能是浮点秒数字符串（实测）或 HTTP 日期。"""
-    if not value:
-        return 5.0
-    try:
-        return float(value)
-    except ValueError:
-        return 5.0
 
 
 def _int_or(value, default: int) -> int:

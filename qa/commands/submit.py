@@ -6,10 +6,15 @@ import time
 from typing import Any
 
 from qa.brain_client import BrainClient, SubmissionRejected
-from qa.commands._common import _remove_pending, _sediment_failure, _sediment_lesson
+from qa.commands._common import (
+    _confirm_or_yes,
+    _remove_pending,
+    _require_cookie,
+    _sediment_failure,
+    _sediment_lesson,
+)
 from qa.config import AppConfig
 from qa.paths import QaPaths
-from qa.stage import read_cookie
 from qa.store import Store
 
 
@@ -20,10 +25,8 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
     alpha_id 为本地 expr_hash（alphas 表主键）；平台 alpha_id 取自模拟结果。
     --yes 供 agent 代提交：用户已在对话中显式确认后传入；相关门检查不绕过。
     """
-    try:
-        cookie = read_cookie(paths.COOKIE)
-    except FileNotFoundError as e:
-        print(f"[submit] 错误: {e}")
+    cookie = _require_cookie(paths, "submit")
+    if cookie is None:
         return 1
     store = Store(paths.DB)
     alpha = next((a for a in store.list_alphas() if a["id"] == alpha_id), None)
@@ -89,10 +92,10 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
         return 1
 
     if yes:
-        confirmed = True
         print("  确认: --yes（用户已在对话中显式确认）")
-    else:
-        confirmed = input("确认提交？(y/N): ").strip().lower() in ("y", "yes")
+    confirmed = _confirm_or_yes("确认提交？(y/N): ", yes, "submit")
+    if confirmed is None:
+        return 1  # 非交互 EOF：提示已在 _confirm_or_yes 打印
     if not confirmed:
         print("[submit] 已取消。")
         return 0
@@ -152,7 +155,7 @@ def _cmd_submit(paths: QaPaths, alpha_id: str, yes: bool = False) -> int:
 
     # 平台已接受提交（未抛 SubmissionRejected/异常）→ 从待提交暂存删除，
     # 无论回查状态是否 ACTIVE；被拒/异常时保留暂存供用户重试。
-    _remove_pending(paths, alpha_id)
+    _remove_pending(paths, alpha_id, prefix="submit")
 
     current_status = detail.get("status") or "UNKNOWN"
     confirmed_active = current_status == "ACTIVE"

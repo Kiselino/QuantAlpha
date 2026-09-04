@@ -1,4 +1,4 @@
-"""应用配置：模拟默认参数 + 提交门槛 + 批处理/并发设置。
+"""应用配置：模拟默认参数 + 提交门槛 + 并发设置。
 
 - SimulationDefaults：对齐账号实测的平台模拟默认值（设计 §2.2）；
   顾问阶段可由 stage.py 检测结果覆盖 region/universe 等字段。
@@ -49,7 +49,6 @@ class AppConfig:
     无 LLM 配置——生成由对话层 agent 完成，项目内不调用 LLM API。
     """
 
-    batch_size: int = 10
     concurrency: int = 3
     sim_timeout_seconds: float = 600.0
     min_remaining_minute: int = 3  # v1.4.1：分钟限流剩余低于此值时批间等待

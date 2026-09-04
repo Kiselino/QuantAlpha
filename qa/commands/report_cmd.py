@@ -6,9 +6,9 @@
 from __future__ import annotations
 
 import glob
-import json
 from pathlib import Path
 
+from qa.commands._common import _load_pending
 from qa.config import AppConfig
 from qa.paths import QaPaths
 from qa.report import format_failure_attribution, format_pending
@@ -21,16 +21,12 @@ def _report_pending(paths: QaPaths) -> int:
     展示每个条目的 local_id/description/hypothesis/指标/相关门排序值；
     提交仍逐个人工确认（qa submit <local_id>），不做批量自动提交（合规红线）。
     """
-    p = paths.PENDING_SUBMITS
-    if not p.exists():
+    if not paths.PENDING_SUBMITS.exists():
         print("[report] 暂存为空：无待提交 alpha（先 qa run 模拟并产生 PASS 候选）")
         return 0
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except ValueError:
-        print("[report] 暂存文件损坏：pending_submits.json 无法解析")
-        return 0
-    entries = [e for e in data if isinstance(e, dict)] if isinstance(data, list) else []
+    entries = _load_pending(paths, "report")
+    if entries is None:
+        return 0  # 文件损坏/格式异常：提示已由 _load_pending 打印
     if not entries:
         print("[report] 暂存为空：无待提交 alpha")
         return 0
@@ -40,9 +36,8 @@ def _report_pending(paths: QaPaths) -> int:
 
 def _cmd_report(paths: QaPaths, args) -> int:
     daily_dir = paths.REPORTS_DIR / "daily"
-    rc = 0
     if getattr(args, "pending", False):
-        rc = _report_pending(paths)
+        return _report_pending(paths)
     elif not daily_dir.exists():
         print("[report] 尚无每日汇总。先运行 qa run。")
         return 0
@@ -68,7 +63,7 @@ def _cmd_report(paths: QaPaths, args) -> int:
         if section:
             print()
             print(section)
-    return rc
+    return 0
 
 
 def main(paths: QaPaths, cfg: AppConfig, args) -> int:

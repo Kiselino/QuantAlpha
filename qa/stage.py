@@ -14,8 +14,7 @@ from typing import Any
 import requests
 
 from qa.paths import QaPaths
-
-BASE_URL = "https://api.worldquantbrain.com"
+from qa.transport import BASE_URL, retry_get
 
 # 非顾问 vs 顾问的变量映射（设计 §3.0）
 _CONSULTANT_REGIONS = [
@@ -72,18 +71,18 @@ def read_cookie(path: Path) -> str:
 def fetch_self(cookie: str, base_url: str = BASE_URL) -> dict[str, Any]:
     """GET /users/self —— 阶段检测的数据来源。
 
-    401/403 视为会话失效抛 PermissionError（与 brain_client 约定统一），
-    而非落 `except Exception` 报"无法连接 BRAIN"误导排障。
+    复用 qa.transport.retry_get：401/403 抛 PermissionError（会话过期文案与
+    brain_client 单点统一），带 429 退避与空 body/非 JSON 重试防御（平台偶发
+    空 body），而非落 `except Exception` 报"无法连接 BRAIN"误导排障。
     """
-    resp = requests.get(
-        f"{base_url}/users/self",
+    _, data, _ = retry_get(
+        requests.get,
+        "/users/self",
+        base_url=base_url,
         headers={"Cookie": cookie, "Accept": "application/json"},
         timeout=30,
     )
-    if resp.status_code in (401, 403):
-        raise PermissionError("BRAIN 会话无效或已过期，请更新 cookie 文件。")
-    resp.raise_for_status()
-    return resp.json()
+    return data
 
 
 def detect_stage(self_data: dict[str, Any]) -> StageInfo:

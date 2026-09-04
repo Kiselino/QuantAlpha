@@ -16,9 +16,14 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+from qa.config import SimulationDefaults
 from qa.paths import QaPaths
 
 BASE_PACE_SECONDS = 2.1  # 30 req/min 限流下的安全间隔（分钟配额实测）
+
+# 数据集/字段抓取范围对齐模拟默认（universe/delay/instrumentType 单点引用 config，
+# 避免两处硬编码漂移；region 按账户阶段传入，不入默认值）
+_DEFAULTS = SimulationDefaults()
 
 _PLAYBOOK_TEMPLATE = (
     "# 经验 Playbook（本地，不上传）\n"
@@ -83,9 +88,9 @@ def fetch_dataset_ids(client: Any, region: str) -> list[str]:
             "/data-sets",
             {
                 "region": region,
-                "universe": "TOP3000",
-                "delay": 1,
-                "instrumentType": "EQUITY",
+                "universe": _DEFAULTS.universe,
+                "delay": _DEFAULTS.delay,
+                "instrumentType": _DEFAULTS.instrument_type,
             },
         )
         if it.get("id")
@@ -104,9 +109,10 @@ def fetch_dataset_fields(
             {
                 "dataset.id": dataset_id,  # 实测参数名是点号写法
                 "region": region,
-                "delay": 1,
-                "universe": "TOP3000",
-                "instrumentType": "EQUITY",  # 实测必带，缺失返回 400 Invalid query
+                "delay": _DEFAULTS.delay,
+                "universe": _DEFAULTS.universe,
+                # instrumentType 实测必带，缺失返回 400 Invalid query
+                "instrumentType": _DEFAULTS.instrument_type,
             },
         )
         if it.get("id")
@@ -195,7 +201,7 @@ def load_fields(paths: QaPaths) -> tuple[set[str], dict[str, str]]:
         data = json.loads(p.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         raise KnowledgeMissingError(
-            f"本地字段知识库损坏: {p}\n请运行 `qa update-knowledge --force` 重建。"
+            f"本地字段知识库已损坏: {p}\n请运行 `qa update-knowledge --force` 重建。"
         ) from None
     ids: set[str] = set()
     types: dict[str, str] = {}
@@ -207,26 +213,37 @@ def load_fields(paths: QaPaths) -> tuple[set[str], dict[str, str]]:
 
 
 def load_top_fields(paths: QaPaths) -> list[dict[str, Any]]:
-    """读取每数据集 top 字段（qa suggest 用；缺失抛 KnowledgeMissingError）。"""
+    """读取每数据集 top 字段（qa suggest 用；缺失/损坏抛 KnowledgeMissingError）。"""
     p = paths.KNOWLEDGE_TOP_FIELDS_JSON
     if not p.exists():
         raise KnowledgeMissingError(
             f"本地知识库未生成: {p}\n"
             "首次运行请先执行 `qa update-knowledge` 按账户抓取字段知识。"
         )
-    data = json.loads(p.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        raise KnowledgeMissingError(
+            f"本地 top 字段知识库已损坏: {p}\n请运行 `qa update-knowledge --force` 重建。"
+        ) from None
     return [f for f in data if isinstance(f, dict)]
 
 
 def knowledge_status(paths: QaPaths) -> dict[str, Any] | None:
-    """返回知识库 meta（未生成/损坏返回 None），供 qa status 展示。"""
+    """返回知识库 meta；文件缺失返回 None（未生成）；JSON 损坏抛 KnowledgeMissingError。
+
+    统一损坏契约（与 load_fields/load_top_fields 一致）：损坏不静默吞掉，
+    抛含"已损坏"与修复引导的异常供 status 命令打印提示（status 由调用方捕获）。
+    """
     p = paths.KNOWLEDGE_META_JSON
     if not p.exists():
         return None
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return None
+        raise KnowledgeMissingError(
+            f"本地知识库 meta 已损坏: {p}\n请运行 `qa update-knowledge --force` 重建。"
+        ) from None
 
 
 # ---- 经验沉淀（experience/playbook.md + failures.md）----

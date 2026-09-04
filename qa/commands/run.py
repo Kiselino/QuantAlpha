@@ -15,13 +15,18 @@ import requests
 from qa import knowledge
 from qa.brain_client import BrainClient, SimulationResult
 from qa.candidates import Candidate, load_candidates
-from qa.commands._common import _append_pending, _sediment_failure, _sediment_lesson
+from qa.commands._common import (
+    _append_pending,
+    _require_cookie,
+    _sediment_failure,
+    _sediment_lesson,
+)
 from qa.config import AppConfig
 from qa.knowledge import KnowledgeMissingError
 from qa.paths import QaPaths
 from qa.report import format_candidates, write_daily_summary
 from qa.screener import apply_thresholds, dedupe_by_fields
-from qa.stage import get_stage, read_cookie
+from qa.stage import get_stage
 from qa.store import Store
 from qa.validate import (
     ValidationResult,
@@ -111,11 +116,6 @@ def _load_operators() -> set[str]:
     }
 
 
-def _load_fields(paths: QaPaths) -> tuple[set[str], dict[str, str]]:
-    """字段白名单 + 类型映射：读本地 experience/fields/fields.json（缺失抛错）。"""
-    return knowledge.load_fields(paths)
-
-
 def _settings(
     cfg: AppConfig, candidate_settings: dict[str, object] | None = None
 ) -> dict[str, str | int | float | bool]:
@@ -170,6 +170,7 @@ class _RunContext:
     store: Store
     client: BrainClient
     todo: list[tuple[Candidate, ValidationResult]]
+    operators: set[str]
     session_lost: bool = False
     done: int = 0
     total: int = 0
@@ -293,10 +294,14 @@ def _handle_failure(
 
 
 def _session_lost_prompt(ctx: _RunContext) -> bool:
-    """会话过期中断提示：打印剩余未模拟数；返回 True 表示停止后续批次。"""
+    """会话过期中断提示：打印剩余未模拟数；返回 True 表示停止后续批次。
+
+    已完成数取 ctx.done（含已落库的失败/超时终态），而非 len(ctx.results)
+    （后者只计成功终态，会把已尝试过的候选误报为"剩余未模拟"）。
+    """
     if not ctx.session_lost:
         return False
-    n_remaining = len(ctx.todo) - len(ctx.results)
+    n_remaining = ctx.total - ctx.done
     print(
         f"[run] 会话已过期，剩余 {n_remaining} 个候选未模拟。"
         "已模拟结果已保存（重跑自动跳过/续查），请 qa login 后重试。"
@@ -482,30 +487,27 @@ def _minute_limit_check(ctx: _RunContext) -> None:
         time.sleep(wait)
 
 
-def cmd_run(
+def _prepare_run(
     paths: QaPaths,
     cfg: AppConfig,
     candidates_file: str | None,
-    concurrency: int | None = None,
-) -> int:
-    """完整闭环：读入候选→预检→模拟→筛选→报告（不提交）。
+    concurrency: int | None,
+) -> tuple[_RunContext | None, int]:
+    """阶段 A：会话/候选/知识库加载 → 预检 → 去重 → 批处理上下文。
 
-    候选来源：--candidates-file 指定文件，或自动读当日 data/candidates/YYYY-MM-DD.json。
-    concurrency：显式 --concurrency > stage.max_concurrency > cfg 默认。
+    成功返回 (ctx, max_workers)；任一前置失败已打印原因并返回 (None, 退出码)。
     """
-    try:
-        cookie = read_cookie(paths.COOKIE)
-    except FileNotFoundError as e:
-        print(f"[run] 错误: {e}")
-        return 1
+    cookie = _require_cookie(paths, "run")
+    if cookie is None:
+        return None, 1
     try:
         stage = get_stage(paths)
     except PermissionError:
         print("[run] 登录失效：请 qa login 后重试")
-        return 1
+        return None, 1
     except Exception as e:
         print(f"[run] 阶段检测失败: {e}")
-        return 1
+        return None, 1
 
     if candidates_file:
         cand_path = Path(candidates_file)
@@ -519,18 +521,18 @@ def cmd_run(
             "[run] 提示：请先由 agent 根据 document/ 生成候选并写入 "
             "data/candidates/YYYY-MM-DD.json（或使用 --candidates-file 指定文件）。"
         )
-        return 1
+        return None, 1
     if not candidates:
         print(f"[run] 候选文件为空或无有效条目: {cand_path}")
-        return 1
+        return None, 1
     print(f"[run] 读入 {len(candidates)} 个候选（{cand_path.name}）")
 
     try:
         operators = _load_operators()
-        fields, field_types = _load_fields(paths)
+        fields, field_types = knowledge.load_fields(paths)
     except KnowledgeMissingError as e:
         print(f"[run] 错误: {e}")
-        return 1
+        return None, 1
     store = Store(paths.DB)
     client = BrainClient(cookie)
 
@@ -540,6 +542,9 @@ def cmd_run(
             cand.expression, operators, fields, field_types, language=cand.language
         )
         if not vr.ok:
+            # 预检失败只落库防重（failures 表），不写 experience/failures.md——
+            # 语法/字段级错误属低级失误，不沉淀为"方向证伪"经验
+            # （刻意区别于模拟/提交失败走 _sediment_failure 沉淀证伪库）。
             print(f"  ✗ 预检未过: {cand.expression}  {vr.errors[:2]}")
             store.save_failure(
                 {
@@ -579,7 +584,7 @@ def cmd_run(
     if not todo:
         print("[run] 没有需要模拟的候选（全部预检未过/去重）。")
         write_daily_summary([], paths.REPORTS_DIR)
-        return 0
+        return None, 0
 
     # 并发：显式 --concurrency > stage.max_concurrency > cfg 默认
     workers = concurrency or stage.max_concurrency or cfg.concurrency
@@ -590,19 +595,32 @@ def cmd_run(
     # 会话过期中断标志：worker 捕获 PermissionError 置位，chunk 循环检测后停止
     # 后续批次（幂等设计保证重跑只补未模拟项，不重复耗配额）
     ctx = _RunContext(
-        cfg=cfg, paths=paths, store=store, client=client, todo=todo, total=len(todo)
+        cfg=cfg,
+        paths=paths,
+        store=store,
+        client=client,
+        todo=todo,
+        operators=operators,
+        total=len(todo),
     )
+    return ctx, max_workers
 
+
+def _run_batches(ctx: _RunContext, max_workers: int) -> None:
+    """阶段 B：批处理编排（并发发起/续查/轮询/404 回退重提/批间限流）。
+
+    ctx.session_lost 置位时停止后续批次；已完成的模拟与暂存由 _finalize_results 保留。
+    """
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        for start in range(0, len(todo), max_workers):
-            chunk = todo[start : start + max_workers]
+        for start in range(0, len(ctx.todo), max_workers):
+            chunk = ctx.todo[start : start + max_workers]
 
             # 阶段 1（主线程先查续查记录）：有 PENDING/TIMEOUT 平台 sim_id → 续查；
             # 无记录 → 并行发起 simulate，成功后立即落库 PENDING（中断后重跑可续查）
             new_tasks: list[tuple[Candidate, ValidationResult]] = []
             resume_items: list[tuple[Candidate, ValidationResult, str]] = []
             for cand, vr in chunk:
-                rid = store.find_pending_sim_id(vr.expr_hash)
+                rid = ctx.store.find_pending_sim_id(vr.expr_hash)
                 if rid:
                     resume_items.append((cand, vr, rid))
                 else:
@@ -621,14 +639,22 @@ def cmd_run(
 
             if _session_lost_prompt(ctx):
                 break
-            if start + max_workers < len(todo):
+            if start + max_workers < len(ctx.todo):
                 _minute_limit_check(ctx)
 
+
+def _finalize_results(ctx: _RunContext) -> int:
+    """阶段 C：相关门排序 → pending 暂存 → 多样性统计 → 报告写入。
+
+    会话过期中断（ctx.session_lost）时照常保留已完成的 results/pending/报告，
+    但跳过"完成"措辞、打印中断提示并返回 1——半程中断不得报成功，
+    避免调用方（agent）误判闭环已完成。
+    """
     # 组合视角（P3）：PASS 候选调免费相关门，按 max_corr 升序优先（低相关先提交）
     for r in ctx.results:
         if r["verdict"] == "PASS" and r.get("platform_alpha_id"):
             try:
-                r["corr"] = client.correlations_self(r["platform_alpha_id"])
+                r["corr"] = ctx.client.correlations_self(r["platform_alpha_id"])
             except Exception as e:
                 print(f"    相关门查询失败（保持原排序）: {r['expression']}: {e}")
 
@@ -644,7 +670,7 @@ def cmd_run(
     for r in ranked:
         if r["verdict"] == "PASS":
             _append_pending(
-                paths,
+                ctx.paths,
                 {
                     "id": r["id"],
                     "description": r["description"],
@@ -659,6 +685,7 @@ def cmd_run(
                     # （排序值是 run 时历史值，提交前需复查，submit 会实时重查）
                     "corr": r.get("corr"),
                 },
+                prefix="run",
             )
             n_pending += 1
     if n_pending:
@@ -669,17 +696,42 @@ def cmd_run(
 
     # 批次多样性统计（反馈 agent：同主题变体过多会浪费配额）
     n_sets = len(
-        {frozenset(expression_fields(r["expression"], operators)) for r in ctx.results}
+        {
+            frozenset(expression_fields(r["expression"], ctx.operators))
+            for r in ctx.results
+        }
     )
     print(f"[run] 批次字段多样性: {n_sets} 个不同字段集 / {len(ctx.results)} 个候选")
     print()
     print(format_candidates(ranked))
-    write_daily_summary(ranked, paths.REPORTS_DIR)
+    write_daily_summary(ranked, ctx.paths.REPORTS_DIR)
+    if ctx.session_lost:
+        print("[run] 会话过期，已中断（已完成的模拟已保留，重跑会自动续查跳过）。")
+        return 1
     print(
         f"[run] 完成。通过 {sum(1 for r in ranked if r['verdict'] == 'PASS')} / {len(ranked)} 个候选。"
         f"报告已写入 reports/daily/"
     )
     return 0
+
+
+def cmd_run(
+    paths: QaPaths,
+    cfg: AppConfig,
+    candidates_file: str | None,
+    concurrency: int | None = None,
+) -> int:
+    """完整闭环：读入候选→预检→模拟→筛选→报告（不提交）。
+
+    候选来源：--candidates-file 指定文件，或自动读当日 data/candidates/YYYY-MM-DD.json。
+    concurrency：显式 --concurrency > stage.max_concurrency > cfg 默认。
+    会话过期中断时已完成的模拟/暂存照常保留，但返回 1（半程中断不得报"完成"）。
+    """
+    ctx, n = _prepare_run(paths, cfg, candidates_file, concurrency)
+    if ctx is None:
+        return n
+    _run_batches(ctx, n)
+    return _finalize_results(ctx)
 
 
 def main(paths: QaPaths, cfg: AppConfig, args) -> int:

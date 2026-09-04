@@ -9,9 +9,11 @@ from datetime import datetime, timedelta, timezone
 
 from qa import knowledge
 from qa.brain_client import BrainClient
+from qa.commands._common import _require_cookie
 from qa.config import AppConfig
+from qa.knowledge import KnowledgeMissingError
 from qa.paths import QaPaths
-from qa.stage import get_stage, read_cookie
+from qa.stage import get_stage
 
 
 def cmd_update_knowledge(
@@ -24,7 +26,12 @@ def cmd_update_knowledge(
 
     force=False 且 24h 内已生成时跳过抓取（省配额与时间；顾问 12 区域重抓很贵）。
     """
-    meta = knowledge.knowledge_status(paths)
+    try:
+        meta = knowledge.knowledge_status(paths)
+    except KnowledgeMissingError:
+        # meta.json 损坏（knowledge 统一抛错契约）：视为未生成，直接重抓自愈
+        print("[update-knowledge] 本地知识库 meta 已损坏，重新抓取重建……")
+        meta = None
     if meta and not force:
         generated = meta.get("generated_at")
         if generated:
@@ -54,10 +61,8 @@ def cmd_update_knowledge(
     if not regions:
         print("[update-knowledge] 无可抓取区域。")
         return 1
-    try:
-        cookie = read_cookie(paths.COOKIE)
-    except FileNotFoundError as e:
-        print(f"[update-knowledge] 错误: {e}")
+    cookie = _require_cookie(paths, "update-knowledge")
+    if cookie is None:
         return 1
     client = BrainClient(cookie)
     print(

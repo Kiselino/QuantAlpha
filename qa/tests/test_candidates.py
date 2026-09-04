@@ -54,6 +54,15 @@ def test_load_missing_raises(tmp_qa):
         load_candidates(path)
 
 
+def test_load_non_list_root_raises_value_error(tmp_qa):
+    """根非数组（结构错误）→ 抛 ValueError 指明格式，不再静默返回空列表。"""
+    path = QaPaths(tmp_qa).CANDIDATES_DIR / "2026-08-14.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"description": "单对象"}), encoding="utf-8")
+    with pytest.raises(ValueError, match="根元素须为 JSON 数组"):
+        load_candidates(path)
+
+
 def test_load_drops_invalid_entries(tmp_qa):
     path = QaPaths(tmp_qa).CANDIDATES_DIR / "2026-08-14.json"
     path.parent.mkdir(parents=True, exist_ok=True)

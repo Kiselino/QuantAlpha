@@ -34,5 +34,4 @@ def test_simulation_defaults():
 
 def test_app_config_defaults():
     c = AppConfig()
-    assert c.batch_size == 10
     assert c.concurrency == 3

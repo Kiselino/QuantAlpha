@@ -198,6 +198,22 @@ def test_failure_stats_category_split(tmp_qa):
     }
 
 
+def test_list_falls_back_on_corrupt_json_fields(tmp_qa):
+    """DB 中损坏的 JSON 字段 → list_* 回落默认值，不抛 JSONDecodeError。"""
+    s = Store(QaPaths(tmp_qa).DB)
+    s.save_alpha(
+        {"id": "a1", "expression": "rank(close)", "ast_hash": "h1", "status": "DRAFT"}
+    )
+    s._conn.execute("UPDATE alphas SET metrics_json = '{broken' WHERE id = 'a1'")
+    s.save_simulation({"id": "sim1", "alpha_id": "h1", "status": "PENDING"})
+    s._conn.execute("UPDATE simulations SET result_json = '{broken' WHERE id = 'sim1'")
+    s._conn.commit()
+    alpha = s.list_alphas()[0]
+    assert alpha["metrics"] == {}  # 损坏回落默认值
+    sim = s.list_simulations("h1")[0]
+    assert sim["result"] == {}
+
+
 def test_audit_jsonl(tmp_qa):
     s = Store(QaPaths(tmp_qa).DB)
     s.append_audit("sim", {"id": "s1"})

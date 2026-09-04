@@ -6,7 +6,7 @@ import getpass
 import os
 
 from qa import auth
-from qa.commands.status import _save_account_info
+from qa.commands._common import _save_account_info
 from qa.config import AppConfig
 from qa.paths import QaPaths
 from qa.stage import get_stage
@@ -30,6 +30,10 @@ def _cmd_login(paths: QaPaths, username: str | None, password: str | None) -> in
         return 1
     except auth.AuthError as e:
         print(f"[login] {e}")
+        return 1
+    except EOFError:
+        # 非交互环境无 stdin：agent 应通过 --username/--password 传参，而非挂起等输入
+        print("[login] 非交互环境请使用 --username/--password 参数。")
         return 1
     except Exception as e:
         print(f"[login] 登录失败: {e}")

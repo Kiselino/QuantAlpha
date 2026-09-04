@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from qa import knowledge
+from qa.commands._common import _confirm_or_yes
 from qa.config import AppConfig
 from qa.paths import QaPaths
 
@@ -37,14 +38,9 @@ def _cmd_reset(paths: QaPaths, yes: bool = False) -> int:
         "experience/fields/ 账户字段知识、qa/ 代码"
     )
 
-    if yes:
-        confirmed = True
-    else:
-        try:
-            confirmed = input("确认清除？(y/N): ").strip().lower() in ("y", "yes")
-        except EOFError:
-            print("[reset] 非交互环境请使用 --yes（确认后由 agent 执行）。")
-            return 1
+    confirmed = _confirm_or_yes("确认清除？(y/N): ", yes, "reset")
+    if confirmed is None:
+        return 1  # 非交互 EOF：提示已在 _confirm_or_yes 打印
     if not confirmed:
         print("[reset] 已取消。")
         return 0

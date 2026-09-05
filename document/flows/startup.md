@@ -14,7 +14,7 @@
 | 5 | 待提交暂存（`secrets/pending_submits.json`） | 无 | 有 PASS 暂存 → **先报告等确认提交，不叠加新循环** |
 | 6 | **教程进度**（本地 `docs/bootcamp/mastery.json` 阶段掌握度） | 已通过（S0-S5 全阶段 core 达标或用户明确声明跳过） | 未建/未达标 → 进入生成环节前先推进当前阶段 bootcamp 学习（教材 `document/courses/`，闭环协议 `document/courses/bootcamp/protocol.md`——个人执行副本与档案在本地 gitignored `docs/bootcamp/`） |
 
-> 检查 6 说明：mastery.json 为本地个人学习档案（gitignored，topic 带 stage 字段，记录 S0-S5 各阶段 core 考点状态）。达标判定 = 阶段门控推进：当前阶段 core 考点全部达标解锁下一段（bootcamp 协议 §2），S0-S5 全阶段通过即教程通过；用户声明"不考顾问/跳过学习"可视为通过（对话层确认即可）。`qa status` 代码不检查该项——由 agent 按本表执行。
+> 检查 6 说明：mastery.json 为本地个人学习档案（gitignored，topic 带 stage 字段，记录 S0-S5 各阶段 core 考点状态）。达标判定 = 阶段门控推进：当前阶段 core 考点全部达标解锁下一段（bootcamp 协议 §2），S0-S5 全阶段通过即教程通过；出口评测（模拟笔试/面试）见 bootcamp protocol §5；用户声明"不考顾问/跳过学习"可视为通过（对话层确认即可）。`qa status` 代码不检查该项——由 agent 按本表执行。
 
 启动后获得动态配置：并发数、可用区域、字段范围、表达式语言（详细决策见 `document/flows/access.md`）。
 

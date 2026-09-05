@@ -113,7 +113,7 @@ A 概念解释（40%）/ B 机制计算（20%）/ C 概念辨析（20%）/ D 场
 | S1 跑通第一个 alpha | alpha 定义、市场矩阵、模拟七步、设置面板初识、Market 中性化权重手算与 long/short count | official_how-brain-platform-works、official_simulation-settings、official_running-your-first-alpha、lesson1 + 作业1 | 产出① 引导复刻 1 个真实候选跑通 |
 | S2 数据与选字段 | 字段分类与类型、Data Explorer、覆盖/更新频率、定量探测法 | official_data、official_how-use-data-explorer、official_vector-datafields、official_group-data-fields、lesson2 + 作业2 | 产出② 探测法选字段做变体 |
 | S3 算子与表达式 | FASTEXPR 结构、算子族语义（ts_*/rank/group_*）、group 应用/bucket/densify、AI 协作工作法 | lesson2/lesson3、official_introduction-brain-expression-language + 作业2 必做5 | 场景题（官方作业题型） |
-| S4 参数与模板产出 | 中性化层级/decay/truncation/nanHandling/test period 选择逻辑；数据集→模板→展开→批量回测 | lesson3/lesson4、official_simulation-settings + 作业3 三件套 | 产出③ 模板批量链（≥3 表达式、批量回测、≥1 个提交） |
+| S4 参数与模板产出 | 中性化层级/decay/truncation/nanHandling/test period 选择逻辑；数据集→模板→展开→批量回测 | lesson3/lesson4、official_simulation-settings + 作业3 三件套 | 产出③ 模板批量链（≥3 表达式、≥20 次回测练手、≥1 个提交） |
 | S5 结果与提交门 | 指标公式与读法、质量原则、相关门/子宇宙、IS/OS/TEST、提交 do & don't | lesson4、official_alpha-submission、official_parameters-simulation-results、official_how-pass-sub-universe-test、作业1-3 | 概念综合 → 模拟笔试+模拟面试（出口） |
 
 **产出三件套（学习记录 = 提交记录）**：全部走 `qa run` 真实模拟，PASS 即按 submission.md 流程

@@ -2,7 +2,7 @@
 
 > 任何 AI agent（opencode / claude code / codex）打开本仓库后的**第一读取文件**。
 > 本文档只做导航与约束：**流程细节全部在 `document/flows/`，按环节到点才读**。
-> 权威系统设计见 `document/quantalpha-design.md`（v1.8.1）。
+> 权威系统设计见 `document/quantalpha-design.md`（v1.9.0）。
 
 ## 项目是什么
 
@@ -82,7 +82,7 @@ QuantAlpha/
 ├── AGENTS.md                    # 本文件（工作流入口 + 导航表）
 ├── README.md                    # 人类说明：安装、认证配置、快速开始
 ├── document/                    # ✅ 公开文档（仓库核心，随仓库分发）
-│   ├── quantalpha-design.md     # ⭐ 权威设计 v1.8.1
+│   ├── quantalpha-design.md     # ⭐ 权威设计 v1.9.0
 │   ├── flows/                   # 流程控制文档（startup/generation/submission/experience/access/update-knowledge/learning）
 │   ├── courses/                 # 官方课程与学习素材（零基础学量化课程笔记 + 官方教程/作业提取 + 官方学习指南）
 │   │   └── bootcamp/            # 学习闭环协议（RLAF 阶段制）/评分/考点模板（公开模板，随仓库分发）
@@ -99,7 +99,7 @@ QuantAlpha/
 ## COMMANDS
 
 - 实现后：`qa login` / `qa status` / `qa run` / `qa submit` / `qa report` / `qa reset` / `qa update-knowledge` / `qa suggest`
-- 测试：`pytest qa/tests/`（设计 v1.8.1 §10）
+- 测试：`pytest qa/tests/`（设计 v1.9.0 §10）
 - 开发节奏：每 2-3 功能更新再提交
 
 ## 最终提交范围（用户约定，提交时遵守）

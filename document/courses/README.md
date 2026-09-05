@@ -36,7 +36,7 @@
 | `homework_course2.md` | 官方 Course2 作业（v3 2026-07） | 练习 | 官方课程作业帖 |
 | `homework_course3.md` | 官方 Course3 作业（V3 2026-07） | 练习 | 官方课程作业帖 |
 
-> 模块归属：M1=WorldQuant 与顾问项目；M2=BRAIN 平台基础；M3=数据探索与操作符；M4=回测结果与提交（对齐 [官方学习指南四方向](official_quiz-guide.md) 与 bootcamp 考纲映射）。
+> 考纲映射：bootcamp 课程主线 = 能力阶段 S0-S5（见 bootcamp/protocol.md §7 与 mastery 模板 stage 字段），知识点同时标注 direction 1-4 对齐 [官方学习指南四方向](official_quiz-guide.md)，供考试覆盖自查。
 
 ## 答疑内容去向说明
 
@@ -50,6 +50,6 @@
 
 ## 使用方式
 
-- 学习闭环协议与模板（公开）：`document/courses/bootcamp/`（protocol 五步闭环 / rubric 评分 / mastery 考点模板 / 1 周速考与 2 周新人双计划）——**新使用者**：复制该目录到本地 `docs/bootcamp/` 并初始化 `mastery.json`（复制 `mastery.template.json`），agent 按协议执行摸底/精学/自测/评分/复习
+- 学习闭环协议与模板（公开，V2 RLAF 课程）：`document/courses/bootcamp/`（protocol 会话闭环 + 阶段主线 S0-S5 / rubric 评分 / mastery 考点模板 53 core）——**新使用者**：复制该目录到本地 `docs/bootcamp/` 并初始化 `mastery.json`（复制 `mastery.template.json`），agent 按协议执行诊断/精学/自测/评分/复习；教程定位 = 帮助成为顾问（通过笔试+面试），进阶学习融入日常交互
 - 个人执行状态（mastery 档案/摸底卷/错题本/答题记录）留在本地 `docs/bootcamp/`（gitignored 不上传）
 - 本目录文件随仓库公开分发；`docs/bootcamp/` 为个人学习状态（gitignored 不上传）

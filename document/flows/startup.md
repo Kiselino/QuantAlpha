@@ -12,9 +12,9 @@
 | 3 | cookie 有效 | 有效 | 不存在/过期 → `qa login` 或提供 Copy as cURL；网络异常 → 提示网络不可达 |
 | 4 | 账号阶段（level/资格/区域/语言） | 输出阶段配置 | 知识库与资格不一致 → 建议 `qa update-knowledge --force` |
 | 5 | 待提交暂存（`secrets/pending_submits.json`） | 无 | 有 PASS 暂存 → **先报告等确认提交，不叠加新循环** |
-| 6 | **教程进度**（本地 `docs/bootcamp/mastery.json` 掌握度） | 已通过（达标率 ≥80% 或用户明确声明跳过） | 未建/未达标 → 进入生成环节前先完成当日 bootcamp 学习段（教材 `document/courses/`，闭环协议 `document/courses/bootcamp/protocol.md`——个人执行副本与档案在本地 gitignored `docs/bootcamp/`） |
+| 6 | **教程进度**（本地 `docs/bootcamp/mastery.json` 阶段掌握度） | 已通过（S0-S5 全阶段 core 达标或用户明确声明跳过） | 未建/未达标 → 进入生成环节前先推进当前阶段 bootcamp 学习（教材 `document/courses/`，闭环协议 `document/courses/bootcamp/protocol.md`——个人执行副本与档案在本地 gitignored `docs/bootcamp/`） |
 
-> 检查 6 说明：mastery.json 为本地个人学习档案（gitignored）。达标判定 = 达标+熟练考点数 / 总数 ≥ 80%；用户声明"不考顾问/跳过学习"可视为通过（对话层确认即可）。`qa status` 代码不检查该项——由 agent 按本表执行。
+> 检查 6 说明：mastery.json 为本地个人学习档案（gitignored，topic 带 stage 字段，记录 S0-S5 各阶段 core 考点状态）。达标判定 = 阶段门控推进：当前阶段 core 考点全部达标解锁下一段（bootcamp 协议 §2），S0-S5 全阶段通过即教程通过；用户声明"不考顾问/跳过学习"可视为通过（对话层确认即可）。`qa status` 代码不检查该项——由 agent 按本表执行。
 
 启动后获得动态配置：并发数、可用区域、字段范围、表达式语言（详细决策见 `document/flows/access.md`）。
 
@@ -32,10 +32,10 @@ BRAIN 平台匿名访问是登录墙（返回 JS 空壳页面）。agent 做官�
 
 **教程未通过时**（新用户或学习未达标）：
 
-1. **进入生成环节前**先完成当日学习段（bootcamp 闭环：诊断 → 精学 → 自测 → 反馈 → 档案更新），每日 1-2 个学习段不叠加生成任务
+1. **进入生成环节前**先推进当前阶段学习段（bootcamp 会话闭环：诊断 → 精学 → 自测 → 反馈 → 档案更新，无按天排期、按知识点推进）
 2. 用户选择生成模式后：
    - **教学模式** = 学习闭环与生成自然融合（讲解当下思路 + 补知识），可跳过单独学习段
-   - **随机/快速模式** = 批次之间插入当日学习段（先学后跑或跑后学，以用户节奏为准）
+   - **随机/快速模式** = 批次之间推进当前阶段学习段（先学后跑或跑后学，以用户节奏为准）
 3. 生成候选时可参考 `document/courses/` 教材中的官方示例与作业题作为灵感（合规：官方公开材料）
 4. 教程通过后恢复正常流程（学习段不再自动插入，用户主动深问转 `document/flows/learning.md`）
 

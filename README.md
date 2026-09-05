@@ -151,7 +151,7 @@ QuantAlpha/
 - `document/quantalpha-design.md` — 权威系统设计（模块/数据模型/错误处理/MVP，v1.8.1）
 - `document/flows/` — 流程控制文档：startup（会话启动/模式询问）、generation（生成三模式）、submission（提交检查/人工确认）、experience（经验沉淀/模版总结）、access（用户 vs 顾问权限矩阵）、update-knowledge（知识库更新/平台调研）、learning（人机交互学习）
 - `document/courses/` — 官方课程与学习素材：零基础学量化课程笔记（4 节新手课）+ 官方教程/作业提取 + 官方学习指南（备考 bootcamp 教材源）
-- `document/courses/bootcamp/` — 学习闭环协议与模板（五步闭环/评分标准/60 考点 mastery 模板/1 周速考与 2 周新人双计划）——新使用者复制到本地 `docs/bootcamp/` 后按协议学习
+- `document/courses/bootcamp/` — 学习闭环协议与模板（V2 RLAF 课程：会话闭环 + 阶段主线 S0-S5/评分标准/53 core 考点 mastery 模板）——新使用者复制到本地 `docs/bootcamp/` 后按协议学习；教程定位 = 帮助成为顾问，进阶学习融入日常交互
 - `document/reference/` — 知识参考：operators（67 算子）、rules（平台规则/门槛/计分/风控）、pitfalls（量化陷阱）、fields（字段策略）、community（外部经验库）、templates（有效模版库）
 - `AGENTS.md` — agent 工作流入口（导航表 + 合规红线 + 命令清单）
 - 本地字段/经验见 `experience/`（`qa update-knowledge` 生成）；bootcamp 个人学习档案（mastery/错题本/摸底卷）见本地 `docs/bootcamp/`（gitignored，协议与模板见上方公开目录）

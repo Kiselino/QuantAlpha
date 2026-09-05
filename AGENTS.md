@@ -29,7 +29,7 @@ WorldQuant BRAIN 平台 AI 辅助量化研究闭环系统。对话式 agent 驱�
 
 1. 启动六项检查：`qa status` 输出前五项（新用户判定/知识库就绪/cookie 有效/账号阶段/待提交暂存）；**第 6 项教程进度**由 agent 依据 `document/flows/startup.md` 检查 → 动态配置
 2. 有 PASS 暂存 → 先报告等确认提交（不叠加新循环）
-3. **教程未通过**（检查第 6 项）→ 进入生成前先完成当日学习段（教材 `document/courses/`，闭环协议 `document/courses/bootcamp/protocol.md`；个人执行副本与档案在本地 `docs/bootcamp/`）
+3. **教程未通过**（检查第 6 项）→ 进入生成前先推进当前阶段学习段（教材 `document/courses/`，闭环协议 `document/courses/bootcamp/protocol.md`；个人执行副本与档案在本地 `docs/bootcamp/`）
 4. 询问**运行模式三选一**：① 教学模式 ② 随机模式 ③ 快速模式（定义见 generation.md）
 5. 教学模式/随机模式：询问主题来源三选一（随机/网络热门/用户指定）
 
@@ -85,7 +85,7 @@ QuantAlpha/
 │   ├── quantalpha-design.md     # ⭐ 权威设计 v1.8.1
 │   ├── flows/                   # 流程控制文档（startup/generation/submission/experience/access/update-knowledge/learning）
 │   ├── courses/                 # 官方课程与学习素材（零基础学量化课程笔记 + 官方教程/作业提取 + 官方学习指南）
-│   │   └── bootcamp/            # 学习闭环协议/评分/考点模板/双计划（公开模板，随仓库分发）
+│   │   └── bootcamp/            # 学习闭环协议（RLAF 阶段制）/评分/考点模板（公开模板，随仓库分发）
 │   └── reference/               # 知识参考（operators/rules/pitfalls/fields/community/templates）
 ├── qa/                          # Python 工具库（auth/stage/brain_client/validate/commands/...）
 ├── docs/                        # 🔒 gitignored：skill 产物（设计/计划存档）+ bootcamp 个人学习档案（mastery/错题本/摸底卷）
